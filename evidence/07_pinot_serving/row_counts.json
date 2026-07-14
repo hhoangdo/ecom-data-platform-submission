@@ -1,0 +1,212 @@
+{
+  "pinot_realtime_commerce_metrics_1m": {
+    "brokerId": "Broker_172.18.0.15_8000",
+    "brokerReduceTimeMs": 2,
+    "clientRequestId": null,
+    "exceptions": [],
+    "explainPlanNumEmptyFilterSegments": 0,
+    "explainPlanNumMatchAllFilterSegments": 0,
+    "groupsTrimmed": false,
+    "minConsumingFreshnessTimeMs": 1783863168429,
+    "numConsumingSegmentsMatched": 0,
+    "numConsumingSegmentsProcessed": 0,
+    "numConsumingSegmentsQueried": 1,
+    "numDocsScanned": 6,
+    "numEntriesScannedInFilter": 0,
+    "numEntriesScannedPostFilter": 0,
+    "numGroupsLimitReached": false,
+    "numGroupsWarningLimitReached": false,
+    "numRowsResultSet": 1,
+    "numSegmentsMatched": 1,
+    "numSegmentsProcessed": 1,
+    "numSegmentsPrunedByBroker": 0,
+    "numSegmentsPrunedByLimit": 0,
+    "numSegmentsPrunedByServer": 0,
+    "numSegmentsPrunedByValue": 0,
+    "numSegmentsPrunedInvalid": 0,
+    "numSegmentsQueried": 1,
+    "numServersQueried": 1,
+    "numServersResponded": 1,
+    "offlineResponseSerMemAllocatedBytes": 0,
+    "offlineResponseSerializationCpuTimeNs": 0,
+    "offlineSystemActivitiesCpuTimeNs": 0,
+    "offlineThreadCpuTimeNs": 0,
+    "offlineThreadMemAllocatedBytes": 0,
+    "offlineTotalCpuTimeNs": 0,
+    "offlineTotalMemAllocatedBytes": 0,
+    "partialResult": false,
+    "pools": [
+      -1
+    ],
+    "realtimeResponseSerMemAllocatedBytes": 0,
+    "realtimeResponseSerializationCpuTimeNs": 0,
+    "realtimeSystemActivitiesCpuTimeNs": 0,
+    "realtimeThreadCpuTimeNs": 0,
+    "realtimeThreadMemAllocatedBytes": 0,
+    "realtimeTotalCpuTimeNs": 0,
+    "realtimeTotalMemAllocatedBytes": 0,
+    "requestId": "1187919062000000132",
+    "resultTable": {
+      "dataSchema": {
+        "columnDataTypes": [
+          "LONG"
+        ],
+        "columnNames": [
+          "row_count"
+        ]
+      },
+      "rows": [
+        [
+          6
+        ]
+      ]
+    },
+    "rlsFiltersApplied": false,
+    "tablesQueried": [
+      "pinot_realtime_commerce_metrics_1m"
+    ],
+    "timeUsedMs": 18,
+    "totalDocs": 6,
+    "traceInfo": {}
+  },
+  "pinot_realtime_metric_corrections": {
+    "brokerId": "Broker_172.18.0.15_8000",
+    "brokerReduceTimeMs": 0,
+    "clientRequestId": null,
+    "exceptions": [],
+    "explainPlanNumEmptyFilterSegments": 0,
+    "explainPlanNumMatchAllFilterSegments": 0,
+    "groupsTrimmed": false,
+    "minConsumingFreshnessTimeMs": 1783863171031,
+    "numConsumingSegmentsMatched": 0,
+    "numConsumingSegmentsProcessed": 0,
+    "numConsumingSegmentsQueried": 1,
+    "numDocsScanned": 19,
+    "numEntriesScannedInFilter": 0,
+    "numEntriesScannedPostFilter": 0,
+    "numGroupsLimitReached": false,
+    "numGroupsWarningLimitReached": false,
+    "numRowsResultSet": 1,
+    "numSegmentsMatched": 1,
+    "numSegmentsProcessed": 1,
+    "numSegmentsPrunedByBroker": 0,
+    "numSegmentsPrunedByLimit": 0,
+    "numSegmentsPrunedByServer": 0,
+    "numSegmentsPrunedByValue": 0,
+    "numSegmentsPrunedInvalid": 0,
+    "numSegmentsQueried": 1,
+    "numServersQueried": 1,
+    "numServersResponded": 1,
+    "offlineResponseSerMemAllocatedBytes": 0,
+    "offlineResponseSerializationCpuTimeNs": 0,
+    "offlineSystemActivitiesCpuTimeNs": 0,
+    "offlineThreadCpuTimeNs": 0,
+    "offlineThreadMemAllocatedBytes": 0,
+    "offlineTotalCpuTimeNs": 0,
+    "offlineTotalMemAllocatedBytes": 0,
+    "partialResult": false,
+    "pools": [
+      -1
+    ],
+    "realtimeResponseSerMemAllocatedBytes": 0,
+    "realtimeResponseSerializationCpuTimeNs": 0,
+    "realtimeSystemActivitiesCpuTimeNs": 0,
+    "realtimeThreadCpuTimeNs": 0,
+    "realtimeThreadMemAllocatedBytes": 0,
+    "realtimeTotalCpuTimeNs": 0,
+    "realtimeTotalMemAllocatedBytes": 0,
+    "requestId": "1187919062000000133",
+    "resultTable": {
+      "dataSchema": {
+        "columnDataTypes": [
+          "LONG"
+        ],
+        "columnNames": [
+          "row_count"
+        ]
+      },
+      "rows": [
+        [
+          19
+        ]
+      ]
+    },
+    "rlsFiltersApplied": false,
+    "tablesQueried": [
+      "pinot_realtime_metric_corrections"
+    ],
+    "timeUsedMs": 9,
+    "totalDocs": 19,
+    "traceInfo": {}
+  },
+  "pinot_realtime_ops_alerts": {
+    "brokerId": "Broker_172.18.0.15_8000",
+    "brokerReduceTimeMs": 0,
+    "clientRequestId": null,
+    "exceptions": [],
+    "explainPlanNumEmptyFilterSegments": 0,
+    "explainPlanNumMatchAllFilterSegments": 0,
+    "groupsTrimmed": false,
+    "minConsumingFreshnessTimeMs": 1783863169299,
+    "numConsumingSegmentsMatched": 0,
+    "numConsumingSegmentsProcessed": 0,
+    "numConsumingSegmentsQueried": 1,
+    "numDocsScanned": 30,
+    "numEntriesScannedInFilter": 0,
+    "numEntriesScannedPostFilter": 0,
+    "numGroupsLimitReached": false,
+    "numGroupsWarningLimitReached": false,
+    "numRowsResultSet": 1,
+    "numSegmentsMatched": 1,
+    "numSegmentsProcessed": 1,
+    "numSegmentsPrunedByBroker": 0,
+    "numSegmentsPrunedByLimit": 0,
+    "numSegmentsPrunedByServer": 0,
+    "numSegmentsPrunedByValue": 0,
+    "numSegmentsPrunedInvalid": 0,
+    "numSegmentsQueried": 1,
+    "numServersQueried": 1,
+    "numServersResponded": 1,
+    "offlineResponseSerMemAllocatedBytes": 0,
+    "offlineResponseSerializationCpuTimeNs": 0,
+    "offlineSystemActivitiesCpuTimeNs": 0,
+    "offlineThreadCpuTimeNs": 0,
+    "offlineThreadMemAllocatedBytes": 0,
+    "offlineTotalCpuTimeNs": 0,
+    "offlineTotalMemAllocatedBytes": 0,
+    "partialResult": false,
+    "pools": [
+      -1
+    ],
+    "realtimeResponseSerMemAllocatedBytes": 0,
+    "realtimeResponseSerializationCpuTimeNs": 0,
+    "realtimeSystemActivitiesCpuTimeNs": 0,
+    "realtimeThreadCpuTimeNs": 0,
+    "realtimeThreadMemAllocatedBytes": 0,
+    "realtimeTotalCpuTimeNs": 0,
+    "realtimeTotalMemAllocatedBytes": 0,
+    "requestId": "1187919062000000134",
+    "resultTable": {
+      "dataSchema": {
+        "columnDataTypes": [
+          "LONG"
+        ],
+        "columnNames": [
+          "row_count"
+        ]
+      },
+      "rows": [
+        [
+          30
+        ]
+      ]
+    },
+    "rlsFiltersApplied": false,
+    "tablesQueried": [
+      "pinot_realtime_ops_alerts"
+    ],
+    "timeUsedMs": 7,
+    "totalDocs": 30,
+    "traceInfo": {}
+  }
+}

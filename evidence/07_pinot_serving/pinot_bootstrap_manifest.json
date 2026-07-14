@@ -1,0 +1,107 @@
+{
+  "captured_at": "2026-07-12T13:32:49.666687+00:00",
+  "controller_url": "http://localhost:9003",
+  "schema_actions": [
+    {
+      "action": "updated",
+      "schema": "pinot_realtime_commerce_metrics_1m"
+    },
+    {
+      "action": "updated",
+      "schema": "pinot_realtime_metric_corrections"
+    },
+    {
+      "action": "updated",
+      "schema": "pinot_realtime_ops_alerts"
+    }
+  ],
+  "schemas": [
+    "pinot_realtime_commerce_metrics_1m",
+    "pinot_realtime_metric_corrections",
+    "pinot_realtime_ops_alerts"
+  ],
+  "table_actions": [
+    {
+      "action": "updated",
+      "table": "pinot_realtime_commerce_metrics_1m"
+    },
+    {
+      "action": "updated",
+      "table": "pinot_realtime_metric_corrections"
+    },
+    {
+      "action": "updated",
+      "table": "pinot_realtime_ops_alerts"
+    }
+  ],
+  "table_status": {
+    "pinot_realtime_commerce_metrics_1m": {
+      "table_debug": [
+        {
+          "brokerDebugInfos": [],
+          "ingestionStatus": {
+            "errorMessage": "",
+            "ingestionState": "HEALTHY"
+          },
+          "numBrokers": 1,
+          "numSegments": 1,
+          "numServers": 1,
+          "segmentDebugInfos": [],
+          "serverDebugInfos": [],
+          "tableName": "pinot_realtime_commerce_metrics_1m_REALTIME",
+          "tableSize": {
+            "estimatedSize": "-1 bytes",
+            "reportedSize": "-1 bytes"
+          }
+        }
+      ]
+    },
+    "pinot_realtime_metric_corrections": {
+      "table_debug": [
+        {
+          "brokerDebugInfos": [],
+          "ingestionStatus": {
+            "errorMessage": "",
+            "ingestionState": "HEALTHY"
+          },
+          "numBrokers": 1,
+          "numSegments": 1,
+          "numServers": 1,
+          "segmentDebugInfos": [],
+          "serverDebugInfos": [],
+          "tableName": "pinot_realtime_metric_corrections_REALTIME",
+          "tableSize": {
+            "estimatedSize": "-1 bytes",
+            "reportedSize": "-1 bytes"
+          }
+        }
+      ]
+    },
+    "pinot_realtime_ops_alerts": {
+      "table_debug": [
+        {
+          "brokerDebugInfos": [],
+          "ingestionStatus": {
+            "errorMessage": "",
+            "ingestionState": "HEALTHY"
+          },
+          "numBrokers": 1,
+          "numSegments": 1,
+          "numServers": 1,
+          "segmentDebugInfos": [],
+          "serverDebugInfos": [],
+          "tableName": "pinot_realtime_ops_alerts_REALTIME",
+          "tableSize": {
+            "estimatedSize": "-1 bytes",
+            "reportedSize": "-1 bytes"
+          }
+        }
+      ]
+    }
+  },
+  "tables": [
+    "pinot_realtime_commerce_metrics_1m",
+    "pinot_realtime_metric_corrections",
+    "pinot_realtime_ops_alerts"
+  ]
+}

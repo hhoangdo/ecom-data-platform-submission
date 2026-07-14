@@ -1,0 +1,90 @@
+{
+  "captured_from_manifest_at": "2026-07-12T07:30:29.466520+00:00",
+  "counts_by_recipe": {
+    "dbt_legacy": 52,
+    "kafka_topics": 14,
+    "minio_storage": 4,
+    "trino_tables": 46
+  },
+  "custom_lineage": {
+    "flink_entities": 3,
+    "gx_assertions_emitted": 8,
+    "spark_entities": 20
+  },
+  "latest_successful_run_id": "topic09_datahub_20260712T072932Z",
+  "status": "success",
+  "total_datasets_emitted": 116,
+  "verified_representative_datasets": {
+    "iceberg_fact_order": {
+      "dataset": {
+        "globalTags": {
+          "tags": [
+            {
+              "tag": {
+                "name": "quality_gate",
+                "urn": "urn:li:tag:quality_gate"
+              }
+            }
+          ]
+        },
+        "name": "vina_bim_shop.fact_order",
+        "platform": {
+          "name": "iceberg"
+        },
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.fact_order,PROD)"
+      },
+      "verified": true
+    },
+    "kafka_commerce_events": {
+      "dataset": {
+        "globalTags": {
+          "tags": [
+            {
+              "tag": {
+                "name": "bronze",
+                "urn": "urn:li:tag:bronze"
+              }
+            }
+          ]
+        },
+        "name": "commerce_events",
+        "platform": {
+          "name": "kafka"
+        },
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:kafka,commerce_events,PROD)"
+      },
+      "verified": true
+    },
+    "pinot_realtime_commerce_metrics_1m": {
+      "dataset": {
+        "globalTags": {
+          "tags": [
+            {
+              "tag": {
+                "name": "provisional",
+                "urn": "urn:li:tag:provisional"
+              }
+            }
+          ]
+        },
+        "name": "realtime_commerce_metrics_1m",
+        "platform": {
+          "name": "pinot"
+        },
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:pinot,realtime_commerce_metrics_1m,PROD)"
+      },
+      "verified": true
+    },
+    "s3_spark_event_log_prefix": {
+      "dataset": {
+        "globalTags": null,
+        "name": "checkpoints.spark-events",
+        "platform": {
+          "name": "s3"
+        },
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:s3,checkpoints.spark-events,PROD)"
+      },
+      "verified": true
+    }
+  }
+}

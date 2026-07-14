@@ -1,0 +1,25 @@
+name: vina-bim-shop
+
+include:
+  - path: compose/ingestion.kafka.yml
+    project_directory: .
+  - path: compose/lakehouse.yml
+    project_directory: .
+  - path: compose/batch.spark.yml
+    project_directory: .
+  - path: compose/streaming.flink.yml
+    project_directory: .
+  - path: compose/serving.pinot.yml
+    project_directory: .
+  - path: compose/orchestration.airflow.yml
+    project_directory: .
+  - path: compose/governance.datahub.yml
+    project_directory: .
+
+volumes:
+  kafka_kraft_data:
+  minio_data:
+  lakehouse_postgres_data:
+  datahub_search_data:
+  pinot_zookeeper_data:
+  pinot_zookeeper_datalog:

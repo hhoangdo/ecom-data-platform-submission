@@ -1,0 +1,14 @@
+{
+  "artifacts": [
+    "datahub_health.json",
+    "dataset_count.json",
+    "tag_count.json",
+    "search_results.json",
+    "coursework_pipeline/run_manifest.json"
+  ],
+  "captured_at": "2026-07-12T07:48:19.057690+00:00",
+  "failures": [],
+  "gms_url": "http://localhost:8087",
+  "latest_successful_datahub_ingestion_run": "topic09_datahub_20260712T072932Z",
+  "status": "success"
+}

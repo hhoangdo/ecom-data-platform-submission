@@ -1,0 +1,135 @@
+{
+  "benchmark_db": "C:\\Users\\hhoangdo\\Documents\\Personal Projects\\FSDS\\ecom-data-platform-submission\\tmp\\rubic-check\\runtime\\duckdb_index_benchmark.duckdb",
+  "benchmark_table": "benchmark_fact_order",
+  "explain_plan_changed": false,
+  "index_column": "order_id",
+  "index_metadata": [
+    {
+      "comment": null,
+      "database_name": "duckdb_index_benchmark",
+      "database_oid": 20624,
+      "expressions": "[order_id]",
+      "index_name": "idx_benchmark_fact_order_order_id",
+      "index_oid": 23269,
+      "is_primary": false,
+      "is_unique": false,
+      "schema_name": "main",
+      "schema_oid": 20622,
+      "sql": "CREATE INDEX idx_benchmark_fact_order_order_id ON benchmark_fact_order(order_id);",
+      "table_name": "benchmark_fact_order",
+      "table_oid": 23263,
+      "tags": {}
+    }
+  ],
+  "index_name": "idx_benchmark_fact_order_order_id",
+  "order_id": "ORD-BDG-20260426-00000006",
+  "result_hashes": {
+    "baseline": "ecfe42c8ba49a03ee49642ccc7a043cdba1230fecebc2602c69b73ee2c74771f",
+    "indexed": "ecfe42c8ba49a03ee49642ccc7a043cdba1230fecebc2602c69b73ee2c74771f"
+  },
+  "source_db": "C:\\Users\\hhoangdo\\Documents\\Personal Projects\\FSDS\\ecom-data-platform-submission\\data\\gold\\vina_bim_shop.duckdb",
+  "source_sha256_after": "b0bb76a932bb1686259b332e50130fb70fb513cd6e1b6b731207c032ccb7b438",
+  "source_sha256_before": "b0bb76a932bb1686259b332e50130fb70fb513cd6e1b6b731207c032ccb7b438",
+  "timing_policy": {
+    "measured_runs": 7,
+    "warmup_runs": 2
+  },
+  "timings": {
+    "baseline": {
+      "measured_ms": [
+        1.4715,
+        1.3721,
+        1.449,
+        1.4326,
+        1.4292,
+        1.3582,
+        1.2887
+      ],
+      "median_ms": 1.4292,
+      "result_hash": "ecfe42c8ba49a03ee49642ccc7a043cdba1230fecebc2602c69b73ee2c74771f",
+      "rows": [
+        [
+          1,
+          "ORD-BDG-20260426-00000006",
+          25,
+          20260426,
+          1,
+          "CUS-BDG-00000387",
+          "SES-BDG-20260426-00000006",
+          "ANON-00000387",
+          "2026-04-26 19:31:31",
+          "2026-04-26 19:33:56",
+          "ELHA",
+          "paid",
+          "Binh Duong",
+          "Southeast",
+          "standard",
+          null,
+          null,
+          null,
+          1,
+          22814000.0,
+          0.0,
+          22814000.0,
+          true,
+          true,
+          22814000.0,
+          22814000.0,
+          1
+        ]
+      ],
+      "warmups_ms": [
+        739.2835,
+        1.9384
+      ]
+    },
+    "indexed": {
+      "measured_ms": [
+        1.1436,
+        1.0804,
+        1.0631,
+        1.1219,
+        1.1242,
+        1.1611,
+        1.1119
+      ],
+      "median_ms": 1.1219,
+      "result_hash": "ecfe42c8ba49a03ee49642ccc7a043cdba1230fecebc2602c69b73ee2c74771f",
+      "rows": [
+        [
+          1,
+          "ORD-BDG-20260426-00000006",
+          25,
+          20260426,
+          1,
+          "CUS-BDG-00000387",
+          "SES-BDG-20260426-00000006",
+          "ANON-00000387",
+          "2026-04-26 19:31:31",
+          "2026-04-26 19:33:56",
+          "ELHA",
+          "paid",
+          "Binh Duong",
+          "Southeast",
+          "standard",
+          null,
+          null,
+          null,
+          1,
+          22814000.0,
+          0.0,
+          22814000.0,
+          true,
+          true,
+          22814000.0,
+          22814000.0,
+          1
+        ]
+      ],
+      "warmups_ms": [
+        2.9773,
+        1.2656
+      ]
+    }
+  }
+}
