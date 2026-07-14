@@ -1,0 +1,371 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Page-1" id="J5FZvfM61AjlHphYurJV">
+    <mxGraphModel dx="2702" dy="2392" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-13" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="" vertex="1">
+          <mxGeometry height="110" width="580" x="40" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Web API (pull features - Feast)&lt;div&gt;(-&amp;gt; MCP Server)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="980" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-2" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" value="Database" vertex="1">
+          <mxGeometry height="70" width="85" x="1120" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-3" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" value="Cache" vertex="1">
+          <mxGeometry height="80" width="60" x="1132.5" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Data Ingestion&lt;div&gt;(Fivetran/Airflow Component)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="60" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="Data Transformation&lt;div&gt;(Airflow Component - SparkOperator)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="200" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-35" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="tiZ16ETe6-QPURpuK-wd-11" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Data Load&lt;div&gt;(&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;Airflow Component - Script/&lt;/span&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;SparkOperator)&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="140" x="470" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-11" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Data Warehouse&lt;div&gt;(ClickHouse)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="650" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-34" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="tiZ16ETe6-QPURpuK-wd-8" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Batch Source&lt;div&gt;(from other departments?)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="-160" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-14" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Data Validation&lt;div&gt;(&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;Airflow Component&lt;/span&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&amp;nbsp;-&amp;nbsp;&lt;/span&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;GreatExpectation&lt;/span&gt;&lt;/div&gt;&lt;div&gt;/Deequ)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="335" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-15" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Data Pipeline" vertex="1">
+          <mxGeometry height="30" width="100" x="283" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-28" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="" vertex="1">
+          <mxGeometry height="110" width="187" x="43" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-29" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Feature&amp;nbsp;Engineering&lt;div&gt;(Airflow Component)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="60" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-33" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Feature Pipeline" vertex="1">
+          <mxGeometry height="30" width="100" x="130" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-36" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-11" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="tiZ16ETe6-QPURpuK-wd-29" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="710" y="400" />
+              <mxPoint x="120" y="400" />
+            </Array>
+            <mxPoint x="370" y="370" as="sourcePoint" />
+            <mxPoint x="420" y="320" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-37" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-29" style="endArrow=classic;html=1;rounded=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="tiZ16ETe6-QPURpuK-wd-11" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="740" y="500" />
+            </Array>
+            <mxPoint x="300" y="390" as="sourcePoint" />
+            <mxPoint x="350" y="340" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-38" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Save offline tables in offline store" vertex="1">
+          <mxGeometry height="30" width="130" x="383" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-39" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Pull data for ML" vertex="1">
+          <mxGeometry height="30" width="130" x="570" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-42" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-40" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="tiZ16ETe6-QPURpuK-wd-41" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-40" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Stream Source&lt;div&gt;(Script?)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="-160" y="590" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-44" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-41" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="tiZ16ETe6-QPURpuK-wd-43" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-41" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Kafka" vertex="1">
+          <mxGeometry height="60" width="120" x="60" y="590" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-43" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" value="Streaming Processing Job to push data into both online &amp;amp; offline store&lt;div&gt;(Submited to a Flink Cluster)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="100" width="210" x="270" y="570" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-45" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Pull data" vertex="1">
+          <mxGeometry height="30" width="60" x="190" y="590" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-46" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Online Store for ML&lt;div&gt;(Redis)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="980" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-47" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="Incremental Materialize Pipeline" vertex="1">
+          <mxGeometry height="60" width="120" x="810" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-48" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-11" style="endArrow=classic;startArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="tiZ16ETe6-QPURpuK-wd-47" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="660" y="500" as="sourcePoint" />
+            <mxPoint x="710" y="450" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-49" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-47" style="endArrow=classic;startArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="tiZ16ETe6-QPURpuK-wd-46" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="780" y="320" as="sourcePoint" />
+            <mxPoint x="820" y="320" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-51" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-43" style="endArrow=classic;html=1;rounded=0;entryX=0.896;entryY=0.988;entryDx=0;entryDy=0;entryPerimeter=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="tiZ16ETe6-QPURpuK-wd-11" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="760" y="620" />
+            </Array>
+            <mxPoint x="440" y="620" as="sourcePoint" />
+            <mxPoint x="490" y="570" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-52" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-43" style="endArrow=classic;html=1;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;exitX=1;exitY=0.75;exitDx=0;exitDy=0;" target="tiZ16ETe6-QPURpuK-wd-46" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="1040" y="645" />
+            </Array>
+            <mxPoint x="530" y="881" as="sourcePoint" />
+            <mxPoint x="808" y="620" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-53" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Freshen feature" vertex="1">
+          <mxGeometry height="30" width="90" x="550" y="590" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-54" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Data Governance (DataHub)" vertex="1">
+          <mxGeometry height="60" width="1500" x="50" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-56" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-46" style="endArrow=classic;html=1;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;exitX=0.5;exitY=0;exitDx=0;exitDy=0;" target="tiZ16ETe6-QPURpuK-wd-1" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="790" y="420" as="sourcePoint" />
+            <mxPoint x="840" y="370" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-57" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Web API (predict)&lt;div&gt;(-&amp;gt; MCP Server)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="810" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-67" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-58" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="tiZ16ETe6-QPURpuK-wd-63" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-58" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Agent&lt;div&gt;(Define SystemPrompt here!)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="810" y="-20" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-59" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry height="190" width="290" x="1035" y="-100" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-60" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="vLLM" vertex="1">
+          <mxGeometry height="60" width="120" x="1120" y="-30" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-61" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="vLLM" vertex="1">
+          <mxGeometry height="60" width="120" x="1180" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-62" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="llm-d" vertex="1">
+          <mxGeometry height="30" width="60" x="1240" y="-90" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-63" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="AgentGateway&lt;div&gt;(policy applied here!)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="40" width="120" x="970" y="-10" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-65" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-58" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=1;dashPattern=8 8;" target="tiZ16ETe6-QPURpuK-wd-1" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="980" y="80" as="sourcePoint" />
+            <mxPoint x="1030" y="30" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-66" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-58" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;dashed=1;dashPattern=8 8;" target="tiZ16ETe6-QPURpuK-wd-57" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="930" y="80" as="sourcePoint" />
+            <mxPoint x="1100" y="200" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-69" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-68" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="tiZ16ETe6-QPURpuK-wd-58" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-68" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Prompt Management Tool (Langfuse/MLFlow)" vertex="1">
+          <mxGeometry height="60" width="160" x="790" y="-105" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-71" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-70" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="tiZ16ETe6-QPURpuK-wd-58" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-70" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Kagent UI&lt;div&gt;(Can be other clients)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="120" x="640" y="-20" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-75" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-72" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="tiZ16ETe6-QPURpuK-wd-70" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-72" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="NGINX Gateway/&lt;div&gt;Istio Ingress Gateway&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="150" x="440" y="-20" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-73" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" value="Client" vertex="1">
+          <mxGeometry height="60" width="30" x="330" y="-20" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-74" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="370" y="10" as="sourcePoint" />
+            <mxPoint x="440" y="10" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-76" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-72" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;fillColor=#f8cecc;strokeColor=light-dark(#b85151, #d7817e);strokeWidth=4;" target="tiZ16ETe6-QPURpuK-wd-57" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="515" y="175" />
+            </Array>
+            <mxPoint x="720" y="190" as="sourcePoint" />
+            <mxPoint x="770" y="140" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-79" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="" vertex="1">
+          <mxGeometry height="110" width="450" x="1090" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-80" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Training&amp;nbsp;&lt;div&gt;Pipeline&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="100" x="1450" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-81" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Feature Ingestion" vertex="1">
+          <mxGeometry height="60" width="120" x="1102.5" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-82" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-11" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="tiZ16ETe6-QPURpuK-wd-81" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="770" y="500" />
+            </Array>
+            <mxPoint x="980" y="440" as="sourcePoint" />
+            <mxPoint x="1030" y="390" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-83" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Training + Hyperparam Tuning (Distributed?)" vertex="1">
+          <mxGeometry height="60" width="120" x="1250" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-84" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Model Evaluation" vertex="1">
+          <mxGeometry height="60" width="120" x="1400" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-86" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Model Registry&lt;div&gt;(MLFlow) for version model + data&lt;/div&gt;" vertex="1">
+          <mxGeometry height="60" width="160" x="1380" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-87" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-84" style="endArrow=classic;html=1;rounded=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="tiZ16ETe6-QPURpuK-wd-86" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="1170" y="350" as="sourcePoint" />
+            <mxPoint x="1220" y="300" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-88" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Acc &amp;gt; 0.9, add tag &quot;Production&quot; for model" vertex="1">
+          <mxGeometry height="30" width="60" x="1470" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-89" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Jenkins&amp;nbsp;&lt;div&gt;(Manage CI/CD pipelines for pipelines, jobs, APIs, Agents, MCP Servers, .etc.)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="80" width="180" x="40" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-90" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-89" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=1;exitDx=0;exitDy=0;dashed=1;dashPattern=8 8;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="540" y="410" as="sourcePoint" />
+            <mxPoint x="270" y="260" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-91" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-89" style="endArrow=classic;html=1;rounded=0;exitX=0.363;exitY=0.992;exitDx=0;exitDy=0;dashed=1;dashPattern=8 8;entryX=0.153;entryY=0.002;entryDx=0;entryDy=0;entryPerimeter=0;exitPerimeter=0;" target="tiZ16ETe6-QPURpuK-wd-28" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="250" y="240" as="sourcePoint" />
+            <mxPoint x="300" y="270" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-92" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-89" style="endArrow=classic;html=1;rounded=0;exitX=0.565;exitY=1.003;exitDx=0;exitDy=0;dashed=1;dashPattern=8 8;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitPerimeter=0;" target="tiZ16ETe6-QPURpuK-wd-43" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="133" y="240" as="sourcePoint" />
+            <mxPoint x="100" y="441" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-93" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-89" style="endArrow=classic;html=1;rounded=0;exitX=1.015;exitY=0.641;exitDx=0;exitDy=0;dashed=1;dashPattern=8 8;entryX=0;entryY=1;entryDx=0;entryDy=0;exitPerimeter=0;" target="tiZ16ETe6-QPURpuK-wd-57" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="370" y="560" as="sourcePoint" />
+            <mxPoint x="603" y="900" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-94" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-89" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;dashed=1;dashPattern=8 8;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="tiZ16ETe6-QPURpuK-wd-1" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="270" y="190" as="sourcePoint" />
+            <mxPoint x="857" y="209" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-95" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-89" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.75;exitDx=0;exitDy=0;dashed=1;dashPattern=8 8;entryX=0;entryY=0;entryDx=0;entryDy=0;" target="tiZ16ETe6-QPURpuK-wd-47" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="370" y="200" as="sourcePoint" />
+            <mxPoint x="1130" y="200" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-96" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-89" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=1;exitDx=0;exitDy=0;dashed=1;dashPattern=8 8;entryX=0.092;entryY=0.012;entryDx=0;entryDy=0;entryPerimeter=0;" target="tiZ16ETe6-QPURpuK-wd-79" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="300" y="220" as="sourcePoint" />
+            <mxPoint x="890" y="310" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-97" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-89" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.25;exitDx=0;exitDy=0;dashed=1;dashPattern=8 8;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="tiZ16ETe6-QPURpuK-wd-61" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="370" y="190" as="sourcePoint" />
+            <mxPoint x="1130" y="190" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-102" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-98" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="tiZ16ETe6-QPURpuK-wd-89" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-98" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="GitHub (code versioning)" vertex="1">
+          <mxGeometry height="80" width="180" x="40" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-99" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" value="Dev" vertex="1">
+          <mxGeometry height="60" width="30" x="-100" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-100" edge="1" parent="1" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="tiZ16ETe6-QPURpuK-wd-98" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="-50" y="60" as="sourcePoint" />
+            <mxPoint x="310" y="320" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-101" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Push code" vertex="1">
+          <mxGeometry height="30" width="60" x="-50" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-103" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Observability Platform (logs + metrics + traces)" vertex="1">
+          <mxGeometry height="60" width="1507" x="43" y="-210" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-112" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-105" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="tiZ16ETe6-QPURpuK-wd-111" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-105" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Otel Collector" vertex="1">
+          <mxGeometry height="150" width="120" x="490" y="880" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-108" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-106" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="tiZ16ETe6-QPURpuK-wd-105" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-106" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="API 1" vertex="1">
+          <mxGeometry height="60" width="120" x="240" y="880" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-109" edge="1" parent="1" source="tiZ16ETe6-QPURpuK-wd-107" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="tiZ16ETe6-QPURpuK-wd-105" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-107" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="API 2" vertex="1">
+          <mxGeometry height="60" width="120" x="240" y="970" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-110" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="telemetry data" vertex="1">
+          <mxGeometry height="30" width="60" x="390" y="860" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-111" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Backend&lt;div&gt;+ Metrics: Prom+Graf&lt;br&gt;+ Logs: Elastic+Kibana&lt;br&gt;+ Traces: Jaeger&lt;/div&gt;" vertex="1">
+          <mxGeometry height="150" width="120" x="680" y="880" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-113" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Web API (for real-time drift detection?)" vertex="1">
+          <mxGeometry height="60" width="120" x="890" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-114" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" value="" vertex="1">
+          <mxGeometry height="110" width="450" x="1085" y="570" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-115" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Data Drift&amp;nbsp;&amp;nbsp;&lt;div&gt;Pipeline&lt;/div&gt;" vertex="1">
+          <mxGeometry height="30" width="100" x="1440" y="580" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-116" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Feature Ingestion" vertex="1">
+          <mxGeometry height="60" width="120" x="1102.5" y="595" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-117" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Compute Drift" vertex="1">
+          <mxGeometry height="60" width="120" x="1255" y="595" as="geometry" />
+        </mxCell>
+        <mxCell id="tiZ16ETe6-QPURpuK-wd-118" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="Security" vertex="1">
+          <mxGeometry height="980" width="150" x="1630" y="-210" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
