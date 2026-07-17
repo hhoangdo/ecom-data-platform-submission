@@ -1,0 +1,311 @@
+@startuml
+title Vina Bim Shop Target Platform Architecture - End-to-End View
+caption Proposed target state from Section 03 and 04.2 plans - not proof of a live deployment.
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam wrapWidth 180
+skinparam linetype ortho
+skinparam defaultFontSize 12
+skinparam ArrowFontSize 10
+skinparam nodesep 58
+skinparam ranksep 220
+left to right direction
+
+rectangle "Actors" as Actors {
+  actor "Developer /\nPlatform Operator" as Developer
+  actor "Customer / Reviewer" as Customer
+  actor "Executive Users" as Executive
+  actor "BI / Livestreaming Users" as BI
+}
+
+rectangle "Delivery and GCP Foundation" as Foundation {
+  component "GitHub\napplication source and\nversioned knowledge ownership" as GitHub
+  component "Jenkins Controller\nCI, release, smoke, rollback" as Jenkins
+  component "Ephemeral Rootless BuildKit\ncommit-SHA image builds" as BuildKit
+  component "Artifact Registry\nimmutable image storage" as ArtifactRegistry
+  component "Zonal Standard GKE\nTerraform-managed non-production runtime" as GKE
+  component "GCS\nKMS-protected bundles, indexes,\nand evidence" as GCS
+  component "GCP KMS\nencryption and auto-unseal keys" as KMS
+  component "IAM / Workload Identity\nleast-privilege workload access" as WorkloadIdentity
+  component "$240 budget guardrail\n50/75/90/100% alerts" as Budget
+}
+
+rectangle "Data Generation and Ingestion" as Ingestion {
+  component "Python Marketplace Generator\nsynthetic snapshots and events" as Generator
+  component "Source-topic Schema Registry\ncompatibility contracts only" as SchemaRegistry
+  component "Single Redpanda Event Backbone\nKafka API\nsource and feature-event topics" as Redpanda
+  component "Kafka Connect\nreplay-log sink" as KafkaConnect
+}
+
+rectangle "Lakehouse and Processing" as LakehouseZone {
+  component "MinIO Medallion Lakehouse\nBronze snapshots + replay logs\nIceberg Silver/Gold" as MinIO
+  component "Spark Batch\nvalidation, deduplication,\nSilver / Gold writers" as Spark
+  component "Flink Streaming\nevent-time metrics and alerts" as Flink
+  component "Hive Metastore\ncurated table catalog" as Hive
+  component "Trino Canonical Serving\nofficial Gold SQL" as Trino
+  component "Pinot Provisional Realtime Serving\nfresh metrics and alerts" as Pinot
+  component "Great Expectations Quality Job\nblocking curated-data gates" as GX
+  component "dbt-DuckDB Parity Job\nSQL and row-count evidence" as Dbt
+}
+
+rectangle "Section 03 Drift and Feature Contract" as Section03Zone {
+  component "Section 03 Validation / DP3 Job\noutputs: drift-aware generation\ndaily feature health / PSI + alerts\nleakage-safe feature / label join: exact id,label\nimmutable hash-bound manifest" as Section03
+  component "Strict Section 03 Loader\nfail-closed hash, schema, and\nruntime-evidence validation" as Section03Loader
+  component "Offline Feature Writer\nidempotent PostgreSQL pushes" as OfflineWriter
+  component "Online Feature Writer\nidempotent Feast PushSource writes" as OnlineWriter
+}
+
+rectangle "RAG and Feature Serving" as FeatureServing {
+  component "Airflow Candidate-index Pipeline\n400/80 tokenizer chunking\nBGE-small-en-v1.5 384-d embeddings\nquality-gated atomic promotion" as Airflow
+  component "PostgreSQL / pgvector\nactive knowledge index +\nSection 03 offline features" as PostgresVector
+  component "Feast Retrieval / Feature Service\nknowledge and feature views" as Feast
+  component "Valkey\nactive online feature store" as Valkey
+}
+
+rectangle "Agent Application and CPU Inference" as AgentApplication {
+  rectangle "Public Chat Edge" as PublicChatEdge {
+    component "Temporary HTTPS Ingress\nauthentication, TLS, rate limits" as Ingress
+    component "kagent Chat UI\nreviewer conversation surface" as KagentUI
+    component "Coordinator FastAPI Facade\nsafety, experiment assignment,\nand route hints" as CoordinatorApi
+  }
+
+  rectangle "Agent Policy and Identities" as AgentPolicyZone {
+    component "Agent Registry\nthree logical identities +\nversion / variant inventory" as AgentRegistry
+    component "agentgateway\nprivate A2A, MCP, and model policy" as AgentGateway
+    rectangle "Exactly Three Logical Agents" as LogicalAgents {
+      component "Coordinator Agent\nkagent SandboxAgent workload\nlogical coordinator identity" as CoordinatorAgent
+      component "support-retrieval Agent\nkagent SandboxAgent workload\nlogical support identity" as SupportAgent
+      component "drift-analyst Agent\nkagent SandboxAgent workload\nlogical drift identity" as DriftAgent
+    }
+  }
+
+  rectangle "MCP Tools and APIs" as ToolZone {
+    component "Retrieval MCP Server\nstreamable-HTTP workload\ntool: search_ecommerce_knowledge" as RetrievalMcp
+    component "Drift MCP Server\nstreamable-HTTP workload\ntool: detect_customer_order_drift" as DriftMcp
+    component "Retrieval FastAPI API\nvalidated knowledge queries" as RetrievalApi
+    component "Drift FastAPI API\nvalidated feature-health queries" as DriftApi
+  }
+
+  rectangle "CPU Model Serving" as ModelZone {
+    component "llm-d CPU Router\nprivate governed inference" as Llmd
+    component "Qwen/Qwen2.5-1.5B-Instruct\nPrimary CPU endpoint" as QwenPrimary
+    component "Qwen/Qwen2.5-0.5B-Instruct\nComparison CPU endpoint" as QwenComparison
+  }
+}
+
+rectangle "Security" as Security {
+  component "Vault\nRaft, KMS auto-unseal,\nnarrow workload policies" as Vault
+}
+
+rectangle "Governance and Discovery" as Governance {
+  component "DataHub\nmetadata, lineage, glossary,\nand quality metadata" as DataHub
+  component "OpenSearch\nmetadata search index" as OpenSearch
+}
+
+rectangle "Metrics, Logs, Traces, and Dashboards" as TelemetryZone {
+  component "Grafana Alloy\ntelemetry collection" as Alloy
+  component "Prometheus\nmetrics and alerts" as Prometheus
+  component "Loki\nseparated application/system logs" as Loki
+  component "Tempo\ndistributed traces" as Tempo
+  component "Grafana\noperational dashboards" as Grafana
+}
+
+rectangle "LLM Observability" as LlmObservability {
+  component "Langfuse\nmodel, agent, tool, and safety traces" as Langfuse
+  component "ClickHouse\nLangfuse analytical store" as ClickHouse
+}
+
+' Layout-only lane anchors: keep the serving paths legible without adding services.
+Airflow -[hidden]-> PostgresVector
+PostgresVector -[hidden]-> Feast
+Feast -[hidden]-> Valkey
+PublicChatEdge -[hidden]-> AgentPolicyZone
+AgentPolicyZone -[hidden]-> ToolZone
+ToolZone -[hidden]right-> ModelZone
+Ingress -[hidden]-> CoordinatorApi
+Ingress -[hidden]right-> KagentUI
+CoordinatorAgent -[hidden]right-> SupportAgent
+SupportAgent -[hidden]right-> DriftAgent
+RetrievalMcp -[hidden]right-> DriftMcp
+RetrievalApi -[hidden]right-> DriftApi
+Llmd -[hidden]-> QwenPrimary
+QwenPrimary -[hidden]right-> QwenComparison
+
+' Customer and reviewer paths: sequential blue C labels.
+Customer -[#1565c0]-> Ingress : C1 HTTPS + W3C trace
+Ingress -[#1565c0]-> KagentUI : C2 optional "/" UI bootstrap
+Ingress -[#1565c0]-> CoordinatorApi : C3 direct "/v1/chat"
+CoordinatorApi -[#1565c0,norank]down-> AgentGateway : C4 facade A2A + safety context
+AgentGateway -[#1565c0]-> CoordinatorAgent : C5 coordinator A2A
+CoordinatorAgent -[#1565c0,norank]down-> AgentGateway : C6 specialist route / model request
+AgentGateway -[#1565c0]-> SupportAgent : C7 support OR
+AgentGateway -[#1565c0,norank]up-> DriftAgent : C8 drift OR
+SupportAgent -[#1565c0]-> AgentGateway : C9 retrieval tool / model
+DriftAgent -[#1565c0,norank]down-> AgentGateway : C10 drift tool / model
+AgentGateway -[#1565c0]-> RetrievalMcp : C11 retrieval MCP branch - OR selection
+AgentGateway -[#1565c0]-> DriftMcp : C12 drift MCP branch - OR selection
+RetrievalMcp -[#1565c0]-> RetrievalApi : C13 validated retrieval
+DriftMcp -[#1565c0]-> DriftApi : C14 validated drift detection
+RetrievalApi -[#1565c0]-> Feast : C15 effective-dated query
+Feast -[#1565c0]-> PostgresVector : C16 active vector search
+DriftApi -[#1565c0]-> Feast : C17 Section 03 health query
+Feast -[#1565c0]-> Valkey : C18 online feature read
+AgentGateway -[#1565c0]-> Llmd : C19 governed inference + trace
+Llmd -[#1565c0]-> QwenPrimary : C20 primary model - OR
+Llmd -[#1565c0]-> QwenComparison : C21 comparison model - OR
+CoordinatorAgent -[#1565c0,norank]up-> AgentGateway : C22 coordinated cited + safe result
+AgentGateway -[#1565c0,norank]up-> CoordinatorApi : C23 facade result + versions / tools
+CoordinatorApi -[#1565c0,norank]up-> Ingress : C24 HTTPS response
+Ingress -[#1565c0,norank]up-> Customer : C25 citations + safety action
+
+' Operator, delivery, and data-lifecycle paths: sequential orange O labels.
+Developer -[#c77800]-> GitHub : O1 code + policy docs
+GitHub -[#c77800]-> Jenkins : O2 webhook + pinned revision
+Jenkins -[#c77800]-> BuildKit : O3 tested commit-SHA build
+BuildKit -[#c77800]-> ArtifactRegistry : O4 scanned immutable image
+ArtifactRegistry -[#c77800]-> GKE : O5 commit-SHA image supply / pull
+Developer -[#c77800,norank]right-> Foundation : O6 Terraform foundation
+Generator -[#c77800]-> MinIO : O7 versioned snapshots
+Generator -[#c77800]-> Redpanda : O8 source JSON events
+Redpanda -[#c77800]-> KafkaConnect : O9 replayable topics
+KafkaConnect -[#c77800]-> MinIO : O10 Bronze JSONL replay
+MinIO -[#c77800]-> Spark : O11 Bronze input
+Spark -[#c77800]-> MinIO : O12 Iceberg Silver / Gold
+Spark -[#c77800]-> Hive : O13 Hive registration
+Hive -[#c77800]-> Trino : O14 catalog + locations
+Trino -[#c77800]-> Executive : O15 official Gold KPIs
+Trino -[#c77800]-> BI : O16 historical Gold KPIs
+Redpanda -[#c77800]-> Flink : O17 event-time stream
+Flink -[#c77800]-> Pinot : O18 provisional metrics + alerts
+Pinot -[#c77800]-> BI : O19 live provisional KPIs
+Spark -[#c77800]-> GX : O20 candidate Silver / Gold input
+Spark -[#c77800]-> Section03 : O21 cutoff-safe features + labels
+Dbt -[#c77800]-> Section03 : O22 independent parity output
+Section03 -[#c77800]-> GCS : O23 manifest + hash-bound bundle
+GCS -[#c77800]-> Section03Loader : O24 verified canonical bundle
+Section03Loader -[#c77800]-> PostgresVector : O25 strict feature / health import
+Section03Loader -[#c77800]-> Feast : O26 feature-view activation
+Section03Loader -[#c77800]-> Valkey : O27 online version init
+Section03Loader -[#c77800]-> Redpanda : O28 deterministic feature-event JSON
+Redpanda -[#c77800]-> OfflineWriter : O29 offline feature event
+OfflineWriter -[#c77800]-> PostgresVector : O30 offline upsert + dedup / checkpoint
+Redpanda -[#c77800]-> OnlineWriter : O31 online feature event
+OnlineWriter -[#c77800]-> Feast : O32 Feast PushSource write
+Feast -[#c77800,norank]down-> Valkey : O33 Valkey materialization
+GitHub -[#c77800]-> Airflow : O34 policy docs
+Airflow -[#c77800]-> PostgresVector : O35 gated chunks + embeddings
+PostgresVector -[#c77800,norank]down-> Feast : O36 active-index promotion
+
+' Representative non-primary relationships.
+SchemaRegistry -[#2e7d32,dashed]-> Redpanda : source-topic contract validation only
+GX -[#2e7d32,dashed]-> Section03 : pass / fail quality gate into DP3 validation
+
+Jenkins -[#c77800,dashed]-> GKE : atomic Helm deployment; pinned llm-d Kustomize; health / rollback control
+Airflow -[#c77800,dashed]-> Section03 : DP3 orchestration schedule
+
+Trino -[#7e3ff2,dashed,norank]up-> DataHub : Gold table lineage
+DataHub -[#7e3ff2,dashed]-> OpenSearch : indexed catalog metadata
+
+AgentGateway -[#00838f,dashed]-> Alloy : request metrics, logs, and W3C traces
+Alloy -[#00838f,dashed]-> Prometheus : metrics + alert series
+Prometheus -[#00838f,dashed]-> Grafana : metrics and alert panels
+AgentGateway -[#00838f,dashed]-> Langfuse : model / agent / tool telemetry
+Langfuse -[#00838f,dashed]-> ClickHouse : trace and evaluation records
+
+Vault -[#8e2430,dashed]-> AgentGateway : identity-scoped gateway secrets
+KMS -[#8e2430,dashed]-> GCS : encryption-key policy
+
+RetrievalApi -[#6d6875,dashed]-> PostgresVector : prior effective-dated versions for historical support
+
+note bottom of SchemaRegistry
+Source-topic contracts use Schema Registry.
+Section 03 feature-event JSON Schema is hash-validated
+without a runtime registry dependency.
+end note
+
+note bottom of GitHub
+GitHub owns eight effective-dated e-commerce Markdown documents.
+end note
+
+note bottom of Foundation
+Terraform ownership is one managed-foundation stack:
+zonal GKE, GCS, GCP KMS, IAM/Workload Identity,
+Artifact Registry, and the $240 budget guardrail.
+end note
+
+note bottom of CoordinatorApi
+The kagent UI is an optional "/" bootstrap surface;
+it is not an API proxy. Chat calls enter directly at /v1/chat.
+end note
+
+note bottom of CoordinatorAgent
+Exactly three logical agents are shown:
+coordinator, support retrieval, and drift analyst.
+end note
+
+note bottom of AgentGateway
+Branch policy: each request selects either support or drift,
+and either the primary or comparison model endpoint.
+The alternatives are not sequential execution.
+Internal model, A2A, MCP, API, and store results retrace
+the same authenticated W3C path in reverse. Those return
+edges are omitted to keep the audience view readable.
+end note
+
+note bottom of DataHub
+Representative lineage edges are shown.
+Airflow, Feast, and Agent Registry also publish governed metadata;
+OpenSearch indexes the unified DataHub catalog.
+end note
+
+note bottom of Alloy
+Representative telemetry edges are shown.
+Alloy routes workload signals to Prometheus, Loki, and Tempo;
+Grafana queries all three without per-workload diagram fan-out.
+end note
+
+note bottom of Vault
+Representative security edges are shown.
+Vault also supplies scoped Jenkins and database credentials;
+Workload Identity governs pod-to-GCP access.
+end note
+
+note bottom of Trino
+Truth policy
+--
+Spark + Iceberg + Trino Gold is official KPI truth.
+Pinot is fresh and provisional.
+dbt-DuckDB is parity evidence.
+end note
+
+note bottom of Feast
+RAG trust
+--
+Effective-dated policy retrieval and SHA-256-bound citations.
+Unsupported claims are rejected deterministically.
+end note
+
+note bottom of GKE
+Runtime and cost
+--
+CPU-only, non-production, limited HA, time-boxed profiles.
+This capability view does not imply every service runs concurrently.
+Excluded: Docker Compose, a second Kafka cluster, GPU workloads,
+hosted LLM APIs, MLflow/training/HPO services, Istio, VMs,
+Ansible, and Cloud Build.
+end note
+
+legend right
+|= Line style |= Meaning |
+| <color:#1565c0>Solid blue</color> | Numbered C1..Cn customer / reviewer request and response path |
+| <color:#c77800>Solid orange</color> | Numbered O1..On operator, delivery, and data-lifecycle path |
+| <color:#7e3ff2>Dashed purple</color> | Metadata and lineage |
+| <color:#c77800>Dashed orange</color> | Orchestration, deployment, scaling, and rollback control |
+| <color:#2e7d32>Dashed green</color> | Validation and quality |
+| <color:#00838f>Dashed cyan</color> | Telemetry, audit, and evidence |
+| <color:#8e2430>Dashed red</color> | Secrets and security policy |
+| <color:#6d6875>Dashed gray</color> | Secondary and historical support |
+endlegend
+
+@enduml
