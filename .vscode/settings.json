@@ -1,4 +1,6 @@
 {
-  "plantuml.render": "PlantUMLServer",
-  "plantuml.server": "https://www.plantuml.com/plantuml"
+  "plantuml.render": "Local",
+  "plantuml.commandArgs": [
+    "-DPLANTUML_LIMIT_SIZE=8192"
+  ]
 }
