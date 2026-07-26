@@ -46,6 +46,9 @@ tmp/*
 !tmp/rubic-check/
 !tmp/rubic-check/**
 tmp/rubic-check/runtime/*.duckdb
+!tmp/edai2-plan/
+!tmp/edai2-plan/**
+tmp/edai2-plan/.artifact-inspect/node_modules
 architecture/decisions/
 docs/
 
