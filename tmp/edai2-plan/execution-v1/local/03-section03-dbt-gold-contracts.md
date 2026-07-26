@@ -78,7 +78,7 @@ In scope: config wrapper, three existing feature corrections, four new Gold mode
 
 ## Interfaces and data flow
 
-The operator invokes `run_section03_dbt.py --config configs/generator/base.yaml --scale medium --project-dir infra/analytics/dbt --profiles-dir infra/analytics/dbt`. The wrapper prints config, scale, drift start, feature cutoff, label end, and baseline date; it then runs a parent-inclusive selector containing all seven DP3 models plus required ancestors. Nonzero dbt exit status is returned unchanged.
+The operator invokes `run_section03_dbt.py --config configs/generator/base.yaml --scale medium --project-dir infra/analytics/dbt --profiles-dir infra/analytics/dbt --select +ml_customer_purchase_training +feature_drift_alerts`. The wrapper prints config, scale, drift start, feature cutoff, label end, and baseline date; it then runs that explicit parent-inclusive selector containing all seven DP3 models plus required ancestors. Nonzero dbt exit status is returned unchanged.
 
 ## Failure modes
 
@@ -90,9 +90,9 @@ Fail on absent/invalid config or scale, a required var with a default, a literal
 - [ ] Implement `scripts/analytics/run_section03_dbt.py`, then run `rtk uv run pytest tests/unit/test_section03_dbt_contract.py -q`; expected FAIL only on missing SQL/YAML contracts while wrapper config derivation, direct argument array, parent-inclusive selection, and nonzero exit propagation pass.
 - [ ] Implement the three cutoff-safe feature models and deterministic `stg_commerce_events.sql`, then run `rtk uv run pytest tests/unit/test_section03_dbt_contract.py -q`; expected FAIL only on the four new Gold models/schema/singular-test contracts.
 - [ ] Implement `ml_customer_label.sql`, `agg_feature_health_daily.sql`, `feature_drift_alerts.sql`, `ml_customer_purchase_training.sql`, `_features.yml`, `_drift.yml`, and four exact singular tests, then run `rtk uv run pytest tests/unit/test_section03_dbt_contract.py -q`; expected PASS with no duplicated generator defaults.
-- [ ] Run `rtk uv run python scripts/analytics/run_section03_dbt.py --config configs/generator/base.yaml --scale medium --project-dir infra/analytics/dbt --profiles-dir infra/analytics/dbt`; expected exit 0 with seven DP3 models plus ancestors built and every generic/singular test passing.
+- [ ] Run `rtk uv run python scripts/analytics/run_section03_dbt.py --config configs/generator/base.yaml --scale medium --project-dir infra/analytics/dbt --profiles-dir infra/analytics/dbt --select +ml_customer_purchase_training +feature_drift_alerts`; expected exit 0 with seven DP3 models plus ancestors built and every generic/singular test passing.
 - [ ] Run `rtk uv run pytest tests/unit/test_section03_dbt_contract.py -q`; expected PASS with exact `id,label`, cutoff-safe training, finite PSI, valid alerts, and deterministic event dedup.
-- [ ] Run `rtk git diff --check` and `rtk git status --short --branch`; expected no whitespace errors, the original branch unchanged, only exact file-map paths changed, and nothing staged.
+- [ ] Run `rtk git diff --check`, `rtk git status --short --branch`, and `rtk git ls-files --stage`; expected no whitespace errors, the original branch unchanged, only exact file-map paths changed, and the final index listing is byte-for-byte identical to the pre-topic listing. Pre-existing staged entries are user-owned; do not stage or unstage them.
 
 ## Evidence and screenshot ownership
 

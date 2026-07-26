@@ -35,8 +35,10 @@
 - The YAML mapping is exactly `enabled`, `scenario`, `mode`, `cutoff_fraction`, `post_rate_multiplier`, `psi_warning`, `psi_alert`, `label_horizon_days`.
 - Fixed values are `customer_order_frequency`, `abrupt`, `0.65`, `1.5`, `0.10`, `0.15`, and `7`; only `enabled` may be false for legacy-equivalence tests.
 - Smoke history is 14 days. No entity count changes.
-- Disabled mode delegates to `random_timestamps(..., evening_bias=True)`.
-- Enabled mode hashes the pre-call RNG state with namespace `section03-order-timestamps-v1`, samples with the isolated child RNG, and advances the shared RNG by one unchanged legacy call.
+- Disabled mode immediately returns `random_timestamps(rng, start_ts, end_ts, size, evening_bias=True)` and performs no random call, allocation, sort, or validation before delegating.
+- Enabled mode canonicalizes and hashes the pre-call `rng.bit_generator.state` with namespace `section03-order-timestamps-v1` to seed an isolated child `np.random.Generator`, then calls the unchanged legacy sampler once and discards its values solely to advance the shared RNG by exactly the legacy amount. Only the child RNG may drive the drift sample.
+- The child sampler builds one-minute candidate slots from `start_ts.floor("min")` through `end_ts.floor("min")` inclusive and retains the current 24 hourly weights. For slot `t`, it calculates `raw_weight[t] = hourly_weight[t.hour] * (drift.post_rate_multiplier if t >= drift_start_ts else 1.0)` without rounding the cutoff, then `probability = raw_weight / raw_weight.sum()`. It samples `size` slot indices with replacement, adds child-RNG seconds drawn from `[0, 59]` inclusive, clips to the current inclusive generator bounds, and returns a stable `pd.Series` in draw order.
+- `summarize_drift_rates` uses exact elapsed seconds on each side of `drift_start_ts` and reports `(post_count / post_duration_days) / (pre_count / pre_duration_days)`.
 - The canonical medium fixture has 45,000 orders and normalized post/pre rate in inclusive `[1.35,1.65]`.
 - Make recipes use `uv run`; operator commands use `rtk uv run`.
 
@@ -69,7 +71,27 @@ In scope: typed config, strict parsing, resolved Section 03 evidence root, 14-da
 
 ## Interfaces and data flow
 
-`load_generator_config(path, scale, overrides)` preserves its signature and returns `GeneratorConfig.drift: DriftConfig`. `resolve_drift_window(config) -> DriftWindow` derives `drift_start_ts`, `feature_cutoff_ts`, `label_end_ts`, and monitoring boundaries. `generate_order_timestamps_with_drift(rng, start_ts, end_ts, size, drift) -> pd.Series` returns stable draw order within inclusive bounds. `_generate_orders` keeps its public and internal signatures.
+`load_generator_config(path, scale, overrides)` preserves its signature and returns `GeneratorConfig.drift: DriftConfig`. `resolve_drift_window(config) -> DriftWindow` derives `drift_start_ts`, `feature_cutoff_ts`, `label_end_ts`, and monitoring boundaries. The sampler and rate-summary interfaces are exactly:
+
+```python
+def generate_order_timestamps_with_drift(
+    rng: np.random.Generator,
+    *,
+    start_ts: pd.Timestamp,
+    end_ts: pd.Timestamp,
+    size: int,
+    drift: DriftConfig,
+) -> pd.Series: ...
+
+
+def summarize_drift_rates(
+    timestamps: pd.Series,
+    *,
+    window: DriftWindow,
+) -> DriftRateSummary: ...
+```
+
+`_generate_orders` keeps its public and internal signatures.
 
 ## Failure modes
 
@@ -80,10 +102,10 @@ Reject non-mappings, missing or unknown keys, non-boolean `enabled`, booleans/no
 - [ ] Run `rtk uv run pytest tests/unit/test_generator_config.py tests/integration/test_section01_generator.py -q`; expected PASS as the recorded pre-change baseline, otherwise stop and record the exact pre-existing failure.
 - [ ] Add the Task 1 failing assertions, then run `rtk uv run pytest tests/unit/test_generator_config.py -q`; expected FAIL because `DriftConfig`, the exact YAML mapping, validation errors, and isolated Section 03 root do not exist.
 - [ ] Implement only `configs/generator/base.yaml` and `src/vina_bim_shop/generators/config.py`, then run `rtk uv run pytest tests/unit/test_generator_config.py -q`; expected PASS with all eight values, 14-day smoke history, unchanged entity counts, and exact dotted-key errors.
-- [ ] Add deterministic window/sampling, disabled byte/frame equivalence, shared-RNG-state, 45,000-order rate, and enabled-vs-legacy keyed non-time projection tests, then run `rtk uv run pytest tests/unit/test_section03_drift.py -q`; expected FAIL because the drift module and order hook are absent.
-- [ ] Implement `src/vina_bim_shop/generators/drift.py` and the narrow order hook, then run `rtk uv run pytest tests/unit/test_section03_drift.py tests/unit/test_generator_module_split.py -q`; expected PASS with the shared RNG equal to one direct legacy call and keyed non-time choices exactly equal.
+- [ ] Add tests for the exact keyword-only sampler/rate interfaces; immediate disabled delegation and byte/frame equivalence; canonical child seed and shared-RNG-state equality; inclusive one-minute slots; retained hourly weights; post-cutoff multiplier and normalized probabilities; with-replacement indices; child seconds `0..59`; inclusive clipping; stable draw order; the exact elapsed-time rate formula; the 45,000-order acceptance interval; and enabled-vs-legacy keyed non-time projections. Run `rtk uv run pytest tests/unit/test_section03_drift.py -q`; expected FAIL because the drift module and order hook are absent.
+- [ ] Implement `src/vina_bim_shop/generators/drift.py` and the narrow order hook, then run `rtk uv run pytest tests/unit/test_section03_drift.py tests/unit/test_generator_module_split.py -q`; expected PASS with the exact sampler algorithm, the shared RNG equal to one direct legacy call, and keyed non-time choices exactly equal.
 - [ ] Run `rtk uv run pytest tests/unit/test_generator_config.py tests/unit/test_section03_drift.py tests/unit/test_generator_module_split.py tests/integration/test_section01_generator.py -q`; expected PASS with zero failures, skips, or xfails in the listed files.
-- [ ] Run `rtk git diff --check` and `rtk git status --short --branch`; expected no whitespace errors, the original branch unchanged, only the exact file map changed, and nothing staged.
+- [ ] Run `rtk git diff --check`, `rtk git status --short --branch`, and `rtk git ls-files --stage`; expected no whitespace errors, the original branch unchanged, only the exact file map changed, and the final index listing is byte-for-byte identical to the pre-topic listing. Pre-existing staged entries are user-owned; do not stage or unstage them.
 
 ## Evidence and screenshot ownership
 

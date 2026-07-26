@@ -32,8 +32,19 @@
 ## Global constraints
 
 - Exact files are `returns.md`, `shipping.md`, `cancellation.md`, `payments.md`, `promotions.md`, `warranties.md`, `privacy.md`, and `marketplace_support.md`.
-- Every file is UTF-8 without BOM, LF-only, and final-newline terminated; unknown/missing keys or free text outside records fails.
-- Record grammar is exact front matter keys `document_id`, `category`, `version`, `effective_from`, `effective_to`, followed by canonical Markdown body.
+- Every file is UTF-8 without BOM, LF-only, and final-newline terminated.
+- Every record uses this literal grammar; unknown/missing keys or free text outside a record fail parsing:
+
+```text
+---
+document_id: returns-policy
+category: returns
+version: 1.0.0
+effective_from: 2025-01-01T00:00:00Z
+effective_to: null
+---
+# Returns policy
+```
 - Seven files contain one record and 300–700 English words. `returns.md` contains exactly two 150–350-word records separated only by `<!-- version-separator -->`, the same document/category, distinct SemVer values, adjacent non-overlapping intervals, and null end on current; total is exactly eight files and nine versions.
 - Eligibility is `effective_from <= effective_at < effective_to`, with null end treated as infinity.
 - Chunking uses Unicode NFC, pinned tokenizer with `add_special_tokens=False`, starts `0,320,640`, maximum 400 tokens, exact 80-token overlap when a successor exists, and never crosses version boundaries.
@@ -93,7 +104,7 @@ Fail on wrong inventory/category/filename, BOM/CRLF/missing final newline, malfo
 - [ ] Add pinned revision, no-prefix passage, exact-prefix query, normalization, finite, and 384-d tests; implement the embedding adapter contract, then run `rtk uv run pytest tests/unit/llm/test_indexing.py -q`; expected PASS with deterministic ordered chunks/vectors and no storage/alias action.
 - [ ] Run `rtk uv run python scripts/llm/build_index.py --mode candidate --index-version test_idx_001 --source-root data/knowledge/ecommerce --dry-run`; expected exit 0, exactly 8 documents and 9 versions, chunks at most 400 tokens with exact 80 overlap where a successor exists, finite normalized 384-vectors, candidate label `ci-bootstrap`, and no storage write or promotion.
 - [ ] Run `rtk uv run pytest tests/unit/llm/test_indexing.py -q`; expected PASS with effective-date boundaries immediately before/at/after the returns transition and deterministic same-input report hashes.
-- [ ] Run `rtk git diff --check` and `rtk git status --short --branch`; expected no whitespace errors, the original branch unchanged, only exact file-map paths changed, and nothing staged.
+- [ ] Run `rtk git diff --check`, `rtk git status --short --branch`, and `rtk git ls-files --stage`; expected no whitespace errors, the original branch unchanged, only exact file-map paths changed, and the final index listing is byte-for-byte identical to the pre-topic listing. Pre-existing staged entries are user-owned; do not stage or unstage them.
 
 ## Evidence and screenshot ownership
 

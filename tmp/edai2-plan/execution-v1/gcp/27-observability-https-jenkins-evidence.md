@@ -26,12 +26,14 @@
 - Read `C:\Users\oou1hc\.codex\RTK.md`; prefix every shell command with `rtk`.
 - Fixed hashes: Section 03 `ece171c3d400c3b16fc668cd28e3587faebe1f596dd6c0c4498ff055e3fc027f`; EDAI2 `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`; `tmp/rubic-check/Coursework Tracking (Public).xlsx` `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - No branch/worktree/stage/commit changes.
-- Require exact kube context, fresh budget read, valid lease, project/billing/IAM/trial/spend/recovery-sink status, DNS egress, ACME capability, Vault-projected UI auth, and Jenkins machine records. Missing inputs cause safe stop.
+- Consume the completed local implementation. If a source/IaC/chart defect appears, capture it, release or suspend any owned runtime, mark this topic `Partial`, and return it to the owning local topic; do not patch implementation during a live cloud lease.
+- Require exact kube context, a fresh redacted `check_budget.py --live-external-preflight`, valid lease, project lifecycle, billing linkage, exact IAM permissions, trial/spend/notification/recovery-sink status, DNS egress, ACME capability, Vault-projected UI auth, and Jenkins machine records. Missing inputs cause safe stop.
 - Require `EDAI2_GKE_KUBECONFIG=tmp/edai2-gcp/kubeconfig` and `EDAI2_GKE_CONTEXT=gke_${GOOGLE_CLOUD_PROJECT}_us-central1-a_edai2`. Every `kubectl` call includes `--kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT`; every Helm call includes `--kubeconfig $env:EDAI2_GKE_KUBECONFIG --kube-context $env:EDAI2_GKE_CONTEXT`; every script that queries or mutates Kubernetes receives both values. Never use or change the default kubeconfig/current context.
-- `EDAI2_TFVARS_PATH=tmp/edai2-gcp/coursework.auto.tfvars` remains untracked.
+- `EDAI2_TFVARS_PATH` is absolute, resolves exactly to this repository's `tmp/edai2-gcp/coursework.auto.tfvars`, and remains untracked.
 - Public ingress exists only during bounded evidence capture. Controller replicas exactly one; global `limit-req-status-code=429`; chat annotations exactly `limit-rps: "1"` and `limit-burst-multiplier: "5"`.
 - Do not expose llm-d, internal MCP/A2A routes, secrets, PII, or raw customer/message labels.
 - Application logs use `log_scope=application`; system/controller logs use `log_scope=system`; dashboards never merge them.
+- The five alert thresholds are exact: API/tool failure rate >5%, retrieval p95 >750 ms, active-index freshness >24 h, memory utilization >90%, and disk utilization >80%. Each fixture must prove pending then firing and recovery with timestamps.
 - Trace continuity must span ingress/chat -> facade -> agentgateway -> coordinator -> specialist -> MCP -> API -> Feast/PostgreSQL and the model branch to llm-d. A new root at any hop fails `Sheet3!E53`.
 - Six Jenkins pages are captured in one browser session from existing build URLs/IDs. Do not trigger, rebuild, replay, or mutate a job.
 - One bounded capture retry after fixing the named cause; repeated failure remains truthful partial.
@@ -80,6 +82,9 @@
 | Read external/untracked | `tmp/edai2-gcp/kubeconfig` |
 | Consume | `evidence/04_2_llm_design/cicd/jobs.json`, `evidence/04_2_llm_design/agents/registry.json`, `evidence/04_2_llm_design/agents/chat_smoke.json` |
 | Consume | `evidence/04_2_llm_design/gke/keda_ha.json`, `evidence/04_2_llm_design/rollbacks/helm.json`, `evidence/04_2_llm_design/rollbacks/model.json`, `evidence/04_2_llm_design/rollbacks/index.json` |
+| Generate immutable gate evidence | `evidence/04_2_llm_design/gke/gcp_preflight_topic27.json`, `evidence/04_2_llm_design/gke/cost_forecast_topic27.json` |
+| Update append-only | `evidence/04_2_llm_design/gke/usage_ledger.json` |
+| Generate | `evidence/04_2_llm_design/gateway/topic27_routes.json` |
 | Generate | `evidence/04_2_llm_design/observability/telemetry.json` |
 | Generate | `evidence/04_2_llm_design/gateway/https_rate_limit.json` |
 | Screenshot owner | `evidence/04_2_llm_design/screenshots/grafana_http.png`, `evidence/04_2_llm_design/screenshots/grafana_compute.png`, `evidence/04_2_llm_design/screenshots/grafana_llm.png` |
@@ -97,7 +102,7 @@ Private services -> temporary one-replica ingress -> ACME staging validation -> 
 
 Topic 25 `jobs.json` -> six exact URLs/build IDs -> one authenticated browser context -> six distinct stage pages -> capture manifest. Browser navigation must not invoke Build Now/Replay/Rebuild.
 
-Failures: selector instability, certificate challenge failure, second ingress replica, response code 503 instead of 429, merged log scopes, trace root break, missing telemetry labels, Jenkins build ID mismatch, login-only page, secret/PII. One corrected retry; otherwise preserve old valid files and mark cells unsatisfied.
+Failures: selector instability, certificate challenge failure, second ingress replica, response code 503 instead of 429, merged log scopes, trace root break, missing telemetry labels, Jenkins build ID mismatch, login-only page, secret/PII. One corrected retry; otherwise preserve old valid files and mark cells `Partial` or `Missing`.
 
 ## Ordered Test-First Execution Tasks
 
@@ -108,17 +113,17 @@ Failures: selector instability, certificate challenge failure, second ingress re
 - [ ] Run `rtk uv run python scripts/gke/configure_evidence_ingress.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --render-only --strict`.
   - Expected: one controller replica, exact rate settings, no unrelated bandwidth annotation, required routes only.
 - [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --verify-observability-contract --strict`.
-  - Expected: required HTTP/compute/LLM/agent metrics, stable labels, five alert definitions, separated log scopes, and trace hop contract pass.
+  - Expected: required HTTP/compute/LLM/agent metrics, stable labels, exact alert thresholds (API/tool failure >5%, retrieval p95 >750 ms, active-index freshness >24 h, memory >90%, disk >80%), separated log scopes, and trace hop contract pass.
 
 ### Task 2: Revalidate budget/lease and enable temporary HTTPS
 
-- [ ] Run `rtk uv run python scripts/gke/check_budget.py --project $env:GOOGLE_CLOUD_PROJECT --trial-expires-at $env:EDAI2_TRIAL_EXPIRES_AT --current-spend-usd $env:EDAI2_CURRENT_SPEND_USD --spend-observed-at $env:EDAI2_SPEND_OBSERVED_AT --usage-ledger evidence/04_2_llm_design/gke/usage_ledger.json --envelope configs/gke/cost_envelope.yaml --requested-profile rubric-evidence --requested-ttl 6h --output evidence/04_2_llm_design/gke/cost_forecast.json`.
-  - Expected: residual lease and ingress budget pass.
-- [ ] Run `rtk uv run python scripts/gke/configure_evidence_ingress.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --enable --sslip-from-service ingress-nginx-controller --issuer acme-staging`.
+- [ ] Run `rtk uv run python scripts/gke/check_budget.py --project $env:GOOGLE_CLOUD_PROJECT --billing-account-env GOOGLE_BILLING_ACCOUNT --budget-notification-target-env EDAI2_BUDGET_NOTIFICATION_TARGET --recovery-sink-env EDAI2_VAULT_RECOVERY_SINK --recovery-sink-attestation $env:EDAI2_RECOVERY_SINK_ATTESTATION --required-permissions configs/gke/required_permissions.json --dns-probes acme-staging-v02.api.letsencrypt.org,huggingface.co,storage.googleapis.com --live-external-preflight --preflight-output evidence/04_2_llm_design/gke/gcp_preflight_topic27.json --trial-expires-at $env:EDAI2_TRIAL_EXPIRES_AT --current-spend-usd $env:EDAI2_CURRENT_SPEND_USD --spend-observed-at $env:EDAI2_SPEND_OBSERVED_AT --usage-ledger evidence/04_2_llm_design/gke/usage_ledger.json --envelope configs/gke/cost_envelope.yaml --requested-profile rubric-evidence --requested-ttl 6h --output evidence/04_2_llm_design/gke/cost_forecast_topic27.json`.
+  - Expected: residual lease plus live project/billing/IAM/notification/recovery-sink/DNS/trial/spend/ingress-budget gates pass with redacted output only.
+- [ ] Run `rtk uv run python scripts/gke/configure_evidence_ingress.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --enable --route-set topic27-observability --routes retrieval,chat,grafana,langfuse,jenkins --sslip-from-service ingress-nginx-controller --issuer acme-staging --lease-owner evidence-run --output evidence/04_2_llm_design/gateway/topic27_routes.json --strict`.
   - Expected: staging HTTP-01 Ready on all required hosts.
-- [ ] Run `rtk uv run python scripts/gke/configure_evidence_ingress.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --enable --sslip-from-service ingress-nginx-controller --issuer acme-production`.
-  - Expected: production certificates Ready; retrieval/chat/registry/Grafana/Langfuse/Jenkins hosts resolve.
-- [ ] Run `rtk uv run python scripts/llm/smoke_release.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --gateway-auth-rate-limit --expected-unauthenticated 401 --accepted-rps 1 --burst 5 --expected-over-limit 429 --output evidence/04_2_llm_design/gateway/https_rate_limit.json`.
+- [ ] Run `rtk uv run python scripts/gke/configure_evidence_ingress.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --promote-route-manifest evidence/04_2_llm_design/gateway/topic27_routes.json --issuer acme-production --require-routes retrieval,chat,grafana,langfuse,jenkins --lease-owner evidence-run --strict`.
+  - Expected: production certificates Ready; retrieval/chat/Grafana/Langfuse/Jenkins hosts resolve and exactly match the signed route manifest.
+- [ ] Run `rtk uv run python scripts/llm/smoke_release.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --route-manifest evidence/04_2_llm_design/gateway/topic27_routes.json --gateway-auth-rate-limit --expected-unauthenticated 401 --accepted-rps 1 --burst 5 --expected-over-limit 429 --output evidence/04_2_llm_design/gateway/https_rate_limit.json`.
   - Expected: exact EP/BVA results and no 503.
 
 ### Task 3: Generate and verify telemetry
@@ -130,7 +135,7 @@ Failures: selector instability, certificate challenge failure, second ingress re
 
 ### Task 4: Capture gateway and telemetry views
 
-- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --capture-ui-set gateway-observability --viewport 1600x1000 --names grafana_http,grafana_compute,grafana_llm,grafana_agents,grafana_ab,loki_app_logs,tempo_trace,langfuse_trace,nginx_tls,chat_auth_rate_limit --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --machine-root evidence/04_2_llm_design --strict`.
+- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --route-manifest evidence/04_2_llm_design/gateway/topic27_routes.json --capture-ui-set gateway-observability --viewport 1600x1000 --names grafana_http,grafana_compute,grafana_llm,grafana_agents,grafana_ab,loki_app_logs,tempo_trace,langfuse_trace,nginx_tls,chat_auth_rate_limit --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --machine-root evidence/04_2_llm_design --strict`.
   - Expected: ten contextual PNGs atomically installed with host/time/revision/selectors and exact machine links. `grafana_ab.png` shows the configured assignment/arm dashboard and is recaptured by Topic 31 under producer Topic 27 if Topic 29's final run makes it stale.
 
 ### Task 5: Capture six Jenkins pages in one session without rebuilding
@@ -155,7 +160,7 @@ Topic 27 owns exactly 16 named screenshots: ten gateway/telemetry (including `gr
 
 ## Cleanup and Runtime Release
 
-- [ ] Run `rtk uv run python scripts/gke/configure_evidence_ingress.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --disable`.
+- [ ] Run `rtk uv run python scripts/gke/configure_evidence_ingress.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --disable --route-manifest evidence/04_2_llm_design/gateway/topic27_routes.json --require-routes retrieval,chat,grafana,langfuse,jenkins --strict`.
   - Expected: ingress routes/controller exposure disabled.
 - [ ] Run `rtk uv run python scripts/gke/manage_profile.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT suspended --release-session-lease --owner evidence-run --require-evidence-manifest evidence/04_2_llm_design/screenshots/ui_manifest.json`.
   - Expected: lease absent, both pools zero, no public forwarding rule.
@@ -176,10 +181,10 @@ Topic 29 solely owns `Sheet3!E44`, `Sheet3!E56`, and `Sheet3!E57`; Topic 27 owns
 
 - [ ] Static telemetry/ingress contracts, budget, lease, and explicit context pass.
 - [ ] Production HTTPS and exact 401/accepted/burst/429 behavior are proved.
-- [ ] Required telemetry/log scopes/trace continuity/alerts are machine verified.
+- [ ] Required telemetry/log scopes/trace continuity and all five exact alert thresholds/transitions are machine verified.
 - [ ] Ten contextual gateway/telemetry images pass QA.
 - [ ] Six distinct Jenkins pages are captured in one browser session with zero rebuilds.
-- [ ] All 15 images pass original-resolution and manifest checks.
+- [ ] All 16 images pass original-resolution and manifest checks.
 - [ ] Ingress is disabled, `evidence-run` released, pools zero, forwarding rules absent.
 - [ ] Final `rtk git status --short --branch` is recorded.
 

@@ -26,7 +26,7 @@ Read `C:\Users\oou1hc\.codex\RTK.md`; verify hashes `ece171c3d400c3b16fc668cd28e
 
 ## Global constraints
 
-Use current branch, serial work, `apply_patch`, `rtk uv run` for developer recipes, and `rtk make` for operator recipes. CI scripts themselves must not invoke `rtk`. Topic 16 does not own dependencies; any need is handed to Topic 15 for `rtk uv add` plus `rtk git diff -- pyproject.toml uv.lock` inspection. No staging/commit, Docker build/push, Jenkins trigger, Helm apply, GCP, auto-prune/stop. One retry then Partial.
+Use current branch, serial work, `apply_patch`, `rtk uv run` for developer recipes, and `rtk make` for operator recipes. CI scripts themselves must not invoke `rtk`. Topic 08 owns baseline dependencies; run `rtk uv lock --check` and treat a missing prerequisite as a `Partial` predecessor defect instead of editing dependencies. Topic 16 is the sole owner of the reusable `service-agent` and `worker` chart templates; Topics 18 and 19 may lint/render/consume them but never edit them. No staging/commit, Docker build/push, Jenkins trigger, Helm apply, GCP, auto-prune/stop. One retry then `Partial`.
 
 ## Read-only current-state refresh
 
@@ -35,6 +35,7 @@ Use current branch, serial work, `apply_patch`, `rtk uv run` for developer recip
 - [ ] Run `rtk proxy certutil -hashfile tmp/edai2-plan/04.2_llm_design.md SHA256`. Expected: output contains `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`.
 - [ ] Run `rtk proxy certutil -hashfile "tmp/rubic-check/Coursework Tracking (Public).xlsx" SHA256`. Expected: output contains `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - [ ] Run `rtk proxy powershell -NoProfile -Command "Select-String -Path tmp/edai2-plan/execution-v1/local/15-evaluation-test-quality-load.md -Pattern '^Status: Complete|\| Status \| Complete \|'"`. Expected: completed predecessor.
+- [ ] Run `rtk uv lock --check`. Expected: exit 0 with the Topic 08-owned baseline lockfile unchanged.
 - [ ] Run `rtk git diff --check`. Expected: exit 0.
 
 ## Scope and non-goals
@@ -63,11 +64,11 @@ Non-goals: actual image build, archive scan, registry push, Jenkins run, Helm de
 | Create | `ci/jenkins/Jenkinsfile.feast-online-writer` | `edai2-feast-online-writer` |
 | Create | `infra/helm/edai2/service-agent/Chart.yaml`, `infra/helm/edai2/service-agent/values.yaml`, `infra/helm/edai2/service-agent/templates/deployment.yaml`, `infra/helm/edai2/service-agent/templates/service.yaml`, `infra/helm/edai2/service-agent/templates/scaledobject.yaml`, `infra/helm/edai2/service-agent/templates/networkpolicy.yaml`, `infra/helm/edai2/service-agent/templates/serviceaccount.yaml`, `infra/helm/edai2/service-agent/templates/sandboxagent.yaml`, `infra/helm/edai2/service-agent/templates/remotemcpserver.yaml`, `infra/helm/edai2/service-agent/templates/agentgateway-policy.yaml` | Minimal reusable service/agent chart needed for sentinel CI rendering |
 | Create | `infra/helm/edai2/worker/Chart.yaml`, `infra/helm/edai2/worker/values.yaml`, `infra/helm/edai2/worker/templates/deployment.yaml`, `infra/helm/edai2/worker/templates/scaledobject.yaml`, `infra/helm/edai2/worker/templates/networkpolicy.yaml`, `infra/helm/edai2/worker/templates/serviceaccount.yaml` | Minimal reusable writer chart needed for sentinel CI rendering |
-| Create | `tests/unit/test_edai2_repository_contract.py` | CI/image/map/stage/render contracts |
+| Modify | `tests/unit/test_edai2_repository_contract.py` | Add CI/image/map/stage/render assertions to the Topic 08 repository-contract scaffold |
 
 ## Interfaces, data flow, and failure modes
 
-Inputs are Topic 15's verified test scope/dependency lock, a verified-base-to-commit git diff, six image definitions, Topic 14 agent values, and sentinel commit tag `testsha`. The static output is six catalog entries/Jenkinsfiles, one serialized rootless builder contract, one archive-to-scan-to-push identity chain per target, two reusable charts, and deterministic path fan-out. Topic 17 consumes the security boundary; Topics 18–19 consume the charts; the later Jenkins runtime consumes all six definitions.
+Inputs are Topic 15's verified test scope/dependency lock, a verified-base-to-commit git diff, six image definitions, Topic 14 agent values, and sentinel render tag `testsha`. The static output is six catalog entries/Jenkinsfiles, one serialized rootless builder contract, one archive-to-scan-to-push identity chain per target, the only reusable `service-agent` and `worker` chart templates, and deterministic path fan-out. Topic 17 consumes the security boundary; Topic 18 lints/renders and Topic 19 consumes these charts without editing templates; the later Jenkins runtime consumes all six definitions.
 
 Unknown/unclassified runtime paths select all six jobs; invalid verified base, missing/duplicate job, target/context mismatch, concurrent BuildKit path, checksum mismatch, scan-after-push, remote/archive digest mismatch, mutable tag, recursive `rtk`, secret literal, stage-order drift, failed sentinel render, or unbuilt-tag deployment fails closed before any push/deploy.
 
@@ -86,22 +87,26 @@ Targets/build contexts are exactly `rag_index`, `retrieval_agent`, `drift_agent`
 
 Controller executors = 0; BuildKit max concurrency = 1. Trivy 0.70.0 checksum is `8b4376d5d6befe5c24d503f10ff136d9e0c49f9127a4279fd110b727929a5aa9`; Crane 0.21.7 checksum is `1a57bc98207fa1c0d04bf760699099e26f8383499bfd55b99c1b919a928a7230`.
 
+The Dockerfile base is literally `python:3.12.12-slim-bookworm@sha256:593bd06efe90efa80dc4eee3948be7c0fde4134606dd40d8dd8dbcade98e669c`; the ephemeral rootless builder is literally `moby/buildkit:v0.20.2-rootless@sha256:cb5bb371545222c430528556acfdf424144b69897f5deaad391bd227187e90df`. These are real OCI index digests verified before this plan correction; tests reject an unpinned tag, all-zero/example digest, variable placeholder, or a differing literal.
+
 Stage order is exactly `test -> build -> scan -> push_sha -> helm_atomic -> smoke_eval -> rollback_proof`. Scan-before-push operates on the same archive identity. Archive file SHA-256 and registry manifest digest are distinct typed fields. Zero CRITICAL and no unreviewed GPL-3.0/AGPL-3.0 are required.
 
-Change-map tests cover single path, shared path fan-out to all six, deletion, rename old+new path, unknown runtime path fail-safe all-six, `EDAI2_FORCE_ALL=true`, and each writer's own schema/workload. CI scripts reject recursive `rtk`, mutable tags, Cloud Build and unbuilt tags.
+Each target produces one Docker archive and file SHA-256. Trivy runs vulnerability, secret, and license scans against that exact archive, rejects a vulnerability database older than 24 hours, requires zero `CRITICAL` vulnerabilities and no unreviewed GPL-3.0/AGPL-3.0 package, and emits both JSON and CycloneDX reports. Pinned Crane computes the archive manifest digest. Workload Identity is the only permitted registry authentication/push path; the exact same archive is pushed only as the full lowercase 40-hex checkout commit tag, and the archived manifest digest must equal the remote registry digest before Helm can run.
+
+The change map is exact: knowledge/indexing/Airflow-RAG/Feast-knowledge paths select RAG; retrieval API/MCP/safety/workload paths select retrieval; Section 03 ingestion/drift API/MCP/workload paths select drift; inference/routing/coordinator/kagent/agentregistry paths select coordinator; each writer schema/workload selects only its matching writer. Shared contracts/config, Docker/image map, chart/pipeline, gateway/security/observability, and unknown EDAI2 runtime paths fan out to all six; `EDAI2_FORCE_ALL=true` also selects all six. Tests cover single path, shared path, deletion, rename old+new paths, unknown runtime path, force-all, and each writer's own schema/workload. CI scripts reject recursive `rtk`, mutable tags, Cloud Build, static registry credentials, and unbuilt tags.
 
 ## Ordered test-first execution
 
 - [ ] Add red CI contracts and run `rtk uv run pytest tests/unit/test_edai2_repository_contract.py -q`. Expected: nonzero until six jobs/targets, lock, pins, stages and map exist.
-- [ ] Add Docker/image catalog and run `rtk uv run pytest tests/unit/test_edai2_repository_contract.py -q -k "docker or image"`. Expected: exit 0; six non-root targets/contexts and immutable pins.
+- [ ] Add Docker/image catalog and run `rtk uv run pytest tests/unit/test_edai2_repository_contract.py -q -k "docker or image"`. Expected: exit 0; six non-root targets/contexts, the two exact real digest pins, vulnerability/secret/license scans, <=24-hour database freshness, JSON/CycloneDX output, Workload Identity-only push, and archive/remote manifest-digest equality.
 - [ ] Add Jenkins catalog/pod/pipeline/Jenkinsfiles and run `rtk uv run pytest tests/unit/test_edai2_repository_contract.py -q -k "jenkins or buildkit or stage"`. Expected: exit 0; controller 0, concurrency 1, six exact pages and ordered stages.
 - [ ] Add change-map cases and run `rtk uv run pytest tests/unit/test_edai2_repository_contract.py -q -k "change_map"`. Expected: exit 0 for single/shared/deletion/rename/unknown/force-all.
-- [ ] Run sentinel renders with `rtk helm template retrieval infra/helm/edai2/service-agent -f infra/helm/edai2/values/retrieval-agent.yaml --set image.tag=testsha`, `rtk helm template drift infra/helm/edai2/service-agent -f infra/helm/edai2/values/drift-agent.yaml --set image.tag=testsha`, and `rtk helm template coordinator infra/helm/edai2/service-agent -f infra/helm/edai2/values/coordinator-agent.yaml --set image.tag=testsha`. Expected: all exit 0 using Topic 14 values and Topic 16 charts; no apply and sentinel tag only.
+- [ ] Run all six sentinel renders: `rtk helm template retrieval infra/helm/edai2/service-agent -f infra/helm/edai2/values/retrieval-agent.yaml --set image.tag=testsha --set-string substrate.bucketName=edai2-sentinel-bucket`; `rtk helm template drift infra/helm/edai2/service-agent -f infra/helm/edai2/values/drift-agent.yaml --set image.tag=testsha --set-string substrate.bucketName=edai2-sentinel-bucket`; `rtk helm template coordinator infra/helm/edai2/service-agent -f infra/helm/edai2/values/coordinator-agent.yaml --set image.tag=testsha --set-string substrate.bucketName=edai2-sentinel-bucket`; `rtk helm template rag-index infra/helm/edai2/worker --set image.tag=testsha --set-string image.repository=example.invalid/edai2/rag-index --set-string workload.name=rag-index`; `rtk helm template feast-offline-writer infra/helm/edai2/worker --set image.tag=testsha --set-string image.repository=example.invalid/edai2/feast-offline-writer --set-string workload.name=feast-offline-writer`; and `rtk helm template feast-online-writer infra/helm/edai2/worker --set image.tag=testsha --set-string image.repository=example.invalid/edai2/feast-online-writer --set-string workload.name=feast-online-writer`. Expected: all six exit 0, service snapshots contain the sentinel bucket plus `retrieval|drift|coordinator` logical keys, each render is distinct, no chart outside Topic 16 is created or modified, and nothing is applied. Literal `testsha` and `example.invalid` are permitted only in this render-only step.
 - [ ] Run `rtk uv run pytest tests/unit/test_edai2_repository_contract.py -q` and `rtk git diff --check`. Expected: both exit 0; no image, registry artifact or Helm release exists.
 
 ## Evidence, cleanup, rubric, and DoD
 
-Topic 16 owns static test and sentinel-render hashes. It owns no Jenkins screenshot or build. The later evidence owner captures six distinct existing Jenkins job/build pages once and binds their distinct build IDs to the common commit; it never rebuilds merely to obtain screenshots. Remove only render temp files; no Docker/Jenkins runtime is started.
+Topic 16 owns static test and six sentinel-render hashes. It owns no Jenkins screenshot or build. The later evidence owner captures the six distinct existing Jenkins job/build pages in one browser session, binds their distinct build IDs to the common commit, and never rebuilds merely to obtain screenshots. Remove only render temp files; no Docker/Jenkins runtime is started.
 
 | Sheet3 cell | Local proof | Deferred proof |
 |---|---|---|
@@ -109,7 +114,7 @@ Topic 16 owns static test and sentinel-render hashes. It owns no Jenkins screens
 
 ## Definition of Done
 
-Six exact jobs/targets, controller zero, serialization one, pinned checksum tools, scan identity, stage order, change-map edge cases, no-rtk CI, and sentinel renders are statically valid; no build/push/deploy occurred.
+Six exact jobs/targets, controller zero, serialization one, exact digest-pinned Python/BuildKit images, pinned checksum tools, all three scan classes with fresh databases and JSON/CycloneDX outputs, Workload Identity-only push, archive/remote digest equality, stage order, exact change-map fan-out, no-rtk CI, and all six sentinel renders are statically valid; no build/push/deploy occurred.
 
 ## Completion Record
 

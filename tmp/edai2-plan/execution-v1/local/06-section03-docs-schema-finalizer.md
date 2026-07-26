@@ -89,7 +89,7 @@ Fail on placeholder/out-of-scope wording, missing fixed values/cells/paths, wron
 - [ ] Add synthetic hash-valid candidate/Spark/Airflow/DataHub trees plus all corrupt/stale/identity/retention/housekeeping cases, then run `rtk uv run pytest tests/integration/test_section03_finalizer.py -q`; expected FAIL because the finalizer is absent.
 - [ ] Implement `scripts/generate/finalize_section03_evidence.py`, then run `rtk uv run pytest tests/integration/test_section03_finalizer.py -q`; expected PASS for fourteen-key recursive inventory, strict rebinding, identical same-ID reuse, mismatched same-ID rejection, atomic replace, active-plus-previous retention, candidate identity race, and nonfatal post-promotion cleanup warnings.
 - [ ] Run `rtk uv run pytest tests/unit/test_section03_documentation.py tests/unit/test_section02_schema_design.py tests/unit/test_script_surface_documentation.py tests/integration/test_section03_finalizer.py -q`; expected PASS with zero failures, skips, or xfails in the listed files.
-- [ ] Run `rtk git diff --check` and `rtk git status --short --branch`; expected no whitespace errors, the original branch unchanged, only exact file-map paths changed, no generated canonical evidence change, and nothing staged.
+- [ ] Run `rtk git diff --check`, `rtk git status --short --branch`, and `rtk git ls-files --stage`; expected no whitespace errors, the original branch unchanged, only exact file-map paths changed, no generated canonical evidence change, and the final index listing is byte-for-byte identical to the pre-topic listing. Pre-existing staged entries are user-owned; do not stage or unstage them.
 
 ## Evidence and screenshot ownership
 

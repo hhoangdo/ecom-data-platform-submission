@@ -90,7 +90,7 @@ Fail on future identities, post-cutoff event/created leakage, duplicate/null IDs
 - [ ] Run `rtk uv run pytest tests/integration/test_section01_generator.py tests/integration/test_generator_cli.py tests/integration/test_section03_generator.py -q`; expected PASS with every Section 01 key/artifact preserved and temporary runs leaving canonical strict evidence untouched.
 - [ ] Run `rtk uv run python scripts/generate/run_generator.py --config configs/generator/base.yaml --scale medium --mode full --clean --seed 42`; expected exit 0, configured counts `12000/600/6000/45000/80`, normalized rate in `[1.35,1.65]`, exact nonempty labels/training, deterministic 1600×900 PNG, and a pending candidate without changing a prior strict root.
 - [ ] Run `rtk uv run python scripts/generate/verify_section03_manifest.py --manifest evidence/03_data_generator_improvement/section03_candidate_manifest.json --allow-runtime-pending`; expected exact output `section03 manifest: PASS (runtime pending)` and zero rubric credit.
-- [ ] Run `rtk git diff --check` and `rtk git status --short --branch`; expected no whitespace errors, the original branch unchanged, only exact file-map paths plus generated pending candidate artifacts changed, and nothing staged.
+- [ ] Run `rtk git diff --check`, `rtk git status --short --branch`, and `rtk git ls-files --stage`; expected no whitespace errors, the original branch unchanged, only exact file-map paths plus generated pending candidate artifacts changed, and the final index listing is byte-for-byte identical to the pre-topic listing. Pre-existing staged entries are user-owned; do not stage or unstage them.
 
 ## Evidence and screenshot ownership
 

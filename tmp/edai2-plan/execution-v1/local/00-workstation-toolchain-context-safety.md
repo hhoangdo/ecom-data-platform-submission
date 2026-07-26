@@ -83,19 +83,15 @@ Operator → `rtk` → pinned local CLI → explicit temporary Kind kubeconfig/c
 ## Ordered test-first execution tasks
 
 - [ ] Run `rtk git status --short --branch`, `rtk git branch --show-current`, `rtk git rev-parse --show-toplevel`, `rtk kubectl config current-context`, and `rtk kubectl config get-contexts`; expected outcome is one recorded current branch/root plus a corporate context inventory that remains read-only.
-- [ ] Run `rtk winget install --id Kubernetes.kubectl --version 1.34.1 --exact --source winget --accept-package-agreements --accept-source-agreements`; expected outcome is exit 0 and kubectl client `v1.34.1` installed or already present.
+- [ ] Run `rtk kubectl version --client --output=yaml`; expected outcome is the existing kubectl client reports `v1.34.1`. A missing or mismatched client fails this prerequisite; do not install kubectl through Winget in this plan.
 - [ ] Run `rtk winget install --id Kubernetes.kind --version 0.32.0 --exact --source winget --accept-package-agreements --accept-source-agreements`; expected outcome is exit 0 and Kind `0.32.0` installed or already present.
 - [ ] Run `rtk winget install --id Helm.Helm --version 3.20.0 --exact --source winget --accept-package-agreements --accept-source-agreements`; expected outcome is exit 0 and Helm `3.20.0` installed or already present.
 - [ ] Run `rtk winget install --id Hashicorp.Terraform --version 1.15.8 --exact --source winget --accept-package-agreements --accept-source-agreements`; expected outcome is exit 0 and Terraform `1.15.8` installed or already present.
 - [ ] Run `rtk winget install --id Google.CloudSDK --version 577.0.0 --exact --source winget --accept-package-agreements --accept-source-agreements`; expected outcome is exit 0 and gcloud `577.0.0` installed or already present.
-- [ ] Run `rtk winget upgrade --id Kubernetes.kind --version 0.32.0 --exact --source winget --accept-package-agreements --accept-source-agreements`; expected outcome is exit 0 or Winget’s explicit already-at-version result, never an unpinned upgrade.
-- [ ] Run `rtk winget upgrade --id Helm.Helm --version 3.20.0 --exact --source winget --accept-package-agreements --accept-source-agreements`; expected outcome is exit 0 or Winget’s explicit already-at-version result, never an unpinned upgrade.
-- [ ] Run `rtk winget upgrade --id Hashicorp.Terraform --version 1.15.8 --exact --source winget --accept-package-agreements --accept-source-agreements`; expected outcome is exit 0 or Winget’s explicit already-at-version result, never an unpinned upgrade.
-- [ ] Run `rtk winget upgrade --id Google.CloudSDK --version 577.0.0 --exact --source winget --accept-package-agreements --accept-source-agreements`; expected outcome is exit 0 or Winget’s explicit already-at-version result, never an unpinned upgrade.
-- [ ] Run `rtk kind version`, `rtk kubectl version --client --output=yaml`, `rtk helm version --short`, `rtk terraform version`, and `rtk gcloud version`; expected outcome is Kind `0.32.0`, kubectl client `v1.34.1`, Helm `v3.20.0`, Terraform `1.15.8`, and gcloud `577.0.0`.
+- [ ] Run `rtk kind version`, `rtk kubectl version --client --output=yaml`, `rtk helm version --short`, `rtk terraform version`, and `rtk gcloud version`; expected outcome is Kind `0.32.0`, the existing kubectl client `v1.34.1`, Helm `v3.20.0`, Terraform `1.15.8`, and gcloud `577.0.0`.
 - [ ] Run `rtk powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path 'tmp/edai2-kind' | Out-Null; Test-Path 'tmp/edai2-kind/kubeconfig'"`; expected outcome is `False` or a pre-existing dedicated file, never the corporate kubeconfig. Record reserved path `tmp/edai2-kind/kubeconfig`, cluster `edai2-lean`, context `kind-edai2-lean`, and image `kindest/node:v1.35.5@sha256:ce977ae6d65918d0b58a5f8b5e940429c2ce42fa3a5619ec2bbc60b949c0ac95` for Topic 21.
 - [ ] Run `rtk powershell -NoProfile -Command '$env:KUBECONFIG="tmp/edai2-kind/kubeconfig"; Write-Output $env:KUBECONFIG'`; expected output is exactly `tmp/edai2-kind/kubeconfig`, proving the parent PowerShell did not expand the nested environment reference. Topic 00 does not invoke Kind, kubectl, Helm, or Docker against that path.
-- [ ] Run `rtk git diff --check` and `rtk git status --short --branch`; expected no whitespace errors, the original branch unchanged, only Topic 00 planning/tool-install effects recorded, and nothing staged.
+- [ ] Run `rtk git diff --check`, `rtk git status --short --branch`, and `rtk git ls-files --stage`; expected no whitespace errors, the original branch unchanged, only Topic 00 planning/tool-install effects recorded, and the final index listing is byte-for-byte identical to the pre-topic listing. Pre-existing staged entries are user-owned; do not stage or unstage them.
 
 Makefile policy: recipes are written as `uv run python ...` or `uv run pytest ...`; operators run them as `rtk make generate-section03`, `rtk make build-section03-dbt`, or `rtk make test-section03`.
 
@@ -111,7 +107,7 @@ Topic 00 acquires no Kind runtime and performs no teardown. Preserve the dedicat
 
 | Cell | Planned proof | Scoring rule |
 |---|---|---|
-| `Sheet3!Row2` | Mandatory/unscored reproducible local toolchain and safe boundaries | Zero direct points |
+| Sheet3 Row 2 (mandatory/unscored) | Reproducible local toolchain and safe boundaries | Zero direct points |
 | `Sheet3!E3:E62` | Cross-cutting supporting prerequisite | Zero direct points from this plan |
 | `Sheet3!E32:E34` | Section 03 prerequisite evidence only | Zero here; earned only from strict Section 03 manifest |
 | `Sheet3!E49` | Ansible VM is prohibited | Out of Scope; zero earned while workbook value remains 1 |

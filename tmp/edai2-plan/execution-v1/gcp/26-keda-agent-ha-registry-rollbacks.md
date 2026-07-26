@@ -26,9 +26,10 @@
 - Read `C:\Users\oou1hc\.codex\RTK.md`; prefix shell commands with `rtk`.
 - Fixed hashes: Section 03 `ece171c3d400c3b16fc668cd28e3587faebe1f596dd6c0c4498ff055e3fc027f`; EDAI2 `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`; `tmp/rubic-check/Coursework Tracking (Public).xlsx` `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - No branch/worktree/stage/commit change; current revision must match six CI records.
-- Require explicit GKE context and fresh budget/capacity read. Missing project/billing/IAM/trial/spend/recovery-sink status/registry auth/Section 03/external input is a safe stop.
+- Consume the completed local implementation. If a source/IaC/chart defect appears, capture it, release or suspend any owned runtime, mark this topic `Partial`, and return it to the owning local topic; do not patch implementation during a live cloud lease.
+- Require explicit GKE context and a fresh redacted `check_budget.py --live-external-preflight` result. Missing project lifecycle, billing linkage, exact IAM permission, trial/spend/notification/recovery-sink/DNS status, registry auth, Section 03, or another external input is a safe stop.
 - Require `EDAI2_GKE_KUBECONFIG=tmp/edai2-gcp/kubeconfig` and `EDAI2_GKE_CONTEXT=gke_${GOOGLE_CLOUD_PROJECT}_us-central1-a_edai2`. Every `kubectl` call includes `--kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT`; every Helm call includes `--kubeconfig $env:EDAI2_GKE_KUBECONFIG --kube-context $env:EDAI2_GKE_CONTEXT`; every script that queries or mutates Kubernetes receives both values. Never use or change the default kubeconfig/current context.
-- `EDAI2_TFVARS_PATH=tmp/edai2-gcp/coursework.auto.tfvars` remains untracked.
+- `EDAI2_TFVARS_PATH` is absolute, resolves exactly to this repository's `tmp/edai2-gcp/coursework.auto.tfvars`, and remains untracked.
 - Do not acquire a second lease. Verify `evidence-run` owner, commit, expiry, and refcount zero before live work.
 - KEDA bounds are min 1/max 2 normally, threshold 1, polling 15s, cooldown 60s. WorkerPool scale target is exact `ate.dev/v1alpha1`, `WorkerPool`, `edai2-agents`.
 - Prove two simultaneous instances per logical agent with distinct session/actor IDs and WorkerPool pod UIDs; two idle replicas alone do not pass.
@@ -75,6 +76,9 @@
 | Execute | `scripts/llm/publish_agents.py`, `scripts/llm/smoke_release.py`, `scripts/llm/build_index.py` |
 | Execute | `scripts/gke/manage_profile.py`, `scripts/gke/check_budget.py`, `scripts/qa/capture_edai2_evidence.py` |
 | Read external/untracked | `tmp/edai2-gcp/kubeconfig` |
+| Consume | `evidence/04_2_llm_design/gke/platform_install.json` |
+| Generate immutable gate evidence | `evidence/04_2_llm_design/gke/gcp_preflight_topic26.json`, `evidence/04_2_llm_design/gke/cost_forecast_topic26.json` |
+| Update append-only | `evidence/04_2_llm_design/gke/usage_ledger.json` |
 | Generate | `evidence/04_2_llm_design/agents/registry.json` |
 | Generate | `evidence/04_2_llm_design/agents/chat_smoke.json` |
 | Generate | `evidence/04_2_llm_design/gke/keda_ha.json` |
@@ -91,23 +95,23 @@ Controlled Prometheus load -> KEDA ScaledObjects -> API Deployments and WorkerPo
 
 Rollback order: route traffic away -> Helm prior revision -> prior ModelConfig/digest -> prior active index alias -> smoke/evaluation -> restore current good revision.
 
-Failure modes: registry read-back mismatch; unsupported registry rollback; KEDA metric stale; replicas scale but actors share one pod; actor/session IDs absent; credential denial on legal path or success on illegal path; prior revision unavailable; rollback smoke fails. Each produces a failed machine record and unsatisfied cell, never a coerced pass.
+Failure modes: registry read-back mismatch; unsupported registry rollback; KEDA metric stale; replicas scale but actors share one pod; actor/session IDs absent; credential denial on legal path or success on illegal path; prior revision unavailable; rollback smoke fails. Each produces a failed machine record and `Partial`/`Missing` cell, never a coerced pass.
 
 ## Ordered Test-First Execution Tasks
 
 ### Task 1: Verify live prerequisites and routing contracts
 
-- [ ] Run `rtk uv run python scripts/gke/check_budget.py --project $env:GOOGLE_CLOUD_PROJECT --trial-expires-at $env:EDAI2_TRIAL_EXPIRES_AT --current-spend-usd $env:EDAI2_CURRENT_SPEND_USD --spend-observed-at $env:EDAI2_SPEND_OBSERVED_AT --usage-ledger evidence/04_2_llm_design/gke/usage_ledger.json --envelope configs/gke/cost_envelope.yaml --requested-profile rubric-evidence --requested-ttl 6h --output evidence/04_2_llm_design/gke/cost_forecast.json`.
-  - Expected: gate remains valid for residual lease.
-- [ ] Run `rtk uv run pytest tests/integration/llm/test_gke_agents.py tests/contract/llm/test_mcp_contracts.py -q --live-gke`.
+- [ ] Run `rtk uv run python scripts/gke/check_budget.py --project $env:GOOGLE_CLOUD_PROJECT --billing-account-env GOOGLE_BILLING_ACCOUNT --budget-notification-target-env EDAI2_BUDGET_NOTIFICATION_TARGET --recovery-sink-env EDAI2_VAULT_RECOVERY_SINK --recovery-sink-attestation $env:EDAI2_RECOVERY_SINK_ATTESTATION --required-permissions configs/gke/required_permissions.json --dns-probes acme-staging-v02.api.letsencrypt.org,huggingface.co,storage.googleapis.com --live-external-preflight --preflight-output evidence/04_2_llm_design/gke/gcp_preflight_topic26.json --trial-expires-at $env:EDAI2_TRIAL_EXPIRES_AT --current-spend-usd $env:EDAI2_CURRENT_SPEND_USD --spend-observed-at $env:EDAI2_SPEND_OBSERVED_AT --usage-ledger evidence/04_2_llm_design/gke/usage_ledger.json --envelope configs/gke/cost_envelope.yaml --requested-profile rubric-evidence --requested-ttl 6h --output evidence/04_2_llm_design/gke/cost_forecast_topic26.json`.
+  - Expected: the residual lease and fresh live project/billing/IAM/notification/recovery-sink/DNS/trial/spend/capacity gates pass with redacted output only.
+- [ ] Run `rtk uv run pytest tests/integration/llm/test_gke_agents.py tests/contract/llm/test_mcp_contracts.py -q --live-gke --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT`.
   - Expected: exact agent/MCP/gateway schemas and positive/negative credentials pass.
 
 ### Task 2: Publish and read back the three logical agents
 
 - [ ] Run `rtk uv run python scripts/llm/publish_agents.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --templates infra/agentregistry/edai2 --commit-sha $env:EDAI2_COMMIT_SHA --publish --read-back --output evidence/04_2_llm_design/agents/registry.json --strict`.
-  - Expected: retrieval, drift, and one logical coordinator identity bind digest, framework, provider/model, MCP references, config hashes, and registry versions; no extra logical agent.
-- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --capture agentregistry-agents --viewport 1600x1000 --output evidence/04_2_llm_design/screenshots/agentregistry_agents.png --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --machine-evidence evidence/04_2_llm_design/agents/registry.json --strict`.
-  - Expected: three logical agents, versions, digest/commit context visible; no generic registry home page.
+  - Expected: retrieval, drift, and one logical coordinator identity bind digest, framework, provider/model, MCP references, and config hashes; coordinator read-back contains exactly the supplementary variants `v1-primary`, `v2-primary`, and `v1-comparison`, while the registry still has exactly three logical identities and five `SandboxAgent` resources.
+- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --platform-inventory evidence/04_2_llm_design/gke/platform_install.json --private-endpoint-key agentregistry_ui --loopback-only --tunnel-ttl 10m --capture agentregistry-agents --viewport 1600x1000 --output evidence/04_2_llm_design/screenshots/agentregistry_agents.png --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --machine-evidence evidence/04_2_llm_design/agents/registry.json --strict`.
+  - Expected: three logical agents, versions, digest/commit context visible; no generic registry home page. Absent/stale/mismatched inventory fields fail before tunneling, and the exact `127.0.0.1` port-forward child terminates in `finally`.
 
 ### Task 3: Prove KEDA and multi-instance HA
 
@@ -117,8 +121,8 @@ Failure modes: registry read-back mismatch; unsupported registry rollback; KEDA 
   - Expected: API transition state matches machine evidence.
 - [ ] Run `rtk kubectl --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT -n kagent get scaledobject,hpa,workerpool,pods -l edai2.openai.com/evidence=keda -o wide`.
   - Expected: WorkerPool transition and pod identities match.
-- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --capture keda-scale --viewport 1600x1000 --output evidence/04_2_llm_design/screenshots/keda_scale.png --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --machine-evidence evidence/04_2_llm_design/gke/keda_ha.json --strict`.
-  - Expected: contextual KEDA/Prometheus/Ready transition with timestamps and replica identities.
+- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --platform-inventory evidence/04_2_llm_design/gke/platform_install.json --private-endpoint-key grafana_ui --loopback-only --tunnel-ttl 10m --capture keda-scale --viewport 1600x1000 --output evidence/04_2_llm_design/screenshots/keda_scale.png --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --machine-evidence evidence/04_2_llm_design/gke/keda_ha.json --strict`.
+  - Expected: contextual KEDA/Prometheus/Ready transition with timestamps and replica identities. Absent/stale/mismatched inventory fields fail before tunneling, and the exact `127.0.0.1` port-forward child terminates in `finally`.
 
 ### Task 4: Verify the three functional chat paths as machine evidence
 
@@ -127,10 +131,14 @@ Failure modes: registry read-back mismatch; unsupported registry rollback; KEDA 
 
 ### Task 5: Prove three rollback classes
 
-- [ ] Run `rtk uv run python scripts/llm/smoke_release.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --inject-helm-failure coordinator --verify-atomic-rollback --restore-current --output evidence/04_2_llm_design/rollbacks/helm.json`.
-  - Expected: failed revision restores prior app plus agent/routing bundle; smoke/evaluation pass.
-- [ ] Run `rtk uv run python scripts/llm/smoke_release.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --inject-model-failure comparison --verify-modelconfig-rollback --restore-current --output evidence/04_2_llm_design/rollbacks/model.json`.
-  - Expected: route returns to exact prior digest/ModelConfig and quality smoke passes.
+- [ ] Run `rtk uv run python scripts/llm/smoke_release.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --inject-helm-failure retrieval --failure-mode bad-readiness --verify-atomic-rollback --restore-current --output evidence/04_2_llm_design/rollbacks/helm.json`.
+  - Expected: the retrieval candidate fails its readiness gate; Helm atomically restores the exact prior app plus agent/routing bundle and the restored retrieval `/readyz` and evaluation pass.
+- [ ] Run `rtk helm --kubeconfig $env:EDAI2_GKE_KUBECONFIG --kube-context $env:EDAI2_GKE_CONTEXT history retrieval-agent --namespace edai2 --output json`.
+  - Expected: the failed revision and immediately prior deployed revision match `rollbacks/helm.json`; the current revision is the restored good one.
+- [ ] Run `rtk uv run python scripts/llm/smoke_release.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --verify-readyz retrieval --expected-revision-from evidence/04_2_llm_design/rollbacks/helm.json --strict`.
+  - Expected: restored retrieval `/readyz` and its bound digest/config/routing revision pass.
+- [ ] Run `rtk uv run python scripts/llm/smoke_release.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --inject-model-failure primary --failure-mode invalid-digest --active-active-replicas 2 --delete-one-healthy-primary-endpoint --verify-modelconfig-rollback --restore-current --output evidence/04_2_llm_design/rollbacks/model.json`.
+  - Expected: the invalid primary digest never becomes Ready; deleting one healthy primary endpoint during active-active service still leaves the other serving, then the route returns to the exact prior primary digest/ModelConfig and quality smoke passes before current-state restoration.
 - [ ] Run `rtk uv run python scripts/llm/build_index.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --mode candidate --inject-validation-failure --verify-active-unchanged --rollback-to-previous --restore-current --output evidence/04_2_llm_design/rollbacks/index.json`.
   - Expected: failed candidate never mutates active alias; explicit rollback/restore pass retrieval evaluation.
 
@@ -140,6 +148,8 @@ Failure modes: registry read-back mismatch; unsupported registry rollback; KEDA 
   - Expected: dimensions/context/selectors/redactions are correct and no rejected state appears.
 - [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --verify-screenshots agentregistry_agents.png,keda_scale.png --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --strict`.
   - Expected: exit 0; file hashes match linked machine evidence.
+- [ ] Run `rtk uv run python scripts/gke/manage_profile.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT lease-status --owner evidence-run --require-refcount 0 --require-commit $env:EDAI2_COMMIT_SHA --strict`.
+  - Expected: the handed-off lease remains unexpired with enough recorded TTL for Topic 27; otherwise execute the documented suspend path instead of handing it off.
 - [ ] Run `rtk git status --short --branch`.
   - Expected: same branch/revision lineage and request-scoped changes only.
 
@@ -185,4 +195,4 @@ Rollback records support Topic 25/27 cells but do not duplicate their primary ow
 - **Screenshot QA:** Two owned screenshots not captured.
 - **Cleanup / runtime release:** No observed lease state.
 - **Limitations:** Notebook, benchmark, A/B, observability, and recovery evidence remain later topics.
-- **Handoff:** Topic 27 requires restored current versions, five valid capture hashes, and an unexpired zero-refcount `evidence-run` lease.
+- **Handoff:** Topic 27 requires restored current versions, the two valid owned capture hashes, and an unexpired zero-refcount `evidence-run` lease.

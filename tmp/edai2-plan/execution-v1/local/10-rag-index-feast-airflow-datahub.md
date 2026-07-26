@@ -83,9 +83,9 @@ Topic 09 yields versioned chunks and vectors. `RagIndexPipeline.build_candidate`
 
 Fail on candidate/source/hash/version mismatch, partial transaction, duplicate version with different content, missing/incomplete/nonfinite vector, wrong dimension, filter-after-rank, nondeterministic ties, approximate index, Feast/direct result mismatch, active alias mutation before validation, stale CAS expected value, DAG auto-schedule, stage retry changing alias, missing DataHub edge/schema/URN/read-back hash, or failed compensation.
 
-## Bootstrap versus canonical evidence identity
+## Local sentinel, CI bootstrap, and canonical evidence identities
 
-The CI/bootstrap check is exactly version `test_idx_001`, mode `candidate`, `dry_run=true`, evidence label `ci-bootstrap`, and no active alias. A later canonical evidence run is separately owned by EDAI2 Task 12, uses version `$env:EDAI2_INDEX_VERSION`, candidate/active/rollback lineage labels, CAS against the then-current active alias, and output `evidence/04_2_llm_design/rag/index_run.json`. Bootstrap output cannot be relabelled, copied, or scored as canonical evidence.
+This topic's local dry-run sentinel is exactly version `test_idx_001`, mode `candidate`, `dry_run=true`, evidence label `local-bootstrap-sentinel`, and no database write or active alias. Topic 25 separately owns the live CI bootstrap identity `ci-bootstrap-${EDAI2_COMMIT_SHA}` with purpose `ci-bootstrap`. Topic 28 owns the canonical evidence identity `canonical-evidence-${EDAI2_COMMIT_SHA}`, candidate/active/rollback lineage labels, CAS against the then-current active alias, and output `evidence/04_2_llm_design/rag/index_run.json`. None of the three identities may be relabelled, copied, or substituted for another.
 
 ## Ordered test-first execution tasks
 
@@ -93,13 +93,13 @@ The CI/bootstrap check is exactly version `test_idx_001`, mode `candidate`, `dry
 - [ ] Implement `001_extensions.sql`, `002_knowledge_index.sql`, and `feast_postgres.py`, then run `rtk uv run pytest tests/integration/llm/test_feast_pgvector.py -q`; expected PASS for transactional idempotent candidates, `vector(384)`, filter-before-rank, exact `<=>`, deterministic chunk-ID ties, no ANN, and Feast/direct equality.
 - [ ] Implement the exact `RagIndexPipeline` stage sequence and validation/CAS/prior-alias compensation, then run `rtk uv run pytest tests/unit/llm/test_indexing.py tests/integration/llm/test_feast_pgvector.py -q`; expected PASS with failed validation preserving the prior alias and post-CAS failure restoring it.
 - [ ] Implement `infra/feast/feature_store.yaml`, `infra/feast/features.py`, the orchestration application/DAG/spec, DataHub adapter/recipe, and CLI wiring, then run `rtk uv run pytest tests/integration/llm/test_airflow_datahub.py -q`; expected PASS with a paused/manual DAG, exact stage order, candidate/active/read-back graph, and rollback lineage.
-- [ ] Run `rtk uv run python scripts/llm/build_index.py --mode candidate --index-version test_idx_001 --source-root data/knowledge/ecommerce --dry-run`; expected exit 0 with exactly 8 documents, 9 versions, at-most-400/80-overlap chunks, finite normalized 384-vectors, bootstrap label `ci-bootstrap`, no database write, no active alias, and no canonical evidence claim.
+- [ ] Run `rtk uv run python scripts/llm/build_index.py --mode candidate --index-version test_idx_001 --index-purpose local-bootstrap-sentinel --source-root data/knowledge/ecommerce --dry-run`; expected exit 0 with exactly 8 documents, 9 versions, at-most-400/80-overlap chunks, finite normalized 384-vectors, label `local-bootstrap-sentinel`, no database write, no active alias, and no CI/canonical evidence claim.
 - [ ] Run `rtk uv run pytest tests/unit/llm/test_indexing.py tests/integration/llm/test_feast_pgvector.py tests/integration/llm/test_airflow_datahub.py -q`; expected PASS with tampered source/hash, overlapping intervals, incomplete embeddings, failed validation, stale CAS, and read-back failure all preserving or restoring the exact prior alias.
-- [ ] Run `rtk git diff --check` and `rtk git status --short --branch`; expected no whitespace errors, the original branch unchanged, only exact file-map paths changed, no canonical evidence output created, and nothing staged.
+- [ ] Run `rtk git diff --check`, `rtk git status --short --branch`, and `rtk git ls-files --stage`; expected no whitespace errors, the original branch unchanged, only exact file-map paths changed, no canonical evidence output created, and the final index listing is byte-for-byte identical to the pre-topic listing. Pre-existing staged entries are user-owned; do not stage or unstage them.
 
 ## Evidence and screenshot ownership
 
-Topic 10 owns local integration logs and bootstrap dry-run output only. It owns no canonical `index_run.json`, Airflow/DataHub screenshot, or rubric satisfaction. Later Task 12 must generate fresh candidate/active alias evidence and contextual Airflow/DataHub screenshots.
+Topic 10 owns local integration logs and the `local-bootstrap-sentinel` dry-run output only. It owns neither Topic 25's live CI bootstrap nor Topic 28's canonical `index_run.json`, Airflow/DataHub screenshots, or rubric satisfaction. Topic 28 must generate fresh candidate/active alias evidence and contextual Airflow/DataHub screenshots.
 
 ## Cleanup
 

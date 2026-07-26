@@ -26,10 +26,11 @@
 - Read and obey `C:\Users\oou1hc\.codex\RTK.md`; prefix every shell command with `rtk`.
 - Fixed source hashes: Section 03 `ece171c3d400c3b16fc668cd28e3587faebe1f596dd6c0c4498ff055e3fc027f`; EDAI2 `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`; rubric at `tmp/rubic-check/Coursework Tracking (Public).xlsx` `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - Do not create/switch branches/worktrees, stage, or commit. Six jobs use one `EDAI2_COMMIT_SHA` and one verified `EDAI2_BASE_REF`.
+- Consume the completed local implementation. If a source/IaC/chart defect appears, capture it, release or suspend any owned runtime, mark this topic `Partial`, and return it to the owning local topic; do not patch implementation during a live cloud lease.
 - Require explicit context `gke_${GOOGLE_CLOUD_PROJECT}_us-central1-a_edai2`.
 - Require `EDAI2_GKE_KUBECONFIG=tmp/edai2-gcp/kubeconfig` and `EDAI2_GKE_CONTEXT=gke_${GOOGLE_CLOUD_PROJECT}_us-central1-a_edai2`. Every `kubectl` call includes `--kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT`; every Helm call includes `--kubeconfig $env:EDAI2_GKE_KUBECONFIG --kube-context $env:EDAI2_GKE_CONTEXT`; every script that queries or mutates Kubernetes receives both values. Never use or change the default kubeconfig/current context.
-- Safe-stop if project, billing, IAM, trial expiry, spend, recovery-sink status, verified Section 03 inputs, registry permission, Jenkins auth, or other external input is absent/stale/inconsistent.
-- `EDAI2_TFVARS_PATH=tmp/edai2-gcp/coursework.auto.tfvars` remains untracked.
+- Run a fresh redacted `check_budget.py --live-external-preflight` gate before mutation. Safe-stop if project lifecycle, billing linkage, exact IAM permissions, trial expiry, spend, budget notification target, approved recovery-sink attestation, DNS, verified Section 03 inputs, registry permission, Jenkins auth, or another external input is absent/stale/inconsistent.
+- `EDAI2_TFVARS_PATH` is absolute, resolves exactly to this repository's `tmp/edai2-gcp/coursework.auto.tfvars`, and remains untracked.
 - Re-run live budget/capacity gates before `rubric-evidence`; lease TTL <=6h.
 - Jenkins controller executors are zero; `edai2-buildkit-slot` capacity is one; peak BuildKit concurrency must be one with overlap count zero.
 - Jenkins is the first and only image build/push/deploy path. No direct Helm bootstrap deploy.
@@ -37,7 +38,7 @@
 - Each child must execute all seven ordered stages and release only its child reference in `post { always }`.
 - Wave order is exactly `rag-index,feast-offline-writer,feast-online-writer | retrieval-agent,drift-agent | coordinator`.
 - One bounded retry is allowed for one failed job only after documenting a transient cause; never rerun successful jobs to make UI evidence.
-- Failed jobs leave only their rubric cells unsatisfied, block dependent waves, preserve already-good atomic releases, persist diagnostics, and suspend if the lease cannot be handed off.
+- Failed jobs leave only their rubric cells `Partial` or `Missing`, block dependent waves, preserve already-good atomic releases, persist diagnostics, and suspend if the lease cannot be handed off.
 - `Sheet3!E49` remains out of scope; no VM/Ansible/Cloud Build/hosted model.
 
 ## Read-Only Planning Refresh
@@ -53,14 +54,14 @@
 5. `rtk uv run pytest tests/contract/llm/test_section03_contract.py -q`
    - Expected: verified Section 03 manifest/artifacts/hashes and exact `Sheet3!E32:E34` ownership pass.
 6. `rtk git rev-parse HEAD`
-   - Expected: exact value exported as `EDAI2_COMMIT_SHA`; no job may use another revision.
+   - Expected: exact lowercase 40-hex value exported as `EDAI2_COMMIT_SHA`; any abbreviated, uppercase, non-hex, or different job revision is a safe stop.
 
 ## Scope
 
 - Validate six Jenkins definitions/build contexts and rendered Helm bundles.
 - Resume private platform in `rubric-evidence` under one outer lease.
 - Strictly bootstrap/read back Redpanda topics/schema.
-- Import the verified Section 03 bundle through Workload Identity.
+- Upload and fully verify the immutable Section 03 bundle through Workload Identity without activating it; the drift Jenkins/Helm release is the sole activation owner.
 - Run six serialized CI jobs in three waves.
 - Verify streaming-writer semantics and produce six machine records.
 - Hand off the zero-refcount lease to `evidence-run` for Topics 26-27.
@@ -82,23 +83,28 @@
 | Read | `ci/jenkins/scripts/release.sh` |
 | Read | `infra/helm/edai2/workloads/rag-index.yaml`, `infra/helm/edai2/workloads/retrieval.yaml`, `infra/helm/edai2/workloads/drift.yaml` |
 | Read | `infra/helm/edai2/workloads/coordinator.yaml`, `infra/helm/edai2/workloads/feast-offline-writer.yaml`, `infra/helm/edai2/workloads/feast-online-writer.yaml` |
-| Read/modify at implementation | `infra/kafka/topics.yaml`, `infra/kafka/schemas/customer_feature_updates-value.schema.json`, `src/vina_bim_shop/kafka/topics.py` |
-| Read/modify at implementation | `src/vina_bim_shop/kafka/bootstrap.py`, `scripts/kafka/bootstrap_topics.py`, `infra/governance/recipes/kafka_topics.yml` |
+| Read/consume | `infra/kafka/topics.yaml`, `infra/kafka/schemas/customer_feature_updates-value.schema.json`, `src/vina_bim_shop/kafka/topics.py` |
+| Read/consume | `src/vina_bim_shop/kafka/bootstrap.py`, `scripts/kafka/bootstrap_topics.py`, `infra/governance/recipes/kafka_topics.yml` |
 | Execute | `scripts/gke/manage_profile.py`, `scripts/gke/check_budget.py`, `scripts/feast/load_section03.py` |
 | Execute | `scripts/llm/smoke_release.py`, `scripts/qa/capture_edai2_evidence.py` |
 | Read external/untracked | `tmp/edai2-gcp/kubeconfig` |
 | Consume | `evidence/03_data_generator_improvement/section03_manifest.json` |
+| Generate immutable gate evidence | `evidence/04_2_llm_design/gke/gcp_preflight_topic25.json`, `evidence/04_2_llm_design/gke/cost_forecast_topic25.json` |
+| Update append-only | `evidence/04_2_llm_design/gke/usage_ledger.json` |
 | Generate | `evidence/04_2_llm_design/streaming/bootstrap.json` |
-| Generate | `evidence/04_2_llm_design/section03/import.json` |
+| Generate | `evidence/04_2_llm_design/section03/upload.json` |
+| Generate by drift Jenkins/Helm release only | `evidence/04_2_llm_design/section03/import.json` |
 | Generate | `evidence/04_2_llm_design/streaming/writers.json` |
 | Generate | `evidence/04_2_llm_design/cicd/jobs.json` |
-| Generate | `evidence/04_2_llm_design/rollbacks/helm.json` |
+| Generate | `evidence/04_2_llm_design/rollbacks/jenkins_helm_stage.json` |
 
 ## Interfaces, Data Flow, and Failure Modes
 
 Verified commit/base + Jenkins job map -> serialized BuildKit archive -> Trivy/SBOM -> SHA push -> digest verification -> atomic Helm release -> smoke/evaluation -> controlled rollback/restore -> one machine record.
 
-Section 03 manifest -> local hash verification -> immutable KMS GCS prefix -> GKE Job re-verification -> PostgreSQL/Feast/Valkey activation -> deterministic feature event -> drift readiness.
+Section 03 manifest -> local hash verification -> immutable KMS GCS prefix create-only upload/read-back -> drift Jenkins/Helm release consumes verified upload -> its activation Job re-verifies -> PostgreSQL/Feast/Valkey activation -> deterministic feature event -> drift readiness. No pre-CI path creates an import Job, writes runtime stores, emits the feature event, or probes drift readiness; the drift release is the sole activation owner.
+
+The rag-index Jenkins job may build a noncanonical `ci-bootstrap` index only to smoke its deployment. That index is versioned with the CI commit and cannot be promoted or cited for `Sheet3!E8:E9`; Topic 28 later creates the distinct `canonical-evidence` index and owns those rubric cells.
 
 Redpanda bootstrap -> exact topics/schema -> two independent consumer groups -> offline PostgreSQL and online Feast/Valkey -> separate checkpoints and DLQ records.
 
@@ -117,8 +123,8 @@ Failure modes include commit/base drift, lock overlap, stage omission/reordering
 
 ### Task 2: Acquire the sole CI/evidence lease
 
-- [ ] Run `rtk uv run python scripts/gke/check_budget.py --project $env:GOOGLE_CLOUD_PROJECT --trial-expires-at $env:EDAI2_TRIAL_EXPIRES_AT --current-spend-usd $env:EDAI2_CURRENT_SPEND_USD --spend-observed-at $env:EDAI2_SPEND_OBSERVED_AT --usage-ledger evidence/04_2_llm_design/gke/usage_ledger.json --envelope configs/gke/cost_envelope.yaml --requested-profile rubric-evidence --requested-ttl 6h --output evidence/04_2_llm_design/gke/cost_forecast.json`.
-  - Expected: exit 0.
+- [ ] Run `rtk uv run python scripts/gke/check_budget.py --project $env:GOOGLE_CLOUD_PROJECT --billing-account-env GOOGLE_BILLING_ACCOUNT --budget-notification-target-env EDAI2_BUDGET_NOTIFICATION_TARGET --recovery-sink-env EDAI2_VAULT_RECOVERY_SINK --recovery-sink-attestation $env:EDAI2_RECOVERY_SINK_ATTESTATION --required-permissions configs/gke/required_permissions.json --dns-probes acme-staging-v02.api.letsencrypt.org,huggingface.co,storage.googleapis.com --live-external-preflight --preflight-output evidence/04_2_llm_design/gke/gcp_preflight_topic25.json --trial-expires-at $env:EDAI2_TRIAL_EXPIRES_AT --current-spend-usd $env:EDAI2_CURRENT_SPEND_USD --spend-observed-at $env:EDAI2_SPEND_OBSERVED_AT --usage-ledger evidence/04_2_llm_design/gke/usage_ledger.json --envelope configs/gke/cost_envelope.yaml --requested-profile rubric-evidence --requested-ttl 6h --output evidence/04_2_llm_design/gke/cost_forecast_topic25.json`.
+  - Expected: exit 0; live project/billing/IAM/notification/recovery-sink/DNS/trial/spend/capacity gates pass and output contains only redacted hashes, booleans, timestamps, and bounded numeric values.
 - [ ] Run `rtk kubectl --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT cluster-info`.
   - Expected: the dedicated kubeconfig resolves the approved GKE API without reading or changing the default context.
 - [ ] Run `rtk uv run python scripts/gke/manage_profile.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT rubric-evidence --ttl 6h --acquire-session-lease --owner topic25-ci --commit-sha $env:EDAI2_COMMIT_SHA`.
@@ -130,28 +136,28 @@ Failure modes include commit/base drift, lock overlap, stage omission/reordering
   - Expected: two exact topics, one partition, replication one, delete policy, seven-day retention, closed-schema hash, and successful read-back.
 - [ ] Run the identical bootstrap command once more.
   - Expected: proved no-op; any existing mismatch fails rather than mutating.
-- [ ] Run `rtk uv run python scripts/feast/load_section03.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --manifest evidence/03_data_generator_improvement/section03_manifest.json --strict --gcs-prefix $env:EDAI2_SECTION03_GCS_URI --if-generation-match-zero --submit-gke-job --publish-feature-events --wait --evidence evidence/04_2_llm_design/section03/import.json`.
-  - Expected: local and in-cluster hashes pass, exact data activates atomically, one deterministic event publishes, drift `/readyz` passes, same-hash rerun is a no-op.
+- [ ] Run `rtk uv run python scripts/feast/load_section03.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --manifest evidence/03_data_generator_improvement/section03_manifest.json --strict --gcs-prefix $env:EDAI2_SECTION03_GCS_URI --if-generation-match-zero --upload-only --verify-upload --defer-activation-to-release drift --evidence evidence/04_2_llm_design/section03/upload.json`.
+  - Expected: local hashes/schema/fingerprint pass and the immutable bundle is create-only uploaded and read back. An existing identical bundle is reused only after full hash/schema/fingerprint verification; a same-ID content mismatch fails. No GKE import Job, PostgreSQL/Feast/Valkey write, feature event, or drift readiness probe occurs.
 
 ### Task 4: Run the six jobs once
 
-- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --jenkins-trigger-all --commit-sha $env:EDAI2_COMMIT_SHA --verified-base $env:EDAI2_BASE_REF --reuse-session-lease --lease-owner topic25-ci --handoff-lease-to-evidence --evidence-owner evidence-run --resume-profile rubric-evidence --ttl 6h --waves "rag-index,feast-offline-writer,feast-online-writer|retrieval-agent,drift-agent|coordinator" --max-concurrent-buildkit 1 --strict --root evidence/04_2_llm_design`.
-  - Expected: six unique SUCCESS records and build IDs, same commit/base, all seven stages, peak BuildKit one, dependency waves, digest equality, atomic releases, smoke/evaluation and rollback/restore.
-- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --verify-jenkins-evidence evidence/04_2_llm_design/cicd/jobs.json --expected-commit $env:EDAI2_COMMIT_SHA --expected-jobs 6 --require-buildkit-serialization --require-wave-order --strict`.
-  - Expected: exit 0; no direct Helm bootstrap or child-ref leak; lease handoff occurs only after all jobs terminal and refcount zero.
+- [ ] Run `rtk powershell -NoProfile -Command 'if ($env:EDAI2_COMMIT_SHA -cnotmatch "^[0-9a-f]{40}$") { exit 25 }; & rtk uv run python scripts/qa/capture_edai2_evidence.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --jenkins-trigger-all --commit-sha $env:EDAI2_COMMIT_SHA --verified-base $env:EDAI2_BASE_REF --reuse-session-lease --lease-owner topic25-ci --handoff-lease-to-evidence --evidence-owner evidence-run --resume-profile rubric-evidence --ttl 6h --waves "rag-index,feast-offline-writer,feast-online-writer|retrieval-agent,drift-agent|coordinator" --max-concurrent-buildkit 1 --section03-upload-evidence evidence/04_2_llm_design/section03/upload.json --drift-activation-owner jenkins-helm --rag-index-purpose ci-bootstrap --rag-index-version "ci-bootstrap-$($env:EDAI2_COMMIT_SHA)" --jenkins-rollback-output evidence/04_2_llm_design/rollbacks/jenkins_helm_stage.json --strict --root evidence/04_2_llm_design; exit $LASTEXITCODE'`.
+  - Expected: six unique SUCCESS records and build IDs, same commit/base, all seven stages, peak BuildKit one, dependency waves, digest equality, atomic releases, smoke/evaluation and rollback/restore. The drift release alone activates Section 03 under Helm `--atomic`, writes `section03/import.json`, publishes the single deterministic event, and proves `/readyz`; no second import runs. The rag-index release records a commit-bound `ci-bootstrap` index that is not promoted as canonical evidence.
+- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --verify-jenkins-evidence evidence/04_2_llm_design/cicd/jobs.json --expected-commit $env:EDAI2_COMMIT_SHA --expected-jobs 6 --require-buildkit-serialization --require-wave-order --require-single-section03-activation jenkins-helm --section03-upload evidence/04_2_llm_design/section03/upload.json --section03-import evidence/04_2_llm_design/section03/import.json --require-rag-index-purpose ci-bootstrap --require-rag-index-version "ci-bootstrap-$($env:EDAI2_COMMIT_SHA)" --require-lowercase-40hex-commit --forbid-rag-index-purpose canonical-evidence --strict`.
+  - Expected: exit 0; upload precedes the sole drift-owned activation, no duplicate import/direct Helm bootstrap/child-ref leak exists, and lease handoff occurs only after all jobs are terminal with refcount zero.
 
 ### Task 5: Verify writer behavior against deployed releases
 
 - [ ] Run `rtk uv run python scripts/llm/smoke_release.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --streaming-writers --publish-valid-and-duplicate --publish-invalid --output evidence/04_2_llm_design/streaming/writers.json`.
   - Expected: one effective update in each destination, independent checkpoint-after-ack, duplicate no effect, and exactly two redacted DLQ records distinguished by consumer group.
-- [ ] Run `rtk uv run pytest tests/integration/llm/test_streaming_writers.py -q --live-gke`.
+- [ ] Run `rtk uv run pytest tests/integration/llm/test_streaming_writers.py -q --live-gke --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT`.
   - Expected: exit 0.
 - [ ] Run `rtk git status --short --branch`.
   - Expected: same branch/revision lineage and only request-scoped generated evidence/implementation changes.
 
 ## Evidence and Screenshot Ownership
 
-Topic 25 owns `cicd/jobs.json`, `streaming/bootstrap.json`, `streaming/writers.json`, `section03/import.json`, and Helm rollback machine evidence. It owns no screenshot. Topic 27 must capture six existing job pages in one browser session and must not rebuild any job.
+Topic 25 owns `cicd/jobs.json`, `streaming/bootstrap.json`, `streaming/writers.json`, `section03/upload.json`, the drift-release-produced `section03/import.json`, and job-stage rollback evidence at `rollbacks/jenkins_helm_stage.json`. It owns no screenshot. Topic 26 separately owns the injected live Helm rollback proof at `rollbacks/helm.json`; neither topic overwrites the other's record. Topic 25's `ci-bootstrap` RAG index is explicitly noncanonical; Topic 28 owns the later canonical evidence index. Topic 27 must capture six existing job pages in one browser session and must not rebuild any job.
 
 ## Cleanup and Runtime Release
 
@@ -175,7 +181,8 @@ The six job records are supporting inputs for Topic 27's sole ownership of `Shee
 
 ## Definition of Done
 
-- [ ] Preflight, Section 03, budget, capacity, context, and immutable topic/schema gates pass.
+- [ ] Preflight, Section 03 create-only upload/read-back, budget, capacity, context, and immutable topic/schema gates pass.
+- [ ] Drift Jenkins/Helm is the sole Section 03 activation owner; no duplicate import exists, and CI-bootstrap RAG is distinct from the later canonical evidence index.
 - [ ] Six jobs use one branch/base/commit, unique IDs, exact stages, one BuildKit pod, and correct waves.
 - [ ] Six digests/releases/smokes/rollbacks and writer semantics are hash-bound.
 - [ ] No successful job is rerun for future screenshots.

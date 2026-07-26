@@ -26,10 +26,11 @@
 - Read and obey `C:\Users\oou1hc\.codex\RTK.md`; prefix every shell command with `rtk`.
 - Fixed source hashes: Section 03 `ece171c3d400c3b16fc668cd28e3587faebe1f596dd6c0c4498ff055e3fc027f`; EDAI2 `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`; rubric at `tmp/rubic-check/Coursework Tracking (Public).xlsx` `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - Prefix every shell command with `rtk`; no branch/worktree/stage/commit changes.
+- Consume the completed local implementation. If a source/IaC/chart defect appears, capture it, release or suspend any owned runtime, mark this topic `Partial`, and return it to the owning local topic; do not patch implementation during a live cloud lease.
 - Require explicit context `gke_${GOOGLE_CLOUD_PROJECT}_us-central1-a_edai2` before every live block.
 - Require `EDAI2_GKE_KUBECONFIG=tmp/edai2-gcp/kubeconfig` and `EDAI2_GKE_CONTEXT=gke_${GOOGLE_CLOUD_PROJECT}_us-central1-a_edai2`. Every `kubectl` call includes `--kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT`; every Helm call includes `--kubeconfig $env:EDAI2_GKE_KUBECONFIG --kube-context $env:EDAI2_GKE_CONTEXT`; every script that queries or mutates Kubernetes receives both values. Never use or change the default kubeconfig/current context.
-- Re-run live project/billing/IAM/trial/spend/budget/capacity gates. Missing external input, recovery sink status, model-cache URI/generation, or permission is a safe stop.
-- `EDAI2_TFVARS_PATH=tmp/edai2-gcp/coursework.auto.tfvars` remains untracked.
+- Re-run the redacted live project/billing/IAM/notification/recovery-sink/DNS/trial/spend/budget/capacity gate. Missing external input, model-cache URI/generation, or permission is a safe stop.
+- `EDAI2_TFVARS_PATH` remains an absolute path resolving exactly to untracked `tmp/edai2-gcp/coursework.auto.tfvars`.
 - `core` uses one regular platform node and at most one Spot node only during private model/API validation; no public `LoadBalancer`.
 - Capacity fails above regular 3.4 CPU/24Gi, one-Spot 6.8 CPU/24Gi, platform aggregate 3.00 CPU/18Gi, or PVC 80Gi. Lower/serialize workloads; never enlarge approved machines silently.
 - All releases/configs/images/models are immutable and pinned. Reject `latest`, mutable remote Kustomize bases, GPUs, hosted models, bundled duplicate data stores/tools/agents, and secret literals.
@@ -94,6 +95,8 @@
 | Execute | `scripts/gke/manage_profile.py`, `scripts/gke/check_budget.py` |
 | Read external/untracked | `tmp/edai2-gcp/kubeconfig` |
 | Consume | `evidence/04_2_llm_design/security/vault_bootstrap.json`, `evidence/04_2_llm_design/gke/model_cache.json` |
+| Generate immutable gate evidence | `evidence/04_2_llm_design/gke/gcp_preflight_topic24.json`, `evidence/04_2_llm_design/gke/cost_forecast_topic24.json` |
+| Update append-only | `evidence/04_2_llm_design/gke/usage_ledger.json` |
 | Generate | `evidence/04_2_llm_design/gke/platform_install.json` |
 | Generate | `evidence/04_2_llm_design/gke/platform_capacity.json` |
 
@@ -109,12 +112,15 @@ Platform outputs consumed by Topic 25:
 - Private Agent Registry and Jenkins controller.
 - No app-owned `RemoteMCPServer`/`SandboxAgent` applied.
 
+`platform_install.json.private_endpoints` contains exactly five keys: `agentregistry_ui`, `grafana_ui`, `airflow_web`, `datahub_frontend`, and `vault_status`. Every entry contains its namespace, rendered ClusterIP Service name and UID, service port and target port, selector SHA-256, and the nonempty Ready endpoint UID list observed from the same explicit kubeconfig/context. The whole inventory is revision/time/hash-bound. Later capture helpers must read back the named Service and EndpointSlice objects and reject an absent, extra, stale, or mismatched key/UID/port/selector/Ready-endpoint entry before opening a tunnel.
+
 Failure modes:
 
 - Capacity/render failure: stop before node/profile transition.
 - ExternalSecret not Ready: do not start consumer.
 - GCS prefix access exceeds assigned prefix: stop and revoke binding.
 - Model cache generation/hash mismatch: llm-d remains unready; no Hub fallback.
+- Private endpoint key/service/port/selector/Ready-endpoint mismatch: reject the inventory and block every dependent UI capture.
 - Built-in kagent tools/agents or bundled stores appear: reject render.
 - Any public service in core: disable it, capture failure state, suspend.
 - Partial install: preserve persistent state, record exact first failed release, do not skip ahead.
@@ -136,8 +142,8 @@ Failure modes:
 
 ### Task 2: Acquire private core runtime
 
-- [ ] Run `rtk uv run python scripts/gke/check_budget.py --project $env:GOOGLE_CLOUD_PROJECT --trial-expires-at $env:EDAI2_TRIAL_EXPIRES_AT --current-spend-usd $env:EDAI2_CURRENT_SPEND_USD --spend-observed-at $env:EDAI2_SPEND_OBSERVED_AT --usage-ledger evidence/04_2_llm_design/gke/usage_ledger.json --envelope configs/gke/cost_envelope.yaml --requested-profile core --requested-ttl 2h --output evidence/04_2_llm_design/gke/cost_forecast.json`.
-  - Expected: exit 0.
+- [ ] Run `rtk uv run python scripts/gke/check_budget.py --project $env:GOOGLE_CLOUD_PROJECT --billing-account-env GOOGLE_BILLING_ACCOUNT --budget-notification-target-env EDAI2_BUDGET_NOTIFICATION_TARGET --recovery-sink-env EDAI2_VAULT_RECOVERY_SINK --recovery-sink-attestation $env:EDAI2_RECOVERY_SINK_ATTESTATION --required-permissions configs/gke/required_permissions.json --dns-probes acme-staging-v02.api.letsencrypt.org,huggingface.co,storage.googleapis.com --live-external-preflight --preflight-output evidence/04_2_llm_design/gke/gcp_preflight_topic24.json --trial-expires-at $env:EDAI2_TRIAL_EXPIRES_AT --current-spend-usd $env:EDAI2_CURRENT_SPEND_USD --spend-observed-at $env:EDAI2_SPEND_OBSERVED_AT --usage-ledger evidence/04_2_llm_design/gke/usage_ledger.json --envelope configs/gke/cost_envelope.yaml --requested-profile core --requested-ttl 2h --output evidence/04_2_llm_design/gke/cost_forecast_topic24.json`.
+  - Expected: exit 0 with a fresh redacted external/IAM/budget/capacity gate.
 - [ ] Run `rtk kubectl --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT cluster-info`.
   - Expected: the dedicated kubeconfig resolves the approved GKE API without reading or changing the default context.
 - [ ] Run `rtk uv run python scripts/gke/manage_profile.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT core --ttl 2h --acquire-session-lease --owner topic24-platform --commit-sha $env:EDAI2_COMMIT_SHA --stage vault`.
@@ -153,12 +159,14 @@ Failure modes:
   - Expected: `default-model-config`, `edai2-comparison`, and `edai2-agents` exist; platform controllers Ready.
 - [ ] Run `rtk kubectl --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT get gateway,httproute,grpcroute -A`.
   - Expected: private agentgateway routes only; llm-d not directly exposed.
-- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --platform-inventory --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --output evidence/04_2_llm_design/gke/platform_install.json --strict`.
-  - Expected: sanitized inventory binds release/chart/image/model/cache generations, capacity, retention, services, and readiness without secret payload.
+- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --platform-inventory --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --private-endpoint-keys agentregistry_ui,grafana_ui,airflow_web,datahub_frontend,vault_status --require-private-endpoint-fields namespace,service_name,service_uid,service_port,target_port,selector_sha256,ready_endpoint_uids --output evidence/04_2_llm_design/gke/platform_install.json --strict`.
+  - Expected: sanitized inventory binds release/chart/image/model/cache generations, capacity, retention, services, and readiness without secret payload. `private_endpoints` has exactly the five requested keys; every field is read back from the same context, every Ready endpoint UID list is nonempty, and the inventory records revision/time/SHA-256.
+- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --verify-private-endpoint-inventory evidence/04_2_llm_design/gke/platform_install.json --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --expected-keys agentregistry_ui,grafana_ui,airflow_web,datahub_frontend,vault_status --strict`.
+  - Expected: exact live Service UID/name/namespace/ports/selector hash and Ready endpoint UID read-back matches; absent, extra, stale, or mismatched inventory fails.
 
 ### Task 4: Prove platform exclusions and app boundary
 
-- [ ] Run `rtk uv run pytest tests/integration/llm/test_gke_agents.py -q --live-gke`.
+- [ ] Run `rtk uv run pytest tests/integration/llm/test_gke_agents.py -q --live-gke --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT`.
   - Expected: gateway credential positive/negative matrix, two ModelConfigs, WorkerPool scale surface, storage prefixes, and controllers pass.
 - [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --verify-platform-exclusions evidence/04_2_llm_design/gke/platform_install.json --forbid bundled-postgres,bundled-valkey,rustfs,builtin-agents,builtin-tools,public-loadbalancer,app-sandboxagents --strict`.
   - Expected: exit 0; the five app-owned SandboxAgent renders exist only in unapplied bundles for Topic 25.

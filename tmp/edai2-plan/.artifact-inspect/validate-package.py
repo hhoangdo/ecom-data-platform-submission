@@ -201,6 +201,13 @@ else:
     execution_count = len(re.findall(r"(?m)^### Topic \d{2} execution prompt$", master_text))
     if planning_count != 33 or execution_count != 33:
         errors.append(f"prompt counts are planning={planning_count}, execution={execution_count}")
+    if master_text.count(
+        "Run `rtk git ls-files --stage` before edits and require the final "
+        "listing to be byte-for-byte identical."
+    ) != 33:
+        errors.append(
+            "master must put the immutable-index check in all 33 execution prompts"
+        )
     owner_rows = re.findall(
         r"(?m)^\| `Sheet3!E(\d+)` \| (\d+) \| (\d{2}) \|",
         master_text,
@@ -208,6 +215,21 @@ else:
     owner_cells = [int(cell) for cell, _, _ in owner_rows]
     if sorted(owner_cells) != list(range(3, 63)):
         errors.append("primary ownership table does not cover E3:E62 exactly once")
+    topic_rubric_coverage: dict[int, set[int]] = {}
+    for topic, relative in enumerate(EXPECTED):
+        topic_text = (PACKAGE / relative).read_text(encoding="utf-8")
+        coverage: set[int] = set()
+        for start, end in re.findall(
+            r"Sheet3!E(\d+)(?::E(\d+))?",
+            topic_text,
+        ):
+            coverage.update(range(int(start), int(end or start) + 1))
+        topic_rubric_coverage[topic] = coverage
+    for cell, _, owner in owner_rows:
+        if int(cell) not in topic_rubric_coverage[int(owner)]:
+            errors.append(
+                f"primary owner Topic {owner} does not reference Sheet3!E{cell}"
+            )
     if "E49 retains workbook value 1, earns 0" not in master_text:
         errors.append("master does not preserve the E49 zero-earned rule")
     for pin in [
@@ -472,6 +494,203 @@ for topic in range(28, 32):
     evidence_text = (PACKAGE / EXPECTED[topic]).read_text(encoding="utf-8")
     if "lease" not in evidence_text.lower() or "budget" not in evidence_text.lower():
         errors.append(f"{EXPECTED[topic]}: missing independent lease/budget gate")
+
+# Cross-file semantic and copy/paste prompt checks.
+all_package_paths = [MASTER] + [PACKAGE / relative for relative in EXPECTED]
+for source_path in all_package_paths:
+    source_text = source_path.read_text(encoding="utf-8")
+    if re.search(r'-Command\s+"[^"\r\n]*\$', source_text):
+        errors.append(
+            f"{source_path.relative_to(PACKAGE)}: double-quoted PowerShell "
+            "-Command would expand a variable in the parent shell"
+        )
+    for reference in re.findall(
+        r"tmp/edai2-plan/execution-v1/[A-Za-z0-9_./-]+\.md",
+        source_text,
+    ):
+        if not (ROOT / reference).is_file():
+            errors.append(
+                f"{source_path.relative_to(PACKAGE)}: broken internal reference "
+                f"{reference}"
+            )
+
+if MASTER.exists():
+    for topic in range(33):
+        planning_header = f"### Topic {topic:02d} planning prompt"
+        execution_header = f"### Topic {topic:02d} execution prompt"
+        next_header = (
+            f"### Topic {topic + 1:02d} planning prompt"
+            if topic < 32
+            else None
+        )
+        planning_block = master_text.split(planning_header, 1)[1].split(
+            execution_header, 1
+        )[0]
+        execution_tail = master_text.split(execution_header, 1)[1]
+        execution_block = (
+            execution_tail.split(next_header, 1)[0]
+            if next_header
+            else execution_tail
+        )
+        expected_topic_reference = (
+            "tmp/edai2-plan/execution-v1/" + EXPECTED[topic]
+        )
+        for phase, block in [
+            ("planning", planning_block),
+            ("execution", execution_block),
+        ]:
+            if expected_topic_reference not in block:
+                errors.append(
+                    f"master Topic {topic:02d} {phase} prompt lacks its exact "
+                    "authoritative path"
+                )
+            for predecessor in DEPS[topic]:
+                predecessor_reference = (
+                    "tmp/edai2-plan/execution-v1/" + EXPECTED[predecessor]
+                )
+                if predecessor_reference not in block:
+                    errors.append(
+                        f"master Topic {topic:02d} {phase} prompt lacks "
+                        f"predecessor Topic {predecessor:02d}"
+                    )
+        if "rtk git ls-files --stage" not in execution_block:
+            errors.append(
+                f"master Topic {topic:02d} execution prompt lacks index preservation"
+            )
+    for exact in [
+        "same chat",
+        "Pre-existing staged entries are user-owned",
+        "gcp_preflight_topicNN.json",
+        "cost_forecast_topicNN.json",
+        "sole shared append-only GCP gate artifact",
+        "do not spend an active cloud lease patching repository implementation",
+    ]:
+        if exact.lower() not in master_text.lower():
+            errors.append(f"master missing semantic execution rule: {exact}")
+
+package_text = "\n".join(
+    path.read_text(encoding="utf-8") for path in all_package_paths
+)
+if re.search(r"\bnothing (?:is )?staged\b", package_text, flags=re.IGNORECASE):
+    errors.append(
+        "package incorrectly requires an empty index instead of preserving "
+        "pre-existing staged entries"
+    )
+for generic_gate_name in [
+    "evidence/04_2_llm_design/gke/gcp_preflight.json",
+    "evidence/04_2_llm_design/gke/cost_forecast.json",
+]:
+    if generic_gate_name in package_text:
+        errors.append(
+            f"package contains overwrite-prone generic gate path "
+            f"{generic_gate_name}"
+        )
+
+topic_00 = (PACKAGE / EXPECTED[0]).read_text(encoding="utf-8")
+if topic_00.count("rtk winget install --id ") != 4:
+    errors.append(f"{EXPECTED[0]}: expected exactly four pinned Winget installs")
+if "rtk winget upgrade --id " in topic_00:
+    errors.append(f"{EXPECTED[0]}: contains redundant Winget upgrade commands")
+
+semantic_tokens: dict[int, list[str]] = {
+    7: [
+        "compose-running-before.txt",
+        "SECTION03_COMPOSE_RELEASE=PASS",
+    ],
+    10: [
+        "local-bootstrap-sentinel",
+        "ci-bootstrap-${EDAI2_COMMIT_SHA}",
+        "canonical-evidence-${EDAI2_COMMIT_SHA}",
+    ],
+    11: [
+        "Topic 08-owned shared contracts",
+        '@("200","503")',
+        '"not_ready"',
+    ],
+    12: [
+        "| Modify | `infra/feast/feature_store.yaml`",
+        "| Modify | `infra/feast/features.py`",
+    ],
+    15: [
+        "| Consume | `uv.lock`",
+        "`uv.lock` is unchanged",
+        "no dependency was added",
+    ],
+    17: [
+        "| Modify | `tests/unit/test_edai2_repository_contract.py`",
+        "infra/terraform/edai2",
+    ],
+    21: [
+        "## Locked script command sequence",
+        "--file containers/edai2/Dockerfile",
+        "--kubeconfig tmp/edai2-kind/kubeconfig --context kind-edai2-lean",
+        "--kubeconfig tmp/edai2-kind/kubeconfig --kube-context kind-edai2-lean",
+        "Start-Process -PassThru",
+        "outer `finally`",
+    ],
+    25: [
+        "--upload-only",
+        "--defer-activation-to-release drift",
+        "--rag-index-purpose ci-bootstrap",
+        "--jenkins-rollback-output "
+        "evidence/04_2_llm_design/rollbacks/jenkins_helm_stage.json",
+    ],
+    27: [
+        "gateway/topic27_routes.json",
+        "--single-browser-session --no-build",
+        "--expected-count 16",
+    ],
+    28: [
+        "canonical-evidence-",
+        "--reject-index-purpose ci-bootstrap",
+        "--reject-index-version test_idx_001",
+        "--inactive-model-replicas 0",
+        "cost_forecast_topic28.json",
+    ],
+    29: [
+        "--routes retrieval,chat",
+        "recall_at_4>=0.85",
+        "citation_precision>=0.90",
+        "safety_pass_rate>=0.95",
+        "retrieval_p95_ms<=750",
+        "generation_p95_ms<=20000",
+    ],
+    31: [
+        "--allow-pending-producer-topic 32",
+        "--strict-partial",
+        "fresh sole lease",
+    ],
+    32: [
+        "--require-final-producer-topic 32",
+        "Satisfied|Partial|Missing|Prerequisite|Out of Scope",
+        "no `PendingProducer` remains",
+    ],
+}
+for topic, tokens in semantic_tokens.items():
+    topic_text = (PACKAGE / EXPECTED[topic]).read_text(encoding="utf-8")
+    for token in tokens:
+        if token not in topic_text:
+            errors.append(f"{EXPECTED[topic]}: missing semantic token {token}")
+
+gcp_gate_suffixes: dict[int, list[str]] = {
+    **{topic: [f"topic{topic}"] for topic in range(22, 30)},
+    30: ["topic30_recovery", "topic30_resume"],
+    31: ["topic31"],
+}
+for topic, suffixes in gcp_gate_suffixes.items():
+    topic_text = (PACKAGE / EXPECTED[topic]).read_text(encoding="utf-8")
+    if "do not patch implementation during a live cloud lease" not in topic_text:
+        errors.append(
+            f"{EXPECTED[topic]}: missing local-first/live-lease defect boundary"
+        )
+    for suffix in suffixes:
+        for prefix in ["gcp_preflight_", "cost_forecast_"]:
+            expected_name = prefix + suffix + ".json"
+            if expected_name not in topic_text:
+                errors.append(
+                    f"{EXPECTED[topic]}: missing immutable gate artifact "
+                    f"{expected_name}"
+                )
 
 errors.extend(validate_graph())
 

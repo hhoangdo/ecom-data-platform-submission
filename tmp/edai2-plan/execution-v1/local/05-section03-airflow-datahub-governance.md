@@ -89,7 +89,7 @@ Fail on missing strict DAG conf, Variable fallback, config/scale/cutoff/hash mis
 - [ ] Add exact seven-output DataHub graph/schema/assertion and indexed-read-back tests, then run `rtk uv run pytest tests/unit/test_datahub_coursework_lineage.py tests/unit/test_datahub_capture_evidence.py tests/unit/test_datahub_adr_boundaries.py -q`; expected FAIL because current lineage/capture covers only three DP3 outputs.
 - [ ] Implement the exact DP3 lineage/assertions and `--section03` capture behavior, then run `rtk uv run pytest tests/unit/test_datahub_coursework_lineage.py tests/unit/test_datahub_capture_evidence.py tests/unit/test_datahub_adr_boundaries.py -q`; expected PASS with seven ordered outputs, exact parents/schemas/five assertions, indexed search, and intact DP1/DP2.
 - [ ] Run `rtk uv run pytest tests/unit/test_orchestration_runtime.py tests/unit/test_airflow_coursework_metadata.py tests/unit/test_orchestration_dag_adapters.py tests/unit/test_datahub_coursework_lineage.py tests/unit/test_datahub_capture_evidence.py tests/unit/test_datahub_adr_boundaries.py -q`; expected PASS with zero failures, skips, or xfails in the listed files and no live service contact.
-- [ ] Run `rtk git diff --check` and `rtk git status --short --branch`; expected no whitespace errors, the original branch unchanged, only exact file-map paths changed, and nothing staged.
+- [ ] Run `rtk git diff --check`, `rtk git status --short --branch`, and `rtk git ls-files --stage`; expected no whitespace errors, the original branch unchanged, only exact file-map paths changed, and the final index listing is byte-for-byte identical to the pre-topic listing. Pre-existing staged entries are user-owned; do not stage or unstage them.
 
 ## Evidence and screenshot ownership
 

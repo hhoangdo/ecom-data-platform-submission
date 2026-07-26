@@ -4,9 +4,9 @@
 
 **Goal:** Implement the Task 5 chat facade, deterministic routing/experiments, observed inference adapter, strict token budgeting, safe timeout abstention, and correlated redacted telemetry.
 
-**Architecture:** `POST /v1/chat` validates a fixed chat contract, chooses an explicit/automatic route hint and one of three coordinator A2A destinations, and uses the facade's only outbound adapter through agentgateway. Typed timeout results become recorded failed tool calls plus grounded abstention; they never cross-route or fabricate data.
+**Architecture:** `POST /v1/chat` validates the locked chat contract, chooses the explicit/automatic route and one of three coordinator A2A destinations, and uses the facade's only outbound adapter through agentgateway. The dependency deadline is exactly 22 s, with one jittered retry only for an idempotent connection failure. Typed timeout results become recorded failed tool calls plus grounded abstention; they never cross-route or fabricate data.
 
-**Tech Stack:** Python 3.12, uv, FastAPI, Pydantic v2, tiktoken-compatible budgeting, OpenTelemetry, Langfuse port, agentgateway A2A adapter, pytest.
+**Tech Stack:** Python 3.12, uv, FastAPI, Pydantic v2, the pinned Qwen tokenizer, OpenTelemetry, Langfuse port, agentgateway A2A adapter, pytest.
 
 ## Metadata
 
@@ -26,7 +26,7 @@ Read `C:\Users\oou1hc\.codex\RTK.md`. Locked hashes: `ece171c3d400c3b16fc668cd28
 
 ## Global constraints
 
-Use current branch, serial execution, `apply_patch`, and `rtk` prefixes. No stage/commit/worktree/GCP/Docker auto-prune or stop. `rtk uv run` is developer mode; `rtk make` is operator mode. Dependency changes are handed to Topic 15 for `rtk uv add` plus `rtk git diff -- pyproject.toml uv.lock` inspection. One bounded retry, then `Partial`.
+Use current branch, serial execution, `apply_patch`, and `rtk` prefixes. No stage/commit/worktree/GCP/Docker auto-prune or stop. `rtk uv run` is developer mode; `rtk make` is operator mode. Topic 08 owns the baseline dependencies and lockfile: run `rtk uv lock --check`, and treat a missing prerequisite dependency as a `Partial` predecessor defect rather than editing `pyproject.toml` or `uv.lock`. One bounded repair retry, then `Partial`; this is separate from the one connection retry permitted by the runtime contract.
 
 ## Read-only current-state refresh
 
@@ -35,6 +35,7 @@ Use current branch, serial execution, `apply_patch`, and `rtk` prefixes. No stag
 - [ ] Run `rtk proxy certutil -hashfile tmp/edai2-plan/04.2_llm_design.md SHA256`. Expected: output contains `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`.
 - [ ] Run `rtk proxy certutil -hashfile "tmp/rubic-check/Coursework Tracking (Public).xlsx" SHA256`. Expected: output contains `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - [ ] Run `rtk proxy powershell -NoProfile -Command "Select-String -Path tmp/edai2-plan/execution-v1/local/11-retrieval-api-mcp-safety.md,tmp/edai2-plan/execution-v1/local/12-section03-loader-drift-api-mcp.md -Pattern '^Status: Complete|\| Status \| Complete \|'"`. Expected: two completed predecessor records.
+- [ ] Run `rtk uv lock --check`. Expected: exit 0 with the Topic 08-owned baseline lockfile unchanged.
 - [ ] Run `rtk git diff --check`. Expected: exit 0.
 
 ## Scope and non-goals
@@ -47,43 +48,67 @@ Non-goals: SandboxAgent/registry manifests and notebooks (Topic 14), evaluation 
 
 | Action | Exact path | Responsibility |
 |---|---|---|
-| Create | `src/vina_bim_shop/llm/inference.py` | `ObservedInferenceClient`, budgets, typed timeout results |
-| Create | `src/vina_bim_shop/llm/routing.py` | Route hints and independent stable experiment assignment |
-| Create | `src/vina_bim_shop/llm/coordinator.py` | `CommerceAgentCoordinator`, citations/tool calls/abstention |
-| Create | `src/vina_bim_shop/llm/telemetry.py` | Redacted OTel/Langfuse attributes and dropped-content counters |
-| Create | `src/vina_bim_shop/llm/adapters/llmd.py` | Observed private inference port |
-| Create | `src/vina_bim_shop/llm/adapters/kagent.py` | Facade-only A2A adapter for three destinations |
-| Create | `src/vina_bim_shop/llm/api/chat.py` | Exact chat FastAPI schema, probes, metrics |
-| Create | `configs/llm/models.yaml` | Model IDs, 4096 context, 3968 input, 128 output, concurrency 1 |
-| Create | `configs/llm/routing.yaml` | Salts, 90:10 assignment, destinations, promoted alias |
+| Modify | `src/vina_bim_shop/llm/inference.py` | Complete the Topic 08 `ObservedInferenceClient` scaffold with budgets, deadline/retry, and typed timeout results |
+| Modify | `src/vina_bim_shop/llm/routing.py` | Complete the Topic 08 scaffold with route handling and independent stable experiment assignment |
+| Modify | `src/vina_bim_shop/llm/coordinator.py` | Complete the Topic 08 `CommerceAgentCoordinator` scaffold with grounding/tool calls/abstention |
+| Modify | `src/vina_bim_shop/llm/telemetry.py` | Complete the Topic 08 scaffold with redacted OTel/Langfuse attributes and dropped-content counters |
+| Modify | `src/vina_bim_shop/llm/adapters/llmd.py` | Complete the Topic 08 observed private inference port |
+| Modify | `src/vina_bim_shop/llm/adapters/kagent.py` | Complete the Topic 08 facade-only A2A adapter for three destinations |
+| Modify | `src/vina_bim_shop/llm/api/chat.py` | Complete the Topic 08 FastAPI scaffold with the exact chat schema, probes, and metrics |
+| Modify | `src/vina_bim_shop/llm/safety.py` | Add Topic 13-owned prompt-injection, unsupported-claim, redaction, rejection, and abstention policy without weakening Topic 11 retrieval integrity |
+| Modify | `configs/llm/models.yaml` | Pin model/tokenizer IDs, 4096 context, 3968 input, 128 output, concurrency 1 |
+| Modify | `configs/llm/routing.yaml` | Set salts, 90:10 assignment, destinations, and promoted alias |
 | Create | `tests/unit/llm/test_inference.py` | Budgets, timeout and telemetry tests |
 | Create | `tests/unit/llm/test_coordinator.py` | Routes, citations/tool calls, experiments, negative dependency graph |
-| Consume | `tests/unit/llm/test_safety.py` | Topic 11-owned retrieval integrity suite; chat injection/unsupported-claim cases live in Topic 13-owned coordinator tests |
+| Modify | `tests/unit/llm/test_safety.py` | Preserve Topic 11 retrieval cases and add Topic 13 prompt-injection/unsupported-claim/redaction/rejection/abstention cases |
+| Modify | `tests/contract/llm/test_api_contracts.py` | Add byte-faithful chat request/response/error assertions to the Topic 08 shared contract scaffold |
+| Create | `tests/fixtures/llm/chat_smoke_request.json` | Exact local curl request; no inline shell JSON |
 
 ## Interfaces, data flow, and failure modes
 
-`ChatRequest` has session UUID, messages, optional `route_hint=auto|support|drift|abstain`, and experiment eligibility. `ChatResponse` has answer/abstention, selected logical agent and runtime destination, model/config/index versions, discriminated citations, and recorded tool calls.
+The public Pydantic contract is byte-faithful to locked source lines 302–425:
+
+```python
+class ChatRequest(BaseModel):
+    session_id: UUID
+    message: Annotated[str, Field(min_length=1, max_length=4000)]
+    route: Literal["auto", "support", "drift"] = "auto"
+
+class ChatResponse(BaseModel):
+    request_id: UUID
+    route: Literal["support", "drift", "abstain"]
+    answer: str
+    claims: list[GroundedClaim]
+    agent_name: str
+    agent_version: str
+    model_version: str
+    index_version: str | None
+    tool_calls: list[ToolCallRecord]
+    safety_action: Literal["allow", "redact", "reject", "abstain"]
+```
+
+There is no public messages array, route hint, experiment-eligibility flag, runtime-destination field, or separate public citation list. Experiment assignment remains internal and `GroundedClaim` carries grounding.
 
 Destinations are exactly `coordinator-v1-primary`, `coordinator-v2-primary`, and `coordinator-v1-comparison`. No `v2-comparison`.
 
-Input budget is exactly 3968 tokens and output budget 128 within context 4096. Reduction removes oldest complete history turns atomically, then lowest-ranked complete retrieval chunks; it never slices content. If fixed system/current-user content alone exceeds 3968, return `422 fixed_content_too_large`. Redacted telemetry records dropped turn/chunk counts, token totals and hashes, never content.
+Input budget is exactly 3968 tokens and output budget 128 within context 4096. Count tokens with the tokenizer pinned for Qwen after rendering the complete chat template; a tiktoken approximation is forbidden. Reduction removes the oldest complete history groups atomically, then removes complete retrieval chunks ordered deterministically by `(score, chunk_id)`; it never slices content. If fixed system/current-user content alone exceeds 3968, return `422` with `ApiError.code=context_too_large`. Redacted telemetry records dropped group/chunk counts, token totals and hashes, never content.
 
 Agent experiment uses locked salt `agent_exp_v1` and stable UUID hash with 90:10 `v1-primary|v2-primary`. Model experiment uses independent salt `model_exp_v1` and 90:10 `v1-primary|v1-comparison`. Ordinary sessions use the promoted alias. The facade allowlist contains only these three A2A destinations.
 
-A typed A2A/tool/model timeout is recorded as a failed tool call with duration/status and yields grounded abstention. It never invokes another route, specialist, MCP, model, Feast, or database directly.
+A typed A2A/tool/model timeout at exactly 22 s is recorded as a failed tool call with duration/status and yields grounded abstention. Only an idempotent connection failure may receive one jittered retry; timeout, validation, safety, and model-response failures are never retried. The coordinator never invokes another route, specialist, MCP, model, Feast, or database directly.
 
 ## Ordered test-first execution
 
-- [ ] Add red tests and run `rtk uv run pytest tests/unit/llm/test_inference.py tests/unit/llm/test_coordinator.py tests/unit/llm/test_safety.py -q`. Expected: nonzero for missing Task 5 implementation; cases cover routes, citations, timeouts, destinations, salts, 3968/128 boundaries, whole-item dropping, fixed-content 422 and redaction.
-- [ ] Implement budgets/inference/telemetry, then run `rtk uv run pytest tests/unit/llm/test_inference.py -q`. Expected: exit 0; boundary 3968 accepted, 3969 reduced or fixed-content 422, output capped at 128, timeout is typed.
+- [ ] Add red tests and run `rtk uv run pytest tests/unit/llm/test_inference.py tests/unit/llm/test_coordinator.py tests/unit/llm/test_safety.py tests/contract/llm/test_api_contracts.py -q`. Expected: nonzero for missing Task 5 implementation; cases cover byte-faithful schemas, routes, claims, safety actions, exact 22 s deadline, retry classification, destinations, salts, Qwen rendered-template token counts, 3968/128 boundaries, whole-group/chunk dropping, `ApiError.code=context_too_large`, and redaction.
+- [ ] Implement budgets/inference/telemetry, then run `rtk uv run pytest tests/unit/llm/test_inference.py -q`. Expected: exit 0; the pinned Qwen tokenizer counts the fully rendered chat template, boundary 3968 is accepted, 3969 is reduced or returns `context_too_large`, output is capped at 128, and the exact 22 s timeout is typed.
 - [ ] Implement routing/coordinator/chat API, then run `rtk uv run pytest tests/unit/llm/test_coordinator.py tests/unit/llm/test_safety.py -q`. Expected: exit 0; exact destinations/salts/90:10 assignments and no cross-route fallback.
 - [ ] Run `rtk uv run crosshair check src/vina_bim_shop/llm/routing.py --analysis_kind=PEP316 --per_condition_timeout=5 --max_uninteresting_iterations=64`. Expected: exit 0 with stable deterministic assignment and no counterexample.
-- [ ] Start `rtk uv run uvicorn vina_bim_shop.llm.api.chat:app --host 127.0.0.1 --port 8083`, then run `rtk curl.exe -sS -X POST http://127.0.0.1:8083/v1/chat -H "Content-Type: application/json" -d "{\"session_id\":\"00000000-0000-4000-8000-000000000001\",\"messages\":[{\"role\":\"user\",\"content\":\"What is the returns policy?\"}],\"route_hint\":\"support\"}"`. Expected: typed grounded response if the A2A fake is configured, otherwise recorded dependency timeout plus abstention; never fabricated answer or alternate route.
-- [ ] Stop only the owned monitor, then run `rtk uv run pytest tests/unit/llm/test_inference.py tests/unit/llm/test_coordinator.py tests/unit/llm/test_safety.py -q` and `rtk git diff --check`. Expected: both exit 0.
+- [ ] Start the owned monitor hidden with `rtk powershell -NoProfile -Command '$d="tmp/edai2-local/topic13"; New-Item -ItemType Directory -Force -Path $d | Out-Null; $p=Start-Process -FilePath "rtk" -ArgumentList @("uv","run","uvicorn","vina_bim_shop.llm.api.chat:app","--host","127.0.0.1","--port","8083") -WindowStyle Hidden -PassThru -RedirectStandardOutput "$d/chat.stdout.log" -RedirectStandardError "$d/chat.stderr.log"; Set-Content -LiteralPath "$d/chat.pid" -Value $p.Id -NoNewline'`, then wait with `rtk powershell -NoProfile -Command '$ok=$false; 1..40 | ForEach-Object { & rtk curl.exe --fail-with-body -sS http://127.0.0.1:8083/healthz *> $null; if ($LASTEXITCODE -eq 0) { $ok=$true; break }; Start-Sleep -Milliseconds 250 }; if (-not $ok) { Write-Error "chat monitor did not become healthy"; exit 1 }'`, then run `rtk powershell -NoProfile -Command '$status=& rtk curl.exe --fail-with-body -sS -o tmp/edai2-local/topic13/chat-response.json -w "%{http_code}" -X POST http://127.0.0.1:8083/v1/chat -H "Content-Type: application/json" --data-binary "@tests/fixtures/llm/chat_smoke_request.json"; Set-Content -LiteralPath tmp/edai2-local/topic13/chat-status.txt -Value $status -NoNewline; if ($status -ne "200") { exit 1 }; $body=Get-Content -Raw -LiteralPath tmp/edai2-local/topic13/chat-response.json | ConvertFrom-Json; foreach ($field in "request_id","route","answer","claims","agent_name","agent_version","model_version","tool_calls","safety_action") { if ($null -eq $body.$field) { Write-Error "missing ChatResponse field $field"; exit 1 } }'`. Expected: HTTP 200 and the locked `ChatResponse` fields, with a typed grounded response if the A2A fake is configured or recorded dependency timeout plus abstention; never a fabricated answer or alternate route. If any command fails after the PID is written, run the following PID cleanup checkbox before returning from Topic 13.
+- [ ] Stop and verify only the recorded monitor with `rtk powershell -NoProfile -Command '$monitorPid=[int](Get-Content -LiteralPath "tmp/edai2-local/topic13/chat.pid"); Stop-Process -Id $monitorPid; Wait-Process -Id $monitorPid -ErrorAction SilentlyContinue; if (Get-Process -Id $monitorPid -ErrorAction SilentlyContinue) { Write-Error "owned chat monitor still running"; exit 1 }'`, then run `rtk uv run pytest tests/unit/llm/test_inference.py tests/unit/llm/test_coordinator.py tests/unit/llm/test_safety.py tests/contract/llm/test_api_contracts.py -q` and `rtk git diff --check`. Expected: both checks exit 0 and the exact recorded PID is absent.
 
 ## Evidence, cleanup, rubric, and DoD
 
-Hash local test/CrossHair reports. No screenshots or model-performance claims are owned. Stop only Topic 13 uvicorn; release no cloud runtime.
+Hash local test/CrossHair reports plus the exact fixture response and retain `tmp/edai2-local/topic13/chat.pid`, `chat.stdout.log`, `chat.stderr.log`, and `chat-response.json`. No screenshots or model-performance claims are owned. Stop and verify only the recorded Topic 13 uvicorn PID; release no cloud runtime.
 
 | Sheet3 cell | Local proof | Deferred proof |
 |---|---|---|

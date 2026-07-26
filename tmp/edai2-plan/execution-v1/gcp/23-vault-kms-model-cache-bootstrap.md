@@ -26,11 +26,13 @@
 - Read and obey `C:\Users\oou1hc\.codex\RTK.md`; prefix every shell command with `rtk`.
 - Revalidate fixed hashes before execution: Section 03 `ece171c3d400c3b16fc668cd28e3587faebe1f596dd6c0c4498ff055e3fc027f`; EDAI2 `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`; rubric at `tmp/rubic-check/Coursework Tracking (Public).xlsx` `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - Prefix shell commands with `rtk`; do not create/switch branches/worktrees, stage, or commit.
+- Consume the completed local implementation. If a source/IaC/chart defect appears, capture it, release or suspend any owned runtime, mark this topic `Partial`, and return it to the owning local topic; do not patch implementation during a live cloud lease.
 - Require the exact Topic 22 project, zone `us-central1-a`, cluster `edai2`, and context `gke_${GOOGLE_CLOUD_PROJECT}_us-central1-a_edai2`.
 - Require `EDAI2_GKE_KUBECONFIG=tmp/edai2-gcp/kubeconfig` and `EDAI2_GKE_CONTEXT=gke_${GOOGLE_CLOUD_PROJECT}_us-central1-a_edai2`. Every `kubectl` call includes `--kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT`; every Helm call includes `--kubeconfig $env:EDAI2_GKE_KUBECONFIG --kube-context $env:EDAI2_GKE_CONTEXT`; every script that queries or mutates Kubernetes receives both values. Never use or change the default kubeconfig/current context.
-- Run a fresh budget/trial/spend gate before entering `core`. Missing project, billing, IAM, trial expiry, spend, recovery sink, model-cache URI, DNS egress, or other external input is a safe stop.
-- `EDAI2_TFVARS_PATH` remains exactly `tmp/edai2-gcp/coursework.auto.tfvars` and untracked.
+- Run a fresh redacted `check_budget.py --live-external-preflight` gate before entering `core`. Missing project, billing linkage, required IAM permission, trial expiry, spend, valid encrypted recovery-sink attestation, model-cache URI, DNS/HTTPS egress, or other external input is a safe stop.
+- `EDAI2_TFVARS_PATH` is absolute, resolves exactly to `tmp/edai2-gcp/coursework.auto.tfvars`, and remains untracked.
 - Recovery material must stream directly to `EDAI2_VAULT_RECOVERY_SINK`, an operator-approved encrypted sink outside the workspace and stdout. Never write a root token, recovery share, unseal value, secret payload, or Vault snapshot into Git/evidence/temp files.
+- `EDAI2_RECOVERY_SINK_ATTESTATION` is exactly `tmp/edai2-gcp/recovery-sink-attestation.json`; it is non-secret/untracked and binds the sink URI only by SHA-256, with approval, encryption, out-of-workspace, and at least two-custodian assertions.
 - Secret evidence contains identifiers, key names/fingerprints, policy results, thresholds/counts, and revocation proof only.
 - GCS access uses ambient Workload Identity. JSON service-account keys are forbidden.
 - Model IDs/revisions are exactly the pinned values in `configs/llm/models.yaml`. Uploads use `ifGenerationMatch=0`; each object records its own generation. No mutable alias or Hub fallback is accepted.
@@ -82,9 +84,12 @@
 | Read | `configs/llm/models.yaml`, `configs/gke/profiles.yaml`, `configs/gke/cost_envelope.yaml` |
 | Execute | `scripts/gke/manage_profile.py`, `scripts/gke/check_budget.py`, `scripts/gke/configure_vault.py`, `scripts/gke/prefetch_models.py` |
 | Read external/untracked | `tmp/edai2-gcp/kubeconfig` |
+| Generate immutable gate evidence | `evidence/04_2_llm_design/gke/gcp_preflight_topic23.json`, `evidence/04_2_llm_design/gke/cost_forecast_topic23.json` |
+| Update append-only | `evidence/04_2_llm_design/gke/usage_ledger.json` |
 | Generate | `evidence/04_2_llm_design/security/vault_bootstrap.json` |
 | Generate | `evidence/04_2_llm_design/gke/model_cache.json` |
 | External only | `EDAI2_VAULT_RECOVERY_SINK`, `EDAI2_MODEL_CACHE_GCS_URI` |
+| External/non-secret attestation | `tmp/edai2-gcp/recovery-sink-attestation.json` |
 
 ## Interfaces, Data Flow, and Failure Modes
 
@@ -114,15 +119,15 @@ Failure modes:
 
 ### Task 2: Re-run the live gate and acquire bounded runtime
 
-- [ ] Run `rtk uv run python scripts/gke/check_budget.py --project $env:GOOGLE_CLOUD_PROJECT --trial-expires-at $env:EDAI2_TRIAL_EXPIRES_AT --current-spend-usd $env:EDAI2_CURRENT_SPEND_USD --spend-observed-at $env:EDAI2_SPEND_OBSERVED_AT --usage-ledger evidence/04_2_llm_design/gke/usage_ledger.json --envelope configs/gke/cost_envelope.yaml --requested-profile core --requested-ttl 2h --output evidence/04_2_llm_design/gke/cost_forecast.json`.
-  - Expected: exit 0 and all live caps pass.
+- [ ] Run `rtk uv run python scripts/gke/check_budget.py --project $env:GOOGLE_CLOUD_PROJECT --billing-account-env GOOGLE_BILLING_ACCOUNT --budget-notification-target-env EDAI2_BUDGET_NOTIFICATION_TARGET --recovery-sink-env EDAI2_VAULT_RECOVERY_SINK --recovery-sink-attestation $env:EDAI2_RECOVERY_SINK_ATTESTATION --required-permissions configs/gke/required_permissions.json --dns-probes acme-staging-v02.api.letsencrypt.org,huggingface.co,storage.googleapis.com --live-external-preflight --preflight-output evidence/04_2_llm_design/gke/gcp_preflight_topic23.json --trial-expires-at $env:EDAI2_TRIAL_EXPIRES_AT --current-spend-usd $env:EDAI2_CURRENT_SPEND_USD --spend-observed-at $env:EDAI2_SPEND_OBSERVED_AT --usage-ledger evidence/04_2_llm_design/gke/usage_ledger.json --envelope configs/gke/cost_envelope.yaml --requested-profile core --requested-ttl 2h --output evidence/04_2_llm_design/gke/cost_forecast_topic23.json`.
+  - Expected: exit 0; live project/billing/IAM/notification/recovery-sink/DNS/trial/spend/cap checks pass and only redacted hashes/booleans are emitted.
 - [ ] Run `rtk uv run python scripts/gke/manage_profile.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT core --ttl 2h --stage vault --acquire-session-lease --owner topic23-bootstrap --commit-sha $env:EDAI2_COMMIT_SHA`.
   - Expected: sole lease recorded, one platform node at most, Vault Ready privately, ingress disabled.
 
 ### Task 3: Initialize/configure Vault without local recovery material
 
-- [ ] Run `rtk powershell.exe -NoProfile -Command "if (-not $env:EDAI2_VAULT_RECOVERY_SINK) { exit 23 }; if ($env:EDAI2_VAULT_RECOVERY_SINK -match '^(stdout|\\.|tmp|C:\\\\Users\\\\oou1hc\\\\Documents)') { exit 24 }"`.
-  - Expected: exit 0. Exit 23/24 is a hard safe stop.
+- [ ] Run `rtk powershell.exe -NoProfile -Command '$a=Get-Content -Raw -LiteralPath $env:EDAI2_RECOVERY_SINK_ATTESTATION | ConvertFrom-Json; $sinkHash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($env:EDAI2_VAULT_RECOVERY_SINK))).ToLowerInvariant(); if (-not $a.approved -or -not $a.encrypted -or -not $a.outside_workspace -or [int]$a.custodian_count -lt 2 -or $a.sink_uri_sha256 -ne $sinkHash) { exit 24 }; "RECOVERY_SINK_GATE=PASS"'`.
+  - Expected: exit 0 and only `RECOVERY_SINK_GATE=PASS`; no sink URI, token, share, principal, or billing identifier is emitted. Missing/malformed/mismatched attestation is a hard safe stop.
 - [ ] Run `rtk uv run python scripts/gke/configure_vault.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --namespace vault --kms-key-from-terraform --recovery-sink $env:EDAI2_VAULT_RECOVERY_SINK --kubernetes-auth --policies infra/security/vault/policies --redacted-output evidence/04_2_llm_design/security/vault_bootstrap.json`.
   - Expected: initialization material streams only to the external sink; key names are populated, positive/negative policy probes pass, initial root token is revoked, in-memory buffers are cleared, and redacted evidence contains no payload.
 - [ ] Run `rtk kubectl --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT -n vault exec vault-0 -- vault status -format=json`.
@@ -137,7 +142,7 @@ Failure modes:
 
 ### Task 5: Build and read back immutable model cache
 
-- [ ] Run `rtk powershell.exe -NoProfile -Command "if (-not $env:EDAI2_MODEL_CACHE_GCS_URI) { exit 25 }"`.
+- [ ] Run `rtk powershell.exe -NoProfile -Command 'if (-not $env:EDAI2_MODEL_CACHE_GCS_URI) { exit 25 }'`.
   - Expected: exit 0.
 - [ ] Run `rtk uv run python scripts/gke/prefetch_models.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --config configs/llm/models.yaml --gcs-uri $env:EDAI2_MODEL_CACHE_GCS_URI --if-generation-match-zero --submit-gke-job --output evidence/04_2_llm_design/gke/model_cache.json`.
   - Expected: exactly three pinned revisions, three content-addressed blobs, one JCS manifest, per-object generations and internal hashes, <=5Gi, Workload Identity only, and successful generation-specific read-back.

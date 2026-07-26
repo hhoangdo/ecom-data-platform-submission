@@ -4,7 +4,7 @@
 
 **Goal:** Fail-closed audit every required Section 03 and EDAI2 screenshot against its machine evidence, perform at most one bounded repair capture, generate the cross-cutting run manifest, and leave all GCP runtime suspended with no public forwarding rule.
 
-**Architecture:** Topic 31 owns no rubric cell or primary screenshot. A fresh <=2h QA lease enables temporary ingress only if a rejected UI image needs one bounded recapture by its original producer metadata. The validator checks Section 03 images at `1600x900`, 32 named EDAI2 UI images plus `gcp_billing_spend.png` at `1600x1000`, original-resolution visual quality, cryptographic/manifests, provenance, machine links, and teardown.
+**Architecture:** Topic 31 owns no rubric cell or primary screenshot. After the read-only audit it always acquires its own fresh <=2h QA lease; a rejected image is recaptured once using that manifest entry's original public, private-loopback, local-render, or browser-console reachability contract. The validator checks Section 03 images at `1600x900`, 32 named EDAI2 UI images plus `gcp_billing_spend.png` at `1600x1000`, original-resolution visual quality, cryptographic/manifests, provenance, machine links, and teardown.
 
 **Tech Stack:** Python/`uv`, Playwright Chromium, PNG decoder, SHA-256, screenshot manifest validator, GKE profile manager, Google Cloud CLI.
 
@@ -17,7 +17,7 @@
 | Primary rubric cells | None; cross-cutting prerequisite for every satisfied cell |
 | Prerequisites | Topics 22-30 Completion Records and final suspended state |
 | Blocked successors | Topic 32 |
-| Runtime owner | `topic31-screenshot-qa`; fresh lease <=2h only when live recapture is necessary |
+| Runtime owner | `topic31-screenshot-qa`; always acquire a fresh lease <=2h after the read-only audit |
 | Execution class | `GCP-read-mostly/conditional capture/teardown` |
 | Branch rule | Same branch/common CI commit; serial |
 
@@ -26,9 +26,10 @@
 - Read `C:\Users\oou1hc\.codex\RTK.md`; prefix shell commands with `rtk`.
 - Fixed hashes: Section 03 `ece171c3d400c3b16fc668cd28e3587faebe1f596dd6c0c4498ff055e3fc027f`; EDAI2 `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`; `tmp/rubic-check/Coursework Tracking (Public).xlsx` `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - No branch/worktree/stage/commit changes.
-- Begin with read-only QA. Acquire runtime only after fresh project/billing/IAM/trial-expiry/spend/recovery-sink/context/capacity checks and only when a live repair is necessary. Missing external input results in truthful failed screenshot, not an invented substitute.
+- Consume the completed local implementation. If a source/IaC/chart defect appears, capture it, release or suspend any owned runtime, mark this topic `Partial`, and return it to the owning local topic; do not patch implementation during a live cloud lease.
+- Begin with read-only QA, then always run a redacted `check_budget.py --live-external-preflight` and acquire a fresh <=2h lease. The gate covers project lifecycle, billing linkage, exact IAM permissions, trial expiry, spend/forecast, notification target, approved recovery sink, DNS, context, and capacity. Missing external input stops mutation and results in truthful failed/pending QA, never an invented substitute.
 - Require `EDAI2_GKE_KUBECONFIG=tmp/edai2-gcp/kubeconfig` and `EDAI2_GKE_CONTEXT=gke_${GOOGLE_CLOUD_PROJECT}_us-central1-a_edai2`. Every `kubectl` call includes `--kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT`; every Helm call includes `--kubeconfig $env:EDAI2_GKE_KUBECONFIG --kube-context $env:EDAI2_GKE_CONTEXT`; every script that queries or mutates Kubernetes receives both values. Never use or change the default kubeconfig/current context.
-- `EDAI2_TFVARS_PATH=tmp/edai2-gcp/coursework.auto.tfvars` remains untracked.
+- `EDAI2_TFVARS_PATH` is absolute, resolves exactly to this repository's `tmp/edai2-gcp/coursework.auto.tfvars`, and remains untracked.
 - `EDAI2_SECTION03_BUNDLE_ID` must be copied from the verified Section 03 manifest's top-level `bundle_id`, match its screenshot `canonical_path`, and contain no separator or traversal segment.
 - Topic 31 never changes primary screenshot ownership; repaired manifest entries retain original `producer_topic`.
 - Section 03 screenshot dimensions are exactly `1600x900`; EDAI2/billing UI screenshots exactly `1600x1000`.
@@ -36,7 +37,7 @@
 - Each manifest entry contains canonical path, dimensions, URL or source artifact, UTC capture time, commit/config/data revision, visible selectors/text, SHA-256, linked machine-evidence paths/hashes, primary producer topic, what it proves, and what it does not prove.
 - Reject blank/uniform, clipped, loading/skeleton, login-only, generic home, error/stack trace, stale revision/time, secret/token/account identifier, raw PII, missing selector, missing machine link, or hash mismatch.
 - Inspect every accepted PNG at original resolution. Montage/thumbnail review is supplemental only.
-- One bounded recapture per rejected image after the exact cause is fixed. If it fails, retain any prior valid file, mark the image/cells unsatisfied, and continue truthful partial QA.
+- One bounded recapture per rejected image after the exact cause is fixed. If it fails, retain any prior valid file, mark the image/cells `Partial` or `Missing`, and continue truthful partial QA.
 - No terminal/source-only substitute where UI proof is required.
 - `Sheet3!E49` remains out of scope.
 - Teardown means pools zero, ingress disabled, no EDAI2 `LoadBalancer`, no tagged project forwarding rule, no lease owner/refcount, and no temporary capture pod/browser secret.
@@ -92,6 +93,7 @@ The table contains exactly 32 EDAI2 names plus `gcp_billing_spend.png`. Topic 32
 | Read | `evidence/03_data_generator_improvement/section03_manifest.json` |
 | Read | `evidence/03_data_generator_improvement/runs/$env:EDAI2_SECTION03_BUNDLE_ID/section03_config_and_training_join.png` |
 | Read/update through capture CLI | `evidence/04_2_llm_design/screenshots/ui_manifest.json` |
+| Consume | `evidence/04_2_llm_design/gke/platform_install.json` |
 | Read | `evidence/04_2_llm_design/screenshots/gcp_billing_spend.png`, `evidence/04_2_llm_design/screenshots/terraform_apply.png` |
 | Read | `evidence/04_2_llm_design/screenshots/agentregistry_agents.png`, `evidence/04_2_llm_design/screenshots/keda_scale.png` |
 | Read | `evidence/04_2_llm_design/screenshots/grafana_http.png`, `evidence/04_2_llm_design/screenshots/grafana_compute.png`, `evidence/04_2_llm_design/screenshots/grafana_llm.png` |
@@ -108,6 +110,8 @@ The table contains exactly 32 EDAI2 names plus `gcp_billing_spend.png`. Topic 32
 | Generate | `evidence/04_2_llm_design/gke/teardown.json` |
 | Execute | `scripts/qa/capture_edai2_evidence.py`, `scripts/gke/check_budget.py`, `scripts/gke/manage_profile.py`, `scripts/gke/configure_evidence_ingress.py` |
 | Read external/untracked | `tmp/edai2-gcp/kubeconfig` |
+| Generate immutable gate evidence | `evidence/04_2_llm_design/gke/gcp_preflight_topic31.json`, `evidence/04_2_llm_design/gke/cost_forecast_topic31.json` |
+| Update append-only | `evidence/04_2_llm_design/gke/usage_ledger.json` |
 
 `EDAI2_SECTION03_BUNDLE_ID` is not free-form: load it from the top-level `bundle_id` in `section03_manifest.json`, require the manifest screenshot entry's `canonical_path` to equal the literal path shown above after expansion, and reject separators, traversal, or a mismatch. No wildcard discovery is permitted.
 
@@ -115,9 +119,9 @@ The table contains exactly 32 EDAI2 names plus `gcp_billing_spend.png`. Topic 32
 
 Producer machine evidence + PNG + manifest row -> byte/decode/dimension check -> provenance/hash check -> selector/context/staleness/privacy check -> original-resolution human inspection -> accepted QA record.
 
-Rejected image -> exact cause -> optional fresh gate/lease/route -> one capture to temp -> validation/full load -> atomic replace -> recheck -> pass or truthful failure.
+Rejected image -> exact cause -> fresh gate/lease already held -> replay original reachability -> one capture to temp -> validation/full load -> atomic replace -> recheck -> pass or truthful failure. Public producer entries may recreate only their original temporary HTTPS route; `agentregistry_ui`, `grafana_ui`, `airflow_web`, `datahub_frontend`, and `vault_status` use inventory-verified loopback-only tunnels; billing uses its authenticated browser-console mode; Terraform/test-report/diagram entries use their original local-render source. A private entry is never exposed publicly, and every temporary route/tunnel is removed in `finally`.
 
-All evidence -> strict `run_manifest.json` -> disable ingress -> suspend -> GCP inventory -> `teardown.json`.
+All evidence -> truthful strict-partial `run_manifest.json` with Topic 32 as the only permitted pending producer -> disable ingress -> suspend -> GCP inventory -> `teardown.json`.
 
 Failure modes include pending Topic 32 images, stale UI revision, Jenkins generic page, login state, selector clipping, PII/secret/account data, manifest/hash mismatch, unavailable external auth, lease/budget refusal, teardown residue. Every failure is explicit and blocks only dependent claims.
 
@@ -139,21 +143,19 @@ Failure modes include pending Topic 32 images, stale UI revision, Jenkins generi
 - [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --merge-original-resolution-review tmp/edai2-gcp/topic31-screenshot-audit.json --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --strict-partial`.
   - Expected: machine and visual results agree; disagreement rejects the file.
 
-### Task 3: Conditionally acquire a bounded repair lease
+### Task 3: Acquire the topic lease, then conditionally repair
 
-- [ ] If and only if a non-Topic-32 UI image is rejected and needs live state, run `rtk uv run python scripts/gke/check_budget.py --project $env:GOOGLE_CLOUD_PROJECT --trial-expires-at $env:EDAI2_TRIAL_EXPIRES_AT --current-spend-usd $env:EDAI2_CURRENT_SPEND_USD --spend-observed-at $env:EDAI2_SPEND_OBSERVED_AT --usage-ledger evidence/04_2_llm_design/gke/usage_ledger.json --envelope configs/gke/cost_envelope.yaml --requested-profile rubric-evidence --requested-ttl 2h --output evidence/04_2_llm_design/gke/cost_forecast.json`.
-  - Expected: fresh gate passes; otherwise no recapture.
+- [ ] Run `rtk uv run python scripts/gke/check_budget.py --project $env:GOOGLE_CLOUD_PROJECT --billing-account-env GOOGLE_BILLING_ACCOUNT --budget-notification-target-env EDAI2_BUDGET_NOTIFICATION_TARGET --recovery-sink-env EDAI2_VAULT_RECOVERY_SINK --recovery-sink-attestation $env:EDAI2_RECOVERY_SINK_ATTESTATION --required-permissions configs/gke/required_permissions.json --dns-probes acme-staging-v02.api.letsencrypt.org,huggingface.co,storage.googleapis.com --live-external-preflight --preflight-output evidence/04_2_llm_design/gke/gcp_preflight_topic31.json --trial-expires-at $env:EDAI2_TRIAL_EXPIRES_AT --current-spend-usd $env:EDAI2_CURRENT_SPEND_USD --spend-observed-at $env:EDAI2_SPEND_OBSERVED_AT --usage-ledger evidence/04_2_llm_design/gke/usage_ledger.json --envelope configs/gke/cost_envelope.yaml --requested-profile rubric-evidence --requested-ttl 2h --output evidence/04_2_llm_design/gke/cost_forecast_topic31.json`.
+  - Expected: fresh live external/IAM/recovery/budget/capacity gate passes with redacted output; otherwise no mutation or recapture occurs.
 - [ ] Run `rtk uv run python scripts/gke/manage_profile.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT rubric-evidence --ttl 2h --acquire-session-lease --owner topic31-screenshot-qa --commit-sha $env:EDAI2_COMMIT_SHA`.
   - Expected: fresh sole lease.
-- [ ] Run `rtk uv run python scripts/gke/configure_evidence_ingress.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --enable --sslip-from-service ingress-nginx-controller --issuer acme-production`.
-  - Expected: route Ready only for required recapture.
-- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --recapture-rejected tmp/edai2-gcp/topic31-screenshot-audit.json --max-attempts-per-image 1 --preserve-producer-topic --viewport 1600x1000 --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --strict-partial`.
-  - Expected: only rejected non-Topic-32 files attempted, one time each; invalid replacement never overwrites a valid file.
+- [ ] If a non-Topic-32 image is rejected, run `rtk uv run python scripts/qa/capture_edai2_evidence.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --platform-inventory evidence/04_2_llm_design/gke/platform_install.json --recapture-rejected tmp/edai2-gcp/topic31-screenshot-audit.json --replay-original-reachability --public-route-controller scripts/gke/configure_evidence_ingress.py --private-loopback-only --max-attempts-per-image 1 --preserve-producer-topic --viewport 1600x1000 --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --strict-partial`.
+  - Expected: only rejected non-Topic-32 files are attempted once. Public entries temporarily recreate only their original route; private endpoint keys use `127.0.0.1` tunnels and never ingress; billing/local-render entries use their original source mode. Every route/tunnel closes in `finally`, and an invalid replacement never overwrites a valid file.
 
 ### Task 4: Verify cross-cutting run evidence
 
-- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --strict --root evidence/04_2_llm_design`.
-  - Expected: `run_manifest.json` links cost/TTL/capacity, Terraform, Kubernetes, Airflow/DataHub, registry/chat/KEDA/Jenkins, Vault/recovery, persistence, observability, benchmark/evaluation/load/notebooks/rollbacks and screenshot QA; missing evidence remains missing.
+- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --strict-partial --allow-pending-producer-topic 32 --root evidence/04_2_llm_design --output evidence/04_2_llm_design/run_manifest.json`.
+  - Expected: `run_manifest.json` links cost/TTL/capacity, Terraform, Kubernetes, Airflow/DataHub, registry/chat/KEDA/Jenkins, Vault/recovery, persistence, observability, benchmark/evaluation/load/notebooks/rollbacks and screenshot QA. Topic 32's two not-yet-produced images are explicit `PendingProducer`; every other missing/failed item remains truthful `Partial`/`Missing`.
 - [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --verify-screenshots-only --expected-edai2-count 32 --expected-extra gcp_billing_spend.png --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --strict-partial`.
   - Expected: every existing producer file passes; Topic 32 images remain explicit pending until Topic 32.
 
@@ -184,14 +186,14 @@ Topic 31 owns `run_manifest.json`, `teardown.json`, and QA decisions only. It ow
 
 ## Rubric Traceability
 
-Topic 31 has no primary rubric cell. Its QA gate is required before any cell may be `Satisfied`; failed images/machine links flow into Topic 32 as truthful unsatisfied results.
+Topic 31 has no primary rubric cell. Its QA gate is required before any cell may be `Satisfied`; failed images/machine links flow into Topic 32 as truthful `Partial`/`Missing` results.
 
 ## Definition of Done
 
 - [ ] Fixed hashes, branch, predecessor records, and explicit context pass.
 - [ ] Every present image receives machine and original-resolution review.
 - [ ] Exactly 32 EDAI2 names plus billing are accounted for; two Topic 32 images are explicit pending until produced.
-- [ ] Any live repair used a fresh <=2h gate/lease and one bounded attempt.
+- [ ] A fresh <=2h gate/lease was acquired after the read-only audit; any live repair used one bounded attempt and replayed its original reachability.
 - [ ] Run manifest is fail-closed and contains no synthesized proof.
 - [ ] Teardown proves zero pools, disabled ingress, no forwarding rule/LoadBalancer/lease.
 - [ ] Final `rtk git status --short --branch` is recorded.

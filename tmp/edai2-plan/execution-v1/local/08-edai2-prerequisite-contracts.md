@@ -34,7 +34,7 @@
 - Section 03 remains sole owner of `Sheet3!E32:E34`; EDAI2 reads exact `id,label`, training join, health, hashes, and verified runtime status without coercion or rewrite.
 - All Pydantic models use v2 behavior and `extra="forbid"`; UTC timestamps reject non-UTC aware values.
 - Stable APIs are `POST /v1/retrieval/search`, `POST /v1/drift/detect`, `POST /v1/chat`, and `GET /healthz`, `GET /readyz`, `GET /metrics` on every FastAPI service.
-- The only MCP tools are `search_ecommerce_knowledge(query, top_k=4, category=None, effective_at=None) -> SearchResponse` and `detect_customer_order_drift(id, baseline_window, candidate_window, feature_name) -> DriftDetectResponse`; MCP schemas byte-match OpenAPI components.
+- The only MCP tools are `search_ecommerce_knowledge(query, top_k=4, category=None, effective_at=None) -> SearchResponse` and `detect_customer_order_drift(id=None, baseline_window, candidate_window, feature_name="f_customer_order_frequency_7d") -> DriftDetectResponse`; MCP schemas byte-match OpenAPI components.
 - Exact focus classes are `RagIndexPipeline`, `FeastRetrievalService`, `DriftDetectionService`, `ObservedInferenceClient`, and `CommerceAgentCoordinator`; routing uses `RouteStrategy`.
 - Exact six image/release identities are `edai2-rag-index`, `edai2-retrieval-agent`, `edai2-drift-agent`, `edai2-coordinator`, `edai2-feast-offline-writer`, and `edai2-feast-online-writer`; mutable `latest` is forbidden.
 - Unit/contract tests have no runtime/network dependency.
@@ -90,7 +90,7 @@ Stop on pending/missing/tampered Section 03 evidence, schema coercion, unverifie
 - [ ] Add failing Pydantic v2/OpenAPI/MCP/focus-class/ports-adapters/image/security tests, then run `rtk uv run pytest tests/unit/llm/test_contracts.py tests/contract/llm/test_api_contracts.py tests/contract/llm/test_mcp_contracts.py tests/unit/test_edai2_repository_contract.py tests/unit/test_edai2_security_static.py -q`; expected FAIL because package/config contracts do not yet exist.
 - [ ] Implement only the exact typed contracts, Protocols, focus-class signatures, API/MCP schema surfaces, config loaders, package exports, and public docstrings, then run `rtk uv run pytest tests/unit/llm/test_contracts.py tests/contract/llm/test_api_contracts.py tests/contract/llm/test_mcp_contracts.py tests/unit/test_edai2_repository_contract.py tests/unit/test_edai2_security_static.py -q`; expected PASS with no network/runtime dependency.
 - [ ] Run `rtk uv run pytest tests/contract/llm/test_section03_contract.py tests/unit/llm/test_contracts.py tests/contract/llm/test_api_contracts.py tests/contract/llm/test_mcp_contracts.py tests/unit/test_edai2_repository_contract.py tests/unit/test_edai2_security_static.py -q`; expected PASS with exact Section 03 ownership, Pydantic v2, five focus classes, six image names, and API/MCP equality.
-- [ ] Run `rtk git diff --check` and `rtk git status --short --branch`; expected no whitespace errors, the original branch unchanged, only exact file-map paths changed, and nothing staged.
+- [ ] Run `rtk git diff --check`, `rtk git status --short --branch`, and `rtk git ls-files --stage`; expected no whitespace errors, the original branch unchanged, only exact file-map paths changed, and the final index listing is byte-for-byte identical to the pre-topic listing. Pre-existing staged entries are user-owned; do not stage or unstage them.
 
 ## Evidence and screenshot ownership
 

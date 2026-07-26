@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement and statically render Task 8's pinned private platform: supporting Helm catalog/values, reusable service-agent/worker charts, agentgateway, kagent/Substrate, ModelConfigs, WorkerPool, Agent Registry, ExternalSecret consumption, and llm-d CPU Kustomize.
+**Goal:** Implement and statically render Task 8's pinned private platform: supporting Helm catalog/values, Topic 16-owned service-agent/worker chart consumption, agentgateway, kagent/Substrate, ModelConfigs, WorkerPool, Agent Registry, ExternalSecret consumption, and llm-d CPU Kustomize.
 
-**Architecture:** Helm owns supporting services and reusable workload primitives; pinned Kustomize owns llm-d CPU. Platform services remain ClusterIP. ExternalSecrets are created by Topic 17 and consumed via existingSecret references. App-owned agent releases render here but are deployed only in Task 9.
+**Architecture:** Helm owns supporting services; Topic 16 exclusively owns reusable workload primitives; pinned Kustomize owns llm-d CPU. Platform services remain ClusterIP. ExternalSecrets are created by Topic 17 and consumed via existingSecret references. App-owned agent values from Topic 14 render through Topic 16 charts here but are deployed only in Task 9.
 
 **Tech Stack:** Helm, Kustomize, Kubernetes/Gateway API, agentgateway 1.3.1, kagent 0.9.9, Substrate 0.0.6, Agent Registry 0.3.3, llm-d v0.7 CPU, pytest.
 
@@ -26,7 +26,7 @@ Read `C:\Users\oou1hc\.codex\RTK.md`; verify `ece171c3d400c3b16fc668cd28e3587fae
 
 ## Global constraints
 
-Current branch/serial session, `apply_patch`, `rtk uv run` developer recipes, and `rtk make` operator recipes. Dependency changes are handed to Topic 15 for `rtk uv add` plus `rtk git diff -- pyproject.toml uv.lock` inspection. Do not stage/commit, apply Helm/Kustomize/kubectl, pull models/images, invoke GCP, auto-prune/stop Docker, or create secrets. One retry then Partial.
+Current branch/serial session, `apply_patch`, `rtk uv run` developer recipes, and `rtk make` operator recipes. Topic 08 owns baseline dependencies; run `rtk uv lock --check` and treat a missing prerequisite as a `Partial` predecessor defect instead of editing dependencies. Do not stage/commit, apply Helm/Kustomize/kubectl, edit Topic 16 chart templates, pull models/images, invoke GCP, auto-prune/stop Docker, or create secrets. One retry then `Partial`.
 
 ## Read-only current-state refresh
 
@@ -35,11 +35,12 @@ Current branch/serial session, `apply_patch`, `rtk uv run` developer recipes, an
 - [ ] Run `rtk proxy certutil -hashfile tmp/edai2-plan/04.2_llm_design.md SHA256`. Expected: output contains `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`.
 - [ ] Run `rtk proxy certutil -hashfile "tmp/rubic-check/Coursework Tracking (Public).xlsx" SHA256`. Expected: output contains `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - [ ] Run `rtk proxy powershell -NoProfile -Command "Select-String -Path tmp/edai2-plan/execution-v1/local/17-terraform-vault-iac-static.md -Pattern '^Status: Complete|\| Status \| Complete \|'"`. Expected: completed predecessor.
+- [ ] Run `rtk uv lock --check`. Expected: exit 0 with the Topic 08-owned baseline lockfile unchanged.
 - [ ] Run `rtk git diff --check`. Expected: exit 0.
 
 ## Scope and non-goals
 
-In scope: immutable release catalog, supporting values, reusable charts, gateway policies/routes, ModelConfigs/WorkerPool, CPU overlays, local lint/template/render and static security/integration tests.
+In scope: immutable release catalog, supporting values, consuming/linting Topic 16 reusable charts, gateway policies/routes, ModelConfigs/WorkerPool, CPU overlays, local template/render and static security/integration tests.
 
 Non-goals: Helm/kubectl apply, CRD installation, model prefetch, GKE readiness, secret generation, app deployment, live ingress, screenshots.
 
@@ -55,22 +56,26 @@ Non-goals: Helm/kubectl apply, CRD installation, model prefetch, GKE readiness, 
 | Create | `infra/kagent/edai2/model-configs.yaml` | Primary/comparison OpenAI-compatible private ModelConfigs |
 | Create | `infra/kagent/edai2/workerpool-scaledobject.yaml` | One `edai2-agents` WorkerPool/KEDA scale target |
 | Create | `infra/kustomize/llmd/overlays/cpu/kustomization.yaml`, `infra/kustomize/llmd/overlays/cpu/patch-primary.yaml`, `infra/kustomize/llmd/overlays/cpu/patch-comparison.yaml`, `infra/kustomize/llmd/overlays/cpu/patch-router.yaml`, `infra/kustomize/llmd/overlays/cpu/patch-model-cache-init.yaml` | Pinned CPU serving/router/cache init |
+| Create | `tests/integration/llm/conftest.py` | Fail-closed live-GKE kubeconfig/context CLI and fixture contract |
 | Create | `tests/integration/llm/test_gke_agents.py` | Static manifest/resource/route/render contracts |
+| Create | `tests/fixtures/kubernetes/render-only-kubeconfig.yaml` | Non-secret client-only context used solely so the local `kubectl kustomize` command names an explicit kubeconfig/context without contacting an API |
 | Consume | `infra/security/external-secrets/cluster-secret-store.yaml`, `infra/security/external-secrets/chat-basic-auth.yaml`, `infra/security/external-secrets/jenkins-controller.yaml`, `infra/security/external-secrets/kagent-gateway-keys.yaml`, `infra/security/external-secrets/facade-gateway-key.yaml`, `infra/security/external-secrets/postgres.yaml`, `infra/security/external-secrets/clickhouse.yaml`, `infra/security/external-secrets/valkey.yaml`, `infra/security/external-secrets/redpanda.yaml`, `infra/security/external-secrets/airflow.yaml`, `infra/security/external-secrets/datahub.yaml`, `infra/security/external-secrets/langfuse.yaml`, `infra/security/external-secrets/agentregistry.yaml`, `infra/security/external-secrets/grafana.yaml` | Topic 17-owned projections; assert exact existingSecret references only |
 
 ## Interfaces, data flow, and failure modes
 
-Inputs are Topic 17's validated capacity/identity/secret contracts, Topic 16 charts, Topic 14 app values, immutable release pins, model-cache generation/hash references, and three runtime profiles. Helm/Kustomize output is a private, capacity-bounded platform manifest inventory: supporting services, gateway routes, two ModelConfigs, one WorkerPool, registry, and CPU inference overlays. Topic 19 consumes the rendered platform interfaces; GCP Topic 24 owns installation/readiness.
+Inputs are Topic 17's validated capacity/identity/secret contracts, Topic 16 charts, Topic 14 app values, immutable release pins, model-cache generation/hash references, and three runtime profiles. Helm/Kustomize output is a private, capacity-bounded platform manifest inventory: supporting services, gateway routes, two ModelConfigs, one WorkerPool, registry, and CPU inference overlays. The custom pytest interface accepts `--live-gke --kubeconfig ABSOLUTE_KUBECONFIG_PATH --context EXACT_GKE_CONTEXT`; any live fixture fails before API access when either value is absent, the path is not absolute/readable, the context is not present in that file, or it is not the expected GKE context. Fixtures construct their Kubernetes client only from those exact arguments and never merge or read the default kubeconfig. Topic 19 consumes the rendered platform interfaces; GCP Topic 24 owns installation/readiness.
 
-Missing pin/digest, mutable tag, public Service, secret literal, absent existingSecret, unsupported built-in data service/agent/tool, wrong selector/toleration, resource/retention/GCS breach, direct llm-d route, wrong credential matrix, comparison replica-state violation, GPU request, or render error fails closed. No partial install or alternative hosted model is authorized.
+Missing pin/digest, mutable tag, public Service, secret literal, absent existingSecret, unsupported built-in data service/agent/tool, wrong selector/toleration, resource/retention/GCS breach, direct llm-d route, wrong credential matrix, comparison replica-state violation, GPU request, render error, missing live kubeconfig/context, default-context fallback, or a non-GKE live context fails closed. No partial install or alternative hosted model is authorized.
 
 ## Platform contracts
 
-Pinned versions: Gateway API 1.5.0, agentgateway 1.3.1, Substrate 0.0.6, kagent 0.9.9, Agent Registry/arctl 0.3.3, llm-d v0.7. No `latest`, GPU, public Service, nested RuntimeClass, hosted model or secret literal.
+Pinned versions: Gateway API 1.5.0, agentgateway 1.3.1, Substrate 0.0.6, kagent 0.9.9, Agent Registry/arctl 0.3.3, llm-d v0.7, and ingress-nginx Helm chart 4.15.1. `infra/helm/edai2/releases.yaml` and `values/ingress-nginx.yaml` carry the literal `4.15.1`; no floating range or second ingress version is allowed. No `latest`, GPU, public Service, nested RuntimeClass, hosted model or secret literal.
 
 Substrate: bundled Valkey/RustFS off, external `edai2-valkey-primary.edai2.svc.cluster.local:6379`, GCS storage prefix. kagent: external DB `urlFile`, all ten built-ins/kmcp/kagent-tools/grafana-mcp/querydoc disabled, `proxy.url=http://agentgateway-proxy.edai2.svc.cluster.local:15000`.
 
 ModelConfigs use OpenAI provider, exact Qwen IDs, 4096 context, private gateway base URL, `kagent-model-route-key/api-key`. One WorkerPool `edai2-agents`.
+
+The gateway allow matrix has exactly five disjoint credentials: model-route, retrieval-MCP, drift-MCP, coordinator-to-specialist A2A, and facade-to-coordinator A2A. Each credential has only its named allow attachment. Static tests enumerate every credential against every route class and require an explicit deny attachment yielding `401` or `403` for every non-allow pair; they also reject a wildcard selector, shared key reference, direct service bypass, missing policy attachment, or a policy that relies on default allow. This Topic 18 policy matrix is the exhaustive enforcement proof deferred by Topic 14.
 
 Replica reconciliation: comparison replicas = 0 in core; comparison replicas = 1 only during model A/B; comparison replicas = 2 only during its own four factorial cells. Primary replicas = 2 only during its own factorial cells. The inactive model is zero during every other model's two-replica cell. After comparison factorial it returns to one for model A/B, then zero.
 
@@ -78,12 +83,12 @@ Resource/PVC/object/emptyDir totals fit locked capacity. Seven-day metrics/log/t
 
 ## Ordered test-first execution
 
-- [ ] Add red manifest tests and run `rtk uv run pytest tests/integration/llm/test_gke_agents.py tests/unit/test_edai2_security_static.py -q`. Expected: nonzero until catalog/charts/routes/models/overlays exist.
-- [ ] Add reusable charts and run `rtk helm lint infra/helm/edai2/service-agent` and `rtk helm lint infra/helm/edai2/worker`. Expected: both exit 0 with no apply.
-- [ ] Render service-agent with `rtk helm template retrieval infra/helm/edai2/service-agent -f infra/helm/edai2/values/retrieval-agent.yaml --set image.tag=testsha`. Expected: exit 0; ClusterIP, probes, resources, NetworkPolicy, RemoteMCPServer and one support SandboxAgent.
+- [ ] Add red manifest and live-fixture tests and run `rtk uv run pytest tests/integration/llm/test_gke_agents.py tests/unit/test_edai2_security_static.py -q`. Expected: nonzero until catalog/charts/routes/models/overlays and the fail-closed live kubeconfig/context interface exist.
+- [ ] Lint the Topic 16-owned reusable charts with `rtk helm lint infra/helm/edai2/service-agent` and `rtk helm lint infra/helm/edai2/worker`. Expected: both exit 0, `rtk git diff -- infra/helm/edai2/service-agent infra/helm/edai2/worker` is empty for Topic 18, and nothing is applied.
+- [ ] Render all three app-agent values through the consumed chart: `rtk helm template retrieval infra/helm/edai2/service-agent -f infra/helm/edai2/values/retrieval-agent.yaml --set image.tag=testsha --set-string substrate.bucketName=edai2-sentinel-bucket`; `rtk helm template drift infra/helm/edai2/service-agent -f infra/helm/edai2/values/drift-agent.yaml --set image.tag=testsha --set-string substrate.bucketName=edai2-sentinel-bucket`; and `rtk helm template coordinator infra/helm/edai2/service-agent -f infra/helm/edai2/values/coordinator-agent.yaml --set image.tag=testsha --set-string substrate.bucketName=edai2-sentinel-bucket`. Expected: all exit 0; their aggregate is exactly five SandboxAgents representing logical identities `retrieval`, `drift`, and `coordinator`, `support` carries `EDAI2_LOGICAL_AGENT=retrieval`, snapshots contain the sentinel bucket and logical/variant keys, and no `${EDAI2_*}` placeholder remains.
 - [ ] Render worker with `rtk helm template feast-offline-writer infra/helm/edai2/worker -f infra/helm/edai2/worker/values.yaml --set image.tag=testsha`. Expected: exit 0; bounded Deployment/ScaledObject/NetworkPolicy with no LoadBalancer.
-- [ ] Render llm-d with `rtk kubectl kustomize infra/kustomize/llmd/overlays/cpu`. Expected: exit 0; exact model IDs/context/CPU, immutable pins, private router, inactive-zero profile logic.
-- [ ] Run `rtk uv run pytest tests/integration/llm/test_gke_agents.py tests/unit/test_edai2_security_static.py -q`. Expected: exit 0 for resources, retention, GCS, ExternalSecrets, five-key routes and replica state matrix.
+- [ ] Render llm-d with `rtk kubectl --kubeconfig tests/fixtures/kubernetes/render-only-kubeconfig.yaml --context render-only kustomize infra/kustomize/llmd/overlays/cpu`. Expected: exit 0 without API contact; exact model IDs/context/CPU, immutable pins, private router, and inactive-zero profile logic.
+- [ ] Run `rtk uv run pytest tests/integration/llm/test_gke_agents.py tests/unit/test_edai2_security_static.py -q`. Expected: exit 0 for resources, retention, GCS, ExternalSecrets, ingress-nginx chart `4.15.1`, all five keys against every wrong route with explicit 401/403 policy outcomes, replica state matrix, the aggregate five-resource render, and synthetic rejection of missing/wrong/default live kubeconfig contexts without cluster contact.
 - [ ] Run `rtk uv run python scripts/gke/manage_profile.py core --ttl 2h --dry-run`. Expected: exit 0 with capacity report only and no cluster/GCP contact.
 - [ ] Run `rtk git diff --check`. Expected: exit 0.
 

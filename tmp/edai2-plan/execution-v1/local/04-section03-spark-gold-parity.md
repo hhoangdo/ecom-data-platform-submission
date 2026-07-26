@@ -74,7 +74,7 @@ Config/scale â†’ derived batch/window timestamps and `Section03SqlParameters` â†
 - [ ] Implement the seven exact Spark queries, type-7 PSI, ordered `DP3_GOLD_TABLES`, extended `GOLD_SERVING_TABLES`, and duplicate-free `REQUIRED_GOLD_TABLES`, then run `rtk uv run pytest tests/unit/test_spark_batch_runtime.py -q`; expected FAIL only on missing keyed parity report assertions.
 - [ ] Implement generator-vs-dbt, generator-vs-Spark, and dbt-vs-Spark reports; production passes validated runtime values equivalent to `scripts/analytics/run_section03_dbt.py --project-dir infra/analytics/dbt --profiles-dir infra/analytics/dbt --config configs/generator/base.yaml --scale medium` as a direct argument array, then run `rtk uv run pytest tests/unit/test_spark_batch_runtime.py -q`; expected PASS with separate zero mismatch counts and bound manifest/config hashes.
 - [ ] Run `rtk uv run pytest tests/unit/test_spark_batch_runtime.py tests/unit/test_optional_duckdb_imports.py -q`; expected PASS with cutoff-safe SQL, derived timestamps, ordered seven-table persistence, and no optional DuckDB import regression.
-- [ ] Run `rtk git diff --check` and `rtk git status --short --branch`; expected no whitespace errors, the original branch unchanged, only exact file-map paths changed, and nothing staged.
+- [ ] Run `rtk git diff --check`, `rtk git status --short --branch`, and `rtk git ls-files --stage`; expected no whitespace errors, the original branch unchanged, only exact file-map paths changed, and the final index listing is byte-for-byte identical to the pre-topic listing. Pre-existing staged entries are user-owned; do not stage or unstage them.
 
 ## Evidence and screenshot ownership
 

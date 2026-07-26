@@ -26,16 +26,17 @@
 - Read `C:\Users\oou1hc\.codex\RTK.md`; prefix all shell commands with `rtk`.
 - Fixed hashes: Section 03 `ece171c3d400c3b16fc668cd28e3587faebe1f596dd6c0c4498ff055e3fc027f`; EDAI2 `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`; `tmp/rubic-check/Coursework Tracking (Public).xlsx` `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - Do not create/switch branch/worktree, stage, or commit.
-- Start only from suspended pools/no forwarding rule. Acquire a fresh lease after fresh project/billing/IAM/trial-expiry/spend/capacity/context checks. Missing recovery-sink status, external source, model cache, index source, or permission is a safe stop.
+- Consume the completed local implementation. If a source/IaC/chart defect appears, capture it, release or suspend any owned runtime, mark this topic `Partial`, and return it to the owning local topic; do not patch implementation during a live cloud lease.
+- Start only from suspended pools/no forwarding rule. Acquire a fresh lease only after a redacted `check_budget.py --live-external-preflight` verifies project lifecycle, billing linkage, exact IAM permissions, trial expiry, current spend/forecast, notification target, approved recovery sink, DNS, capacity, and context. Missing external source, model cache, index source, or permission is a safe stop.
 - Require `EDAI2_GKE_KUBECONFIG=tmp/edai2-gcp/kubeconfig` and `EDAI2_GKE_CONTEXT=gke_${GOOGLE_CLOUD_PROJECT}_us-central1-a_edai2`. Every `kubectl` call includes `--kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT`; every Helm call includes `--kubeconfig $env:EDAI2_GKE_KUBECONFIG --kube-context $env:EDAI2_GKE_CONTEXT`; every script that queries or mutates Kubernetes receives both values. Never use or change the default kubeconfig/current context.
-- `EDAI2_TFVARS_PATH=tmp/edai2-gcp/coursework.auto.tfvars` remains untracked.
+- `EDAI2_TFVARS_PATH` is absolute, resolves exactly to this repository's `tmp/edai2-gcp/coursework.auto.tfvars`, and remains untracked.
 - Topic lease TTL <=6h; use the auto-suspend crash fallback.
 - RAG source set is exactly 8 files, 9 effective-dated versions, 400-token chunks with 80-token overlap, normalized finite 384-d embeddings, candidate isolation, CAS promotion, and DataHub read-back.
 - Factorial constants: two replicas for active model, inactive model exactly zero; cache off/on × load-aware/prefix-aware; five restart-cleared cold trials; 40 ordered warm requests; global concurrency 1; context 4096; max new tokens 128; temperature 0; top-p 1; seed 20260715; same image/weights/SKU/fixture.
 - Never overlap primary and comparison factorials. Model A/B one-plus-one belongs to Topic 29.
 - CPU generation p95 <=20s. Optimized warm TTFT and cost must not regress and at least one must improve >=5%; report factor effects/interaction.
 - Agent prewarm passes only with startup p95 improvement >=20% and cost/100 improvement >=5% without quality/safety regression.
-- One bounded retry after a diagnosed transient failure; a missed numeric gate remains a truthful failed cell.
+- If the first empirical run misses a numeric gate, permit exactly one bounded tuning retry that may change only cache mode, router choice, or warm-up count within the already locked factorial. Preserve baseline and retry evidence plus the diagnosed change; no model, data, replica, request, seed, concurrency, token, pricing, or threshold change is allowed. A gate still missed after that retry remains `Partial` or `Missing`.
 - `Sheet3!E49` remains out of scope; no VM/Ansible.
 - Owned screenshots use `1600x1000`, viewport/non-element crop, stable fully visible selectors, temporary PNG/signature/decode/full-load/atomic replace, complete manifest/hash/machine link/proves-does-not fields, original-resolution inspection, and rejection of blank/clipped/loading/login/home/error/stale/secret/PII.
 
@@ -77,8 +78,12 @@
 | Execute | `scripts/llm/build_index.py`, `scripts/llm/benchmark_inference.py` |
 | Execute | `scripts/gke/manage_profile.py`, `scripts/gke/check_budget.py`, `scripts/qa/capture_edai2_evidence.py` |
 | Read external/untracked | `tmp/edai2-gcp/kubeconfig` |
+| Consume | `evidence/04_2_llm_design/gke/platform_install.json`, `evidence/04_2_llm_design/cicd/jobs.json` |
+| Generate immutable gate evidence | `evidence/04_2_llm_design/gke/gcp_preflight_topic28.json`, `evidence/04_2_llm_design/gke/cost_forecast_topic28.json` |
+| Update append-only | `evidence/04_2_llm_design/gke/usage_ledger.json` |
 | Generate | `evidence/04_2_llm_design/rag/index_run.json` |
 | Generate | `evidence/04_2_llm_design/inference/benchmark.json` |
+| Generate only for the single permitted retry | `evidence/04_2_llm_design/inference/benchmark_retry.json` |
 | Generate | `evidence/04_2_llm_design/inference/cost_comparison.json` |
 | Generate | `evidence/04_2_llm_design/inference/agent_startup.json` |
 | Screenshot owner | `evidence/04_2_llm_design/screenshots/airflow_rag_graph.png` |
@@ -99,17 +104,21 @@ Failure modes: RAG validation/lineage failure leaves old alias active; inactive 
 
 ### Task 1: Gate cost, capacity, and fresh lease
 
-- [ ] Run `rtk uv run python scripts/gke/check_budget.py --project $env:GOOGLE_CLOUD_PROJECT --trial-expires-at $env:EDAI2_TRIAL_EXPIRES_AT --current-spend-usd $env:EDAI2_CURRENT_SPEND_USD --spend-observed-at $env:EDAI2_SPEND_OBSERVED_AT --usage-ledger evidence/04_2_llm_design/gke/usage_ledger.json --envelope configs/gke/cost_envelope.yaml --requested-profile rubric-evidence --requested-ttl 6h --output evidence/04_2_llm_design/gke/cost_forecast.json`.
-  - Expected: fresh gate passes and available trial/budget covers worst-case lease.
+- [ ] Run `rtk uv run python scripts/gke/check_budget.py --project $env:GOOGLE_CLOUD_PROJECT --billing-account-env GOOGLE_BILLING_ACCOUNT --budget-notification-target-env EDAI2_BUDGET_NOTIFICATION_TARGET --recovery-sink-env EDAI2_VAULT_RECOVERY_SINK --recovery-sink-attestation $env:EDAI2_RECOVERY_SINK_ATTESTATION --required-permissions configs/gke/required_permissions.json --dns-probes acme-staging-v02.api.letsencrypt.org,huggingface.co,storage.googleapis.com --live-external-preflight --preflight-output evidence/04_2_llm_design/gke/gcp_preflight_topic28.json --trial-expires-at $env:EDAI2_TRIAL_EXPIRES_AT --current-spend-usd $env:EDAI2_CURRENT_SPEND_USD --spend-observed-at $env:EDAI2_SPEND_OBSERVED_AT --usage-ledger evidence/04_2_llm_design/gke/usage_ledger.json --envelope configs/gke/cost_envelope.yaml --requested-profile rubric-evidence --requested-ttl 6h --output evidence/04_2_llm_design/gke/cost_forecast_topic28.json`.
+  - Expected: fresh live project/billing/IAM/notification/recovery-sink/DNS/trial/spend/capacity gate passes with redacted output and available budget covers the worst-case lease.
 - [ ] Run `rtk uv run python scripts/gke/manage_profile.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT rubric-evidence --ttl 6h --acquire-session-lease --owner topic28-rag-benchmark --commit-sha $env:EDAI2_COMMIT_SHA`.
   - Expected: fresh sole lease, exact commit, platform restored, ingress private unless capture route is explicitly enabled.
 
 ### Task 2: Run RAG DAG and lineage read-back
 
-- [ ] Run `rtk uv run python scripts/llm/build_index.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --trigger-airflow --dag-id rag_index_pipeline --source-root data/knowledge/ecommerce --index-version $env:EDAI2_INDEX_VERSION --wait --promote-if-gates --verify-datahub --output evidence/04_2_llm_design/rag/index_run.json`.
-  - Expected: exactly 8 files/9 versions, valid chunks/embeddings, 60-case gate, CAS promotion, source->version->chunk/embedding->candidate->active->Feast/API lineage and DataHub response hashes.
-- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --capture-ui-set rag --viewport 1600x1000 --names airflow_rag_graph,datahub_rag_lineage --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --machine-evidence evidence/04_2_llm_design/rag/index_run.json --strict`.
-  - Expected: two contextual images with DAG/run/stages and complete lineage URNs/active version.
+- [ ] Run `rtk powershell -NoProfile -Command 'if ($env:EDAI2_COMMIT_SHA -cnotmatch "^[0-9a-f]{40}$") { exit 28 }; $expected="canonical-evidence-" + $env:EDAI2_COMMIT_SHA; if ($env:EDAI2_INDEX_VERSION -cne $expected) { exit 29 }; "CANONICAL_INDEX_ID_GATE=PASS"'`.
+  - Expected: exact lowercase identity `canonical-evidence-${EDAI2_COMMIT_SHA}` passes; `ci-bootstrap-*`, `test_idx_001`, abbreviated/uppercase commits, and every other index ID fail before the DAG runs.
+- [ ] Run `rtk uv run python scripts/llm/build_index.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --trigger-airflow --dag-id rag_index_pipeline --source-root data/knowledge/ecommerce --index-version $env:EDAI2_INDEX_VERSION --index-purpose canonical-evidence --reject-index-purpose ci-bootstrap --reject-index-version-prefix ci-bootstrap- --reject-index-version test_idx_001 --reject-bootstrap-artifact-reuse --bootstrap-evidence evidence/04_2_llm_design/cicd/jobs.json --wait --promote-if-gates --verify-datahub --output evidence/04_2_llm_design/rag/index_run.json`.
+  - Expected: exactly 8 files/9 versions, valid chunks/embeddings, 60-case gate, CAS promotion, source->version->chunk/embedding->candidate->active->Feast/API lineage and DataHub response hashes. Before promotion, the tool rejects every `ci-bootstrap-*` or `test_idx_001` identity and rejects any candidate whose artifact/content identity reuses Topic 25's bootstrap output; bootstrap evidence is never accepted as `Sheet3!E8:E9` proof.
+- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --platform-inventory evidence/04_2_llm_design/gke/platform_install.json --private-endpoint-key airflow_web --loopback-only --tunnel-ttl 10m --capture airflow-rag-graph --viewport 1600x1000 --output evidence/04_2_llm_design/screenshots/airflow_rag_graph.png --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --machine-evidence evidence/04_2_llm_design/rag/index_run.json --strict`.
+  - Expected: contextual Airflow DAG/run/stages image; absent/stale/mismatched inventory fields fail before tunneling, and the exact `127.0.0.1` port-forward child terminates in `finally` while its stable endpoint key/service UID is recorded.
+- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --platform-inventory evidence/04_2_llm_design/gke/platform_install.json --private-endpoint-key datahub_frontend --loopback-only --tunnel-ttl 10m --capture datahub-rag-lineage --viewport 1600x1000 --output evidence/04_2_llm_design/screenshots/datahub_rag_lineage.png --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --machine-evidence evidence/04_2_llm_design/rag/index_run.json --strict`.
+  - Expected: complete lineage URNs/active version are visible; absent/stale/mismatched inventory fields fail before tunneling, and the exact `127.0.0.1` port-forward child terminates in `finally` while its stable endpoint key/service UID is recorded.
 
 ### Task 3: Warm endpoints and enforce serial model state
 
@@ -120,10 +129,12 @@ Failure modes: RAG validation/lineage failure leaves old alias active; inactive 
 
 ### Task 4: Run fixed inference factorial
 
-- [ ] Run `rtk uv run python scripts/llm/benchmark_inference.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --models primary comparison --serial-models --replicas 2 --inactive-model-replicas 0 --factorial cache=off,on router=load_aware,prefix_aware --order cache_off+load_aware,cache_on+load_aware,cache_off+prefix_aware,cache_on+prefix_aware --cold-trials 5 --warm-requests 40 --requests-file configs/llm/benchmark_requests.json --global-concurrency 1 --max-new-tokens 128 --temperature 0 --top-p 1 --seed 20260715 --pricing-snapshot evidence/04_2_llm_design/gke/cost_forecast.json --output evidence/04_2_llm_design/inference/benchmark.json --cost-output evidence/04_2_llm_design/inference/cost_comparison.json`.
+- [ ] Run `rtk uv run python scripts/llm/benchmark_inference.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --models primary comparison --serial-models --replicas 2 --inactive-model-replicas 0 --factorial cache=off,on router=load_aware,prefix_aware --order cache_off+load_aware,cache_on+load_aware,cache_off+prefix_aware,cache_on+prefix_aware --cold-trials 5 --warm-requests 40 --requests-file configs/llm/benchmark_requests.json --global-concurrency 1 --max-new-tokens 128 --temperature 0 --top-p 1 --seed 20260715 --pricing-snapshot evidence/04_2_llm_design/gke/cost_forecast_topic28.json --output evidence/04_2_llm_design/inference/benchmark.json --cost-output evidence/04_2_llm_design/inference/cost_comparison.json`.
   - Expected: 16 complete model/config/thermal cells with samples, metrics/constants/revisions/replicas/cache/route hits and honest gates; inactive model zero for every cell.
 - [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --verify-inference-factorial evidence/04_2_llm_design/inference/benchmark.json --cost evidence/04_2_llm_design/inference/cost_comparison.json --strict`.
   - Expected: p95/gain/cost/factor-effect rules pass or produce explicit failed `Sheet3!E5`; no missing sample is synthesized.
+- [ ] Only if the preceding empirical gate fails, run once: `rtk uv run python scripts/llm/benchmark_inference.py --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT --bounded-tuning-retry-from evidence/04_2_llm_design/inference/benchmark.json --retry-number 1 --allowed-tuning cache,router,warmup --preserve-baseline --output evidence/04_2_llm_design/inference/benchmark_retry.json --cost-output evidence/04_2_llm_design/inference/cost_comparison.json`.
+  - Expected: the tool refuses a second retry or any locked-constant change, records the before/after configuration and diagnosis, and either passes the unchanged gate or leaves `Sheet3!E5` `Partial`/`Missing`.
 
 ### Task 5: Measure cold versus prewarmed agent startup
 

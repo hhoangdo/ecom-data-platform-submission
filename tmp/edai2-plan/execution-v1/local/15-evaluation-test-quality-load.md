@@ -26,7 +26,7 @@ Read `C:\Users\oou1hc\.codex\RTK.md`. Verify `ece171c3d400c3b16fc668cd28e3587fae
 
 ## Global constraints
 
-Current branch and serial session only; `apply_patch`; developer recipes use `rtk uv run` and operator recipes use `rtk make`; no commit/stage/GCP/live Locust/auto Docker stop or prune. Dependency additions use `rtk uv add ...` because Topic 15 uniquely owns `pyproject.toml`/`uv.lock`; inspect `rtk git diff -- pyproject.toml uv.lock`. One bounded retry then `Partial`.
+Current branch and serial session only; `apply_patch`; developer recipes use `rtk uv run` and operator recipes use `rtk make`; no commit/stage/GCP/live Locust/auto Docker stop or prune. Topic 08 owns baseline dependencies. Topic 15 may modify `pyproject.toml` only for the literal Task 6 coverage and mutmut configuration already assigned here; it may not add a dependency. A missing quality dependency is recorded as a Topic 08 predecessor defect instead of changing `pyproject.toml` or `uv.lock`. Inspect `rtk git diff -- pyproject.toml uv.lock`; speculative or unnamed dependency additions are forbidden. One bounded retry then `Partial`.
 
 ## Read-only current-state refresh
 
@@ -35,6 +35,8 @@ Current branch and serial session only; `apply_patch`; developer recipes use `rt
 - [ ] Run `rtk proxy certutil -hashfile tmp/edai2-plan/04.2_llm_design.md SHA256`. Expected: output contains `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`.
 - [ ] Run `rtk proxy certutil -hashfile "tmp/rubic-check/Coursework Tracking (Public).xlsx" SHA256`. Expected: output contains `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - [ ] Run `rtk proxy powershell -NoProfile -Command "Select-String -Path tmp/edai2-plan/execution-v1/local/14-agent-security-registry-notebooks.md -Pattern '^Status: Complete|\| Status \| Complete \|'"`. Expected: completed predecessor.
+- [ ] Run `rtk uv lock --check`. Expected: exit 0 before any Topic 15-owned quality configuration change.
+- [ ] Run `rtk powershell -NoProfile -Command 'if ([string]::IsNullOrWhiteSpace($env:EDAI2_BASE_REF)) { Write-Error "EDAI2_BASE_REF is required"; exit 1 }; & rtk git rev-parse --verify "$($env:EDAI2_BASE_REF)^{commit}"; exit $LASTEXITCODE'`. Expected: exit 0 and an exact commit object; unset or invalid input stops the topic before scope comparison.
 - [ ] Run `rtk git diff --check`. Expected: exit 0.
 
 ## Scope and non-goals
@@ -49,11 +51,12 @@ The verified changed-code scope explicitly includes the full LLM package, `src/v
 
 | Action | Exact path | Responsibility |
 |---|---|---|
-| Modify | `pyproject.toml`, `uv.lock` | Test dependencies, coverage and mutmut configuration |
-| Create | `src/vina_bim_shop/llm/evaluation.py` | Per-case evaluation and exact aggregate math |
-| Create | `configs/llm/evaluation.yaml` | Exact gates and fixture partition |
-| Create | `configs/llm/test_scope.yaml` | Changed production Python scope |
-| Create | `configs/llm/coverage.ini` | Coverage inclusion/omission contract |
+| Modify | `pyproject.toml` | Literal Task 6 coverage and mutmut configuration only; add no dependency |
+| Consume | `uv.lock` | Topic 08-owned dependency lock; verify unchanged |
+| Modify | `src/vina_bim_shop/llm/evaluation.py` | Complete the Topic 08 scaffold with per-case evaluation and exact aggregate math |
+| Modify | `configs/llm/evaluation.yaml` | Complete the Topic 08 scaffold with exact gates and fixture partition |
+| Modify | `configs/llm/test_scope.yaml` | Complete the Topic 08 scaffold with changed production Python scope |
+| Modify | `configs/llm/coverage.ini` | Complete the Topic 08 scaffold with the coverage inclusion/omission contract |
 | Create | `tests/fixtures/llm/evaluation_cases.jsonl` | Exact 60 unique cases |
 | Create | `tests/unit/llm/test_evaluation.py` | Counts, denominators, nearest-rank p95, missing-call failures |
 | Create | `tests/property/llm/test_idempotency.py` | Bounded Hypothesis properties |
@@ -61,12 +64,13 @@ The verified changed-code scope explicitly includes the full LLM package, `src/v
 | Create | `tests/load/llm/test_locust_contract.py` | Static success/abstention/error and output-path contract |
 | Create | `scripts/llm/run_evaluation.py` | Deterministic local/live evaluation CLI |
 | Create | `scripts/qa/verify_edai2_test_scope.py` | Git-diff/untracked scope and mutmut coverage verifier |
+| Create | `scripts/qa/verify_edai2_mutation_score.py` | Parse all mutmut statuses, fail on unknown/unclassified entries, enforce strict score threshold, and emit machine-readable evidence |
 
 ## Interfaces, data flow, and failure modes
 
 Inputs are the exact 60-case JSONL fixture, evaluation gates, changed/untracked Python inventory, coverage config, mutmut config, and deterministic fake retrieval/inference samples. The evaluator emits one immutable per-case record followed by aggregate metrics; coverage, mutation, CrossHair, Hypothesis, EP/BVA, and Locust-contract reports feed Topic 16 and the later evidence packager.
 
-Fixture duplication/count mismatch, missing required call, timeout/dependency failure, non-finite sample, unknown mutant status, coverage below 91%, mutation score at or below 0.80, CrossHair counterexample, Hypothesis failure, or Locust shape drift fails the topic. Failed/measured samples are never dropped, replaced, or relabeled.
+Fixture duplication/count mismatch, missing required call, timeout/dependency failure, non-finite sample, unknown or unclassified mutant status, coverage below 91%, mutation score at or below 0.80, CrossHair counterexample, Hypothesis failure, or Locust shape drift fails the topic. Mutation score is exactly `killed / (killed + survived + timeout + suspicious + untested)`; no other status may be omitted from or silently added to that denominator. Failed/measured samples are never dropped, replaced, or relabeled.
 
 ## Exact fixture and metrics
 
@@ -84,9 +88,9 @@ Retrieval latency requires one call for each 48 non-safety cases. Generation inc
 - [ ] Run `rtk uv run crosshair check src/vina_bim_shop/llm/safety.py src/vina_bim_shop/llm/routing.py --analysis_kind=PEP316 --per_condition_timeout=5 --max_uninteresting_iterations=64`. Expected: exit 0 with no counterexample.
 - [ ] Run `rtk uv run python scripts/qa/verify_edai2_test_scope.py --base-ref $env:EDAI2_BASE_REF --scope configs/llm/test_scope.yaml --coverage-config configs/llm/coverage.ini --pyproject pyproject.toml`. Expected: exit 0; every changed/untracked production Python path is in coverage and mutmut scope.
 - [ ] Run `rtk uv run pytest tests/unit/llm tests/contract/llm tests/property/llm tests/integration/llm --cov=src/vina_bim_shop --cov-config=configs/llm/coverage.ini --cov-report=term-missing --cov-report=html:evidence/04_2_llm_design/tests/coverage --cov-fail-under=91`. Expected: exit 0 and coverage >=91%.
-- [ ] Run `rtk uv run mutmut run`, then `rtk uv run mutmut results`. Expected: all statuses classified and `killed/(killed+survived+timeout+suspicious+untested) > 0.80`; otherwise Topic 15 is Partial.
+- [ ] Run `rtk uv run mutmut run`, `rtk uv run mutmut results`, and `rtk uv run python scripts/qa/verify_edai2_mutation_score.py --min-exclusive 0.80 --output evidence/04_2_llm_design/tests/mutation.json`. Expected: the verifier classifies every mutant, fails on every unknown/unclassified status, uses exactly `killed/(killed+survived+timeout+suspicious+untested)`, writes the status counts/denominator/score, and exits 0 only when the score is strictly greater than 0.80; otherwise Topic 15 is `Partial`.
 - [ ] Run `rtk uv run pytest tests/load/llm/test_locust_contract.py -q`. Expected: exit 0; one-user/concurrency shape covers success/abstention/error and exact future HTML/CSV paths.
-- [ ] Run `rtk git diff -- pyproject.toml uv.lock` and `rtk git diff --check`. Expected: dependency diff is only required locked additions and whitespace check exits 0.
+- [ ] Run `rtk git diff -- pyproject.toml uv.lock` and `rtk git diff --check`. Expected: `pyproject.toml` differs only by the literal Task 6 coverage/mutmut configuration, `uv.lock` is unchanged, no dependency was added, and the whitespace check exits 0.
 
 ## Evidence, cleanup, rubric, and DoD
 

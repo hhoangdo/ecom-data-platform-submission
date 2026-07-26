@@ -26,8 +26,8 @@
 - Read `C:\Users\oou1hc\.codex\RTK.md`; prefix every shell command with `rtk`.
 - Fixed source hashes: Section 03 `ece171c3d400c3b16fc668cd28e3587faebe1f596dd6c0c4498ff055e3fc027f`; EDAI2 `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`; `tmp/rubic-check/Coursework Tracking (Public).xlsx` `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - Do not create/switch branches/worktrees, stage, or commit.
-- Topic 32 makes no GCP mutation. Missing project/billing/IAM/trial/spend/recovery sink/external inputs or failed runtime topics are recorded as limitations/unsatisfied cells; local truthful partial finalization still proceeds.
-- `EDAI2_TFVARS_PATH=tmp/edai2-gcp/coursework.auto.tfvars` remains untracked and must not be read into docs/manifest.
+- Topic 32 makes no GCP mutation. Missing project/billing/IAM/trial/spend/recovery sink/external inputs or failed runtime topics are recorded as limitations and `Partial`/`Missing` cells; local truthful partial finalization still proceeds.
+- If set, `EDAI2_TFVARS_PATH` remains an absolute path resolving exactly to this repository's untracked `tmp/edai2-gcp/coursework.auto.tfvars` and must not be read into docs/manifest.
 - Execute Topic 32 only after Topic 31 has released its lease, in the same serial session order and current checkout/branch; do not create a branch/worktree or stage, commit, push, or open a PR.
 - Row 2 is mandatory but unscored. README must contain business domain, TOC, repository structure, docstring/file-description policy, whole-course deployment diagram, and links to detailed docs.
 - Diagram nodes are deployable units only; arrows follow data/control direction, are numbered/labeled, distinguish user/developer flows by color, and use dashed lines only for clearly secondary flows.
@@ -35,9 +35,11 @@
 - `Sheet3!E3:E62` appears exactly once each in numeric order with one primary owner. Duplicate/missing ownership fails.
 - `Sheet3!E32:E34` may only be `Prerequisite` owned by Section 03 and require strict verified hashes. No other cell may use prerequisite status.
 - `Sheet3!E49.points=1`, `earned_points=0`, status `Out of Scope`, owner Topic 32; no VM/Ansible may be introduced.
+- The rubric status vocabulary is exactly `Satisfied`, `Partial`, `Missing`, `Prerequisite`, and `Out of Scope`; the builder rejects every other value.
 - Direct EDAI2 compatible subtotal is at most 95; verified Section 03 contributes at most 4; combined maximum 99. A lower truthful score is valid; score inflation is not.
 - `Satisfied` requires implementation/config, executed command/exit 0, measured result, contextual screenshot/report, SHA-256, machine link, and compatible screenshot QA.
-- Planned, missing, empty, stale, unhashed, outside-repository, tampered, incompatible, secret/PII-bearing, or failed evidence is `Unsatisfied`.
+- Planned, missing, empty, stale, unhashed, outside-repository, tampered, incompatible, secret/PII-bearing, or failed evidence is `Partial` only when some compatible proof exists and otherwise `Missing`.
+- The five LLD focus classes are exactly `RagIndexPipeline`, `FeastRetrievalService`, `DriftDetectionService`, `ObservedInferenceClient`, and `CommerceAgentCoordinator`; aliases or substitute classes do not satisfy `Sheet3!E60`.
 - Topic 32 owns `design_patterns.png` and `whole_course_diagram.png`; UI dimensions `1600x1000`, full screenshot contract and original-resolution inspection apply.
 - Each owned capture writes a same-directory temporary PNG, verifies the eight-byte PNG signature, performs decoder verification and a full pixel load, checks exact `1600x1000` dimensions and stable contextual selectors, then atomically replaces the final path. Record UTC time, URL/source path, current revision, visible selectors, SHA-256, linked machine evidence, and what the image proves/does not prove. Reject clipped, blank/near-uniform, loading, login-only, generic-home, error, stale, secret-bearing, PII-bearing, corrupt, truncated, or over-cropped images, and inspect each accepted file at original resolution.
 - One bounded repair per local render/capture after diagnosed cause; repeated failure remains truthful partial.
@@ -87,7 +89,7 @@
 | Read/modify | `tests/unit/test_edai2_rubric_manifest.py`, `tests/unit/test_edai2_security_static.py` |
 | Execute | `scripts/qa/audit_edai2_documentation.py`, `scripts/qa/build_edai2_rubric_manifest.py`, `scripts/qa/capture_edai2_evidence.py` |
 | Generate | `evidence/04_2_llm_design/documentation_coverage.json` |
-| Generate | `evidence/04_2_llm_design/rubric_manifest.json` |
+| Generate | `evidence/04_2_llm_design/screenshots/final_qa.json`, rebuilt `evidence/04_2_llm_design/run_manifest.json`, `evidence/04_2_llm_design/rubric_manifest.json` |
 | Screenshot owner | `evidence/04_2_llm_design/screenshots/design_patterns.png` |
 | Screenshot owner | `evidence/04_2_llm_design/screenshots/whole_course_diagram.png` |
 | Update through capture CLI | `evidence/04_2_llm_design/screenshots/ui_manifest.json` |
@@ -115,7 +117,7 @@ This matrix covers every cell from `Sheet3!E3:E62` exactly once.
 
 Source plans/workbook hashes + Completion Records + Section 03 manifest + machine evidence + screenshot manifests/QA -> strict owner/cell reconciliation -> status/points/earned/evidence hashes -> subtotal/ceiling -> reviewer docs and rubric manifest.
 
-Code/package structure -> five class signatures + ports/adapters/Strategy examples -> tests/docs -> `design_patterns.png`.
+Code/package structure -> exact `RagIndexPipeline`, `FeastRetrievalService`, `DriftDetectionService`, `ObservedInferenceClient`, and `CommerceAgentCoordinator` signatures + ports/adapters/Strategy examples -> tests/docs -> `design_patterns.png`.
 
 Deployment inventory/data flows -> PlantUML -> rendered SVG -> README embed -> `whole_course_diagram.png`.
 
@@ -125,8 +127,8 @@ Failure modes: duplicate/missing cell owner, source point mismatch, false Sectio
 
 ### Task 1: Write/run final documentation and rubric tests
 
-- [ ] Ensure tests require README TOC/repo map/domain, local links, whole-course embedded SVG, deployable-only diagram nodes, numbered/labeled/directional colored arrows, limited dashed flows, five exact classes, public docstrings, screenshot context/limitations, and no claim without evidence.
-- [ ] Ensure rubric tests require fixed source hash, exact owner matrix, `Sheet3!E3:E62` numeric order, missing/false/true Section 03 prerequisite behavior, unchanged `Sheet3!E49.points=1`/earned zero/OOS, duplicate rejection, tamper rejection, and <=99.
+- [ ] Ensure tests require README TOC/repo map/domain, local links, whole-course embedded SVG, deployable-only diagram nodes, numbered/labeled/directional colored arrows, limited dashed flows, the exact classes `RagIndexPipeline`, `FeastRetrievalService`, `DriftDetectionService`, `ObservedInferenceClient`, and `CommerceAgentCoordinator`, public docstrings, screenshot context/limitations, and no claim without evidence.
+- [ ] Ensure rubric tests require fixed source hash, exact owner matrix, `Sheet3!E3:E62` numeric order, the exact status vocabulary `Satisfied|Partial|Missing|Prerequisite|Out of Scope`, missing/false/true Section 03 prerequisite behavior, unchanged `Sheet3!E49.points=1`/earned zero/OOS, duplicate rejection, tamper rejection, and <=99.
 - [ ] Run `rtk uv run pytest tests/unit/test_edai2_documentation.py tests/unit/test_edai2_diagrams.py tests/unit/test_edai2_rubric_manifest.py -q`.
   - Expected: fail only for genuinely absent/incomplete final files; no incomplete stub can pass.
 
@@ -141,7 +143,7 @@ Failure modes: duplicate/missing cell owner, source point mismatch, false Sectio
 ### Task 3: Prove design patterns and five classes
 
 - [ ] Run `rtk uv run pytest tests/unit/test_edai2_repository_contract.py tests/unit/test_edai2_documentation.py -q`.
-  - Expected: clean boundaries, ports/adapters and Strategy proof, five exact typed class APIs, and docs pass.
+  - Expected: clean boundaries, ports/adapters and Strategy proof, typed APIs/docs for exactly `RagIndexPipeline`, `FeastRetrievalService`, `DriftDetectionService`, `ObservedInferenceClient`, and `CommerceAgentCoordinator` pass.
 - [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --capture design-patterns --viewport 1600x1000 --output evidence/04_2_llm_design/screenshots/design_patterns.png --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --machine-evidence evidence/04_2_llm_design/documentation_coverage.json --strict`.
   - Expected: contextual rendered design/class view, not a raw source-only terminal.
 
@@ -151,8 +153,10 @@ Failure modes: duplicate/missing cell owner, source point mismatch, false Sectio
   - Expected: complete non-clipped diagram, title/legend/numbered flows/deployable units visible.
 - [ ] Inspect both owned screenshots at original resolution.
   - Expected: no blank/clipped/loading/error/stale/secret/PII and all selectors/text legible.
-- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --verify-screenshots-only --expected-edai2-count 32 --expected-extra gcp_billing_spend.png --ui-dimensions 1600x1000 --section03-dimensions 1600x900 --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --section03-manifest evidence/03_data_generator_improvement/section03_manifest.json --strict`.
-  - Expected: all 32 named EDAI2 images plus billing and all Section 03 images pass; no pending producer remains.
+- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --verify-screenshots-only --expected-edai2-count 32 --expected-extra gcp_billing_spend.png --ui-dimensions 1600x1000 --section03-dimensions 1600x900 --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --section03-manifest evidence/03_data_generator_improvement/section03_manifest.json --strict-partial --output evidence/04_2_llm_design/screenshots/final_qa.json`.
+  - Expected: no `PendingProducer` remains. Passing images are accepted; any corrupt, clipped, stale, missing, or otherwise rejected image is recorded and its dependent rubric cells remain `Partial`/`Missing`, while local finalization continues.
+- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --strict-partial --require-final-producer-topic 32 --root evidence/04_2_llm_design --screenshot-qa evidence/04_2_llm_design/screenshots/final_qa.json --output evidence/04_2_llm_design/run_manifest.json`.
+  - Expected: the Topic 31 manifest is rebuilt after both Topic 32 captures; it includes their hashes, final QA decisions, all prior evidence, and no pending producer. Failed proof remains explicitly `Partial`/`Missing` rather than blocking rubric generation or being synthesized.
 
 ### Task 5: Build and verify fail-closed rubric manifest
 
@@ -198,7 +202,7 @@ Topic 32 owns only `design_patterns.png` and `whole_course_diagram.png`, documen
 - [ ] Fixed hashes, all Completion Records, screenshot QA, and teardown inputs are reconciled.
 - [ ] Mandatory Row 2 documentation/diagram/navigation passes tests.
 - [ ] Design-pattern and five-class documentation passes and two owned screenshots pass original QA.
-- [ ] All 32 EDAI2 screenshots plus billing and Section 03 images pass strict final verification or affected cells are unsatisfied.
+- [ ] All 32 EDAI2 screenshots plus billing and Section 03 images receive final verification; failed images leave affected cells `Partial`/`Missing` and do not block truthful manifest generation.
 - [ ] Manifest maps every `Sheet3!E3:E62` cell once, Section 03 prerequisites strictly, `Sheet3!E49` zero/OOS, score <=99 and truthful.
 - [ ] Documentation audit, focused tests, full tests, diff check, and final `rtk git status --short --branch` are recorded.
 - [ ] No GCP runtime, secret, tfvars, state, recovery material, unsupported claim, staging, or commit is introduced.
@@ -213,4 +217,4 @@ Topic 32 owns only `design_patterns.png` and `whole_course_diagram.png`, documen
 - **Screenshot QA:** Two owned images not captured; all-image strict check not run.
 - **Cleanup / runtime release:** No runtime acquired; Topic 31 teardown not yet revalidated.
 - **Limitations:** Final score may be below 99 whenever any prerequisite, command, measurement, screenshot, hash, or cleanup gate is incomplete.
-- **Handoff:** Deliver final reviewer navigation, exact truthful score/status summary, limitations, evidence hashes, and confirmation that no work remains except explicitly unsatisfied external/runtime items.
+- **Handoff:** Deliver final reviewer navigation, exact truthful score/status summary, limitations, evidence hashes, and confirmation that no work remains except explicitly `Partial`/`Missing` external or runtime items.
