@@ -122,11 +122,35 @@ Pinned versions are verified or clearly recorded as unavailable; the corporate c
 
 | Field | Record |
 |---|---|
-| Status | Not started |
-| Affected files | `tmp/edai2-plan/execution-v1/local/00-workstation-toolchain-context-safety.md` |
-| Commands / exit codes | Record each command and numeric exit code, ending with `rtk git status --short --branch` |
-| Evidence + SHA256 | Record each capture path and SHA256, or `no capture produced` |
-| Screenshot QA | Record visibility of version, explicit context, and local-only label |
-| Cleanup / runtime release | Record no runtime acquired and preserve the dedicated path convention for Topic 21 |
-| Limitations | Local smoke is not GKE evidence |
-| Successor handoff | Provide branch, tool inventory, and safe context name to plan 01 |
+| Status | Complete — serial Codex desktop session. First mutating command timestamp is `2026-07-28T10:26:42.971+07:00` from the Winget log; record update began `2026-07-28T10:41:41.0017692+07:00`. |
+| Affected files | Modified only this Completion Record: `tmp/edai2-plan/execution-v1/local/00-workstation-toolchain-context-safety.md`. Created ignored local directory `tmp/edai2-kind/`; no kubeconfig file was created. |
+| Commands / exit codes | All exact commands and observed exit codes are recorded below. Initial index-listing SHA-256: `655530c212f3a8bb063837817b26c7d7cdbcc54a375bf43a3ba15671d34c3549`. |
+| Evidence + SHA256 | Machine-terminal evidence only; no evidence file or screenshot was created. Locked source SHA-256 values: Section 03 `ece171c3d400c3b16fc668cd28e3587faebe1f596dd6c0c4498ff055e3fc027f`; EDAI2 `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`; rubric workbook `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`. |
+| Screenshot QA | No screenshot produced or manufactured. Terminal outputs establish the pinned versions, explicit read-only corporate context, and `local-only` limitation; no output is GKE evidence. |
+| Cleanup / runtime release | No Kind cluster, Docker container/image/volume/network, Helm release, Kubernetes resource, gcloud authentication, GCP resource, or persistent `KUBECONFIG` was created. Preserve the empty ignored `tmp/edai2-kind/` directory for Topic 21. |
+| Limitations | A discovered corporate kubeconfig/context was read locally only and never targeted for mutation; machine-specific endpoint and user identifiers are intentionally redacted from Git. Topic 00 is local-only and earns zero direct rubric points; local tooling is not GKE, Terraform-apply, Airflow, DataHub, or Section 03 evidence. |
+| Successor handoff | Topic 01 receives branch `feature/implement-edai2`; Kind `v0.32.0`, kubectl `v1.34.1`, Helm `v3.20.0`, Terraform `v1.15.8`, gcloud `577.0.0`; future local identity `edai2-lean` / `kind-edai2-lean` / `tmp/edai2-kind/kubeconfig`; and a corporate context confirmed read-only with machine-specific identity redacted. |
+
+#### Execution command log
+
+| Command | Exit | Observed result |
+|---|---:|---|
+| `rtk git status --short --branch` | 0 | Began on `feature/implement-edai2` with no tracked changes. |
+| `rtk git ls-files --stage` | 0 | Baseline listing captured; SHA-256 recorded above. |
+| `rtk proxy certutil -hashfile tmp\\edai2-plan\\03_data_generator_improvement.md SHA256` | 0 | Matched the Section 03 lock. |
+| `rtk proxy certutil -hashfile tmp\\edai2-plan\\04.2_llm_design.md SHA256` | 0 | Matched the EDAI2 lock. |
+| `rtk proxy certutil -hashfile "tmp\\rubic-check\\Coursework Tracking (Public).xlsx" SHA256` | 0 | Matched the rubric lock. |
+| `rtk kubectl --kubeconfig "<corporate-kubeconfig-redacted>" --context "<corporate-context-redacted>" config view --minify --raw=false` | 0 | Read-only corporate-context inventory; token remained redacted. The exact machine-specific command is intentionally not committed. |
+| `rtk kubectl --kubeconfig "<corporate-kubeconfig-redacted>" --context "<corporate-context-redacted>" config get-contexts` | 0 | Confirmed the single current corporate context without contacting or modifying it; identifiers are redacted from Git. |
+| `rtk kubectl --kubeconfig "C:\\Users\\oou1hc\\Documents\\FSDS\\ecom-data-platform-submission\\tmp\\edai2-kind\\kubeconfig" --context kind-edai2-lean version --client --output=yaml` | 0 | kubectl client `v1.34.1`; no cluster contact. |
+| `rtk kind version`; `rtk helm version --short`; `rtk terraform version`; `rtk gcloud version` | 1 each | Expected failing preflight: each pinned executable was initially absent. |
+| `rtk proxy winget show --id Kubernetes.kind --version 0.32.0 --exact --source winget`; equivalent Helm, Terraform, and Google Cloud SDK commands | 0 each | All exact package pins were available. |
+| `rtk proxy winget install --id Kubernetes.kind --version 0.32.0 --exact --source winget --accept-package-agreements --accept-source-agreements` | 0 | Installed exact Kind release. |
+| `rtk proxy winget install --id Helm.Helm --version 3.20.0 --exact --source winget --accept-package-agreements --accept-source-agreements` | 0 | Installed exact Helm release. |
+| `rtk proxy winget install --id Hashicorp.Terraform --version 1.15.8 --exact --source winget --accept-package-agreements --accept-source-agreements` | 0 | Installed exact Terraform release. |
+| `rtk proxy winget install --id Google.CloudSDK --version 577.0.0 --exact --source winget --accept-package-agreements --accept-source-agreements` | 124, then 0 | First bounded attempt timed out; Winget log recorded ShellExecute failure `0x8a150006`. One identical 210-second retry completed after its administrator prompt. |
+| Persisted Machine/User PATH child checks: `rtk kind version`; explicit-context `rtk helm ... version --short`; `rtk terraform version`; `rtk gcloud version` | 0 each | Verified Kind `v0.32.0`, Helm `v3.20.0`, Terraform `v1.15.8`, and gcloud `577.0.0` after Winget PATH refresh. |
+| `rtk proxy cmd /d /c "mkdir C:\\Users\\oou1hc\\Documents\\FSDS\\ecom-data-platform-submission\\tmp\\edai2-kind"` | 0 | Created only the ignored reservation directory. |
+| `rtk proxy cmd /d /v:on /c "set KUBECONFIG=C:\\Users\\oou1hc\\Documents\\FSDS\\ecom-data-platform-submission\\tmp\\edai2-kind\\kubeconfig&&echo !KUBECONFIG!"` | 0 | Child-only value echoed; the future kubeconfig remained absent. |
+| `rtk uv lock --check`; `rtk make help`; `rtk git diff --check` | 0 each | Python lock is valid, Make commands are available through `rtk make`, and no whitespace error exists. |
+| Post-record acceptance: locked-source hashes; persisted-PATH version matrix; reserved-kubeconfig absence; `rtk uv lock --check`; `rtk git diff --check`; `rtk git status --short --branch`; `rtk git ls-files --stage` | 0 each | All hashes and pins matched; status showed only this Topic 00 file modified; final index-listing SHA-256 matched the baseline exactly. |
