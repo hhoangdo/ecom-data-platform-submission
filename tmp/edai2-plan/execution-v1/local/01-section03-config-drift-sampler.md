@@ -130,11 +130,38 @@ Configuration and sampler tests pass; disabled output and shared-RNG state match
 
 | Field | Record |
 |---|---|
-| Status | Not started |
-| Affected files | Record only exact file-map paths actually changed |
-| Commands / exit codes | Record every checkbox command and numeric exit code, ending with `rtk git status --short --branch` |
-| Evidence + SHA-256 | Record test-log/rate-report paths and hashes, or `no artifact produced` |
-| Screenshot QA | No screenshot required for Topic 01 |
-| Cleanup / runtime release | Record fixture cleanup and `no runtime acquired` |
-| Limitations | Record measured local-only limitations; no Spark/Airflow/DataHub claim |
-| Successor handoff | Provide config hash, resolved windows, sampler API, and test results to Topic 02 |
+| Status | **Partial.** Typed configuration, deterministic timestamp redistribution, disabled/frame/RNG equivalence, fixed counts, exact sampler/rate interfaces, and the medium rate criterion are implemented. The full gate remains red because enabled timestamp redistribution changes four streaming event-type totals after timestamp sorting; one bounded retry was used and the measured failure is retained below. |
+| Affected files | `configs/generator/base.yaml`; `src/vina_bim_shop/generators/config.py`; `src/vina_bim_shop/generators/drift.py` (new); `src/vina_bim_shop/generators/offline/orders.py`; `tests/unit/test_generator_config.py`; `tests/unit/test_section03_drift.py` (new); `tests/unit/test_generator_module_split.py`; this Completion Record in `tmp/edai2-plan/execution-v1/local/01-section03-config-drift-sampler.md`. No dependency files changed. |
+| Commands / exit codes | Checkbox and acceptance commands are recorded in the execution log below. Final pre-record checks: locked-source hash commands `0`; full prescribed pytest gate `1` (`1 failed, 64 passed`); `rtk git diff --check` `0`; `rtk git ls-files --stage` `0`; normalized index-listing hash command `0`; `rtk git status --short --branch` `0`. |
+| Evidence + SHA-256 | Machine evidence is the authoritative terminal output; **no artifact produced**. `configs/generator/base.yaml` SHA-256 `5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97`; `src/vina_bim_shop/generators/drift.py` SHA-256 `4de704f2a987e2e76ab933ad2226f8a3dc1674bdfd56992199ce569aea6fee5a`. Medium result: `pre_count=24717`, `post_count=20283`, `pre_duration_days=38.35`, `post_duration_days=20.65`, `pre_rate_per_day=644.5110821382008`, `post_rate_per_day=982.227602905569`, normalized ratio `1.5239886948832209` (inside inclusive `[1.35, 1.65]`). |
+| Screenshot QA | No screenshot required, captured, or manufactured for Topic 01. Successor topics retain final UI-capture ownership. |
+| Cleanup / runtime release | Pytest used fixture-managed temporary directories. No service, container, Kind cluster, Kubernetes context, cloud runtime, or GCP resource was acquired; no runtime cleanup was required. Docker data and unrelated containers were untouched. |
+| Resource / budget gates | Local Python only. No live GCP mutation, billable resource, Kubernetes command, kubeconfig change, or local Kind/GKE evidence claim occurred. |
+| Limitations | Local-only evidence; no Spark, Airflow, DataHub, GKE, or rubric-score claim. The strict streaming keyed non-time projection is not yet met: expected/actual counts differ for `add_to_cart` `2062/2054`, `checkout_started` `1923/1914`, `order_placed` `1830/1827`, and `product_viewed` `6710/6730`; the other eight event types match. Root cause is downstream sorting by drifted event timestamps before shared-RNG duplicate/lateness/device decisions. Repair requires scope-approved changes to streaming modules outside this topic's exact file map. |
+| Rollback / recovery | Changes remain only in the working tree and index contents are unchanged. Recovery is to revert only the five modified implementation/test paths, remove only the two new Topic 01 paths, and restore this Completion Record; do not touch unrelated files or the index. |
+| Rubric disposition | Supporting implementation evidence only for `Sheet3!E32:E33`; no score is claimed. Topic 07 remains the sole primary evidence owner. |
+| Successor handoff | **Topic 02 remains blocked** until the streaming invariant receives a scope-approved fix or the topic contract is revised. Config hash is `5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97`. Smoke window: start `2026-04-18T23:59:00`, drift `2026-04-27T10:47:00`, feature cutoff `2026-04-24T23:59:00`, label end/end `2026-05-01T23:59:00`, baseline date `2026-04-26`. Medium window: start `2026-03-03T23:59:00`, drift `2026-04-11T08:23:00`, feature cutoff `2026-04-24T23:59:00`, label end/end `2026-05-01T23:59:00`, baseline date `2026-04-10`. Interfaces: `generate_order_timestamps_with_drift(rng, *, start_ts, end_ts, size, drift) -> pd.Series`, `resolve_drift_window(config) -> DriftWindow`, and `summarize_drift_rates(timestamps, *, window) -> DriftRateSummary`. Latest full gate: `1 failed, 64 passed`. |
+
+### Execution command log
+
+| Command | Exit | Result |
+|---|---:|---|
+| `rtk git status --short --branch` | 0 | Began clean on `feature/implement-edai2...origin/feature/implement-edai2`. |
+| `rtk git ls-files --stage` | 0 | Pre-edit index listing captured: 773 lines; normalized SHA-256 `2526340f5b479315777b5310dfbd996ce095aaf1121c163bbd5eb474fac1b84e`. |
+| `rtk certutil -hashfile tmp/edai2-plan/03_data_generator_improvement.md SHA256` | 0 | Locked hash matched `ece171c3d400c3b16fc668cd28e3587faebe1f596dd6c0c4498ff055e3fc027f`. |
+| `rtk certutil -hashfile tmp/edai2-plan/04.2_llm_design.md SHA256` | 0 | Locked hash matched `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`. |
+| `rtk certutil -hashfile "tmp/rubic-check/Coursework Tracking (Public).xlsx" SHA256` | 0 | Locked hash matched `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`. |
+| `rtk uv run pytest tests/unit/test_generator_config.py tests/integration/test_section01_generator.py -q` | 0 | Pre-change baseline: `4 passed`. |
+| `rtk uv run pytest tests/unit/test_generator_config.py -q` | 1 | Task 1 red: `DriftConfig` was absent. |
+| `rtk uv run pytest tests/unit/test_generator_config.py -q` | 0 | Task 1 green after minimum implementation: `41 passed`. |
+| `rtk uv run pytest tests/unit/test_section03_drift.py -q` | 1 | Task 2 red: drift module was absent. |
+| `rtk uv run pytest tests/unit/test_section03_drift.py tests/unit/test_generator_module_split.py -q` | 1 | First implementation run: three failures exposed two test-harness ordering errors and the streaming event-type invariant. |
+| `rtk uv run pytest tests/unit/test_section03_drift.py tests/unit/test_generator_module_split.py -q` | 1 | One bounded retry after correcting only the test harness: `1 failed, 18 passed`; streaming event-type invariant remained. |
+| `rtk uv run pytest tests/unit/test_generator_config.py -q` | 1 | Review red: mixed-type unknown drift keys leaked `TypeError` (`1 failed, 42 passed`). |
+| `rtk uv run pytest tests/unit/test_generator_config.py -q` | 0 | Review green after insertion-order unknown-key validation: `43 passed`. |
+| `rtk uv run python -c "from dataclasses import asdict; from pathlib import Path; import json; import numpy as np; from vina_bim_shop.generators.config import load_generator_config; from vina_bim_shop.generators.drift import generate_order_timestamps_with_drift, resolve_drift_window, summarize_drift_rates; c=load_generator_config(Path('configs/generator/base.yaml'), scale='medium'); w=resolve_drift_window(c); t=generate_order_timestamps_with_drift(np.random.default_rng(c.random_seed), start_ts=w.start_ts, end_ts=w.end_ts, size=c.entities['orders'], drift=c.drift); print(json.dumps(asdict(summarize_drift_rates(t, window=w)), sort_keys=True))"` | 0 | Medium normalized ratio `1.5239886948832209`. |
+| `rtk uv run pytest tests/unit/test_generator_config.py tests/unit/test_section03_drift.py tests/unit/test_generator_module_split.py tests/integration/test_section01_generator.py -q` | 1 | Final pre-record acceptance: `1 failed, 64 passed`; exact streaming count differences are recorded above. |
+| `rtk git diff --check` | 0 | No whitespace errors. |
+| `rtk git ls-files --stage` | 0 | Final pre-record listing remained 773 lines. |
+| `rtk powershell -NoProfile -Command '$lines = & rtk git ls-files --stage; $text = [string]::Join("`n", $lines) + "`n"; $bytes = [Text.Encoding]::UTF8.GetBytes($text); $sha = [Security.Cryptography.SHA256]::Create(); ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace("-", "").ToLowerInvariant()'` | 0 | Final pre-record index SHA-256 `2526340f5b479315777b5310dfbd996ce095aaf1121c163bbd5eb474fac1b84e`, byte-for-byte equal to pre-edit. |
+| `rtk git status --short --branch` | 0 | Branch unchanged; only the seven Topic 01 implementation/test paths were modified or added before this Completion Record update; no staged entries. |

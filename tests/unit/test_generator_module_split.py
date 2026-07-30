@@ -104,6 +104,7 @@ def test_modules_are_importable() -> None:
         "vina_bim_shop.generators.schema_evolution",
         "vina_bim_shop.generators.bad_records",
         "vina_bim_shop.generators.ops_signals",
+        "vina_bim_shop.generators.drift",
         "vina_bim_shop.generators.writer",
         "vina_bim_shop.generators.offline.entities",
         "vina_bim_shop.generators.offline.inventory_promos",

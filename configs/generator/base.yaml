@@ -8,7 +8,7 @@ taxonomy:
 
 scale_profiles:
   smoke:
-    history_days: 7
+    history_days: 14
     entities:
       customers: 800
       sellers: 80
@@ -35,6 +35,17 @@ scale_profiles:
 outputs:
   raw_root: data/raw
   evidence_root: evidence/01_data_generator
+  section03_evidence_root: evidence/03_data_generator_improvement
+
+drift:
+  enabled: true
+  scenario: customer_order_frequency
+  mode: abrupt
+  cutoff_fraction: 0.65
+  post_rate_multiplier: 1.5
+  psi_warning: 0.10
+  psi_alert: 0.15
+  label_horizon_days: 7
 
 quality_scenarios:
   hcmc_hanoi_skew_ratio: 0.45

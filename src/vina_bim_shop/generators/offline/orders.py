@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import copy
+
 import numpy as np
 import pandas as pd
 
 from vina_bim_shop.generators.config import GeneratorConfig
+from vina_bim_shop.generators.drift import generate_order_timestamps_with_drift
 from vina_bim_shop.generators.ids import dated_ids
 from vina_bim_shop.generators.profiles import random_timestamps, weighted_choice
 from vina_bim_shop.generators.skew import (
@@ -30,7 +33,20 @@ def _generate_orders(
     customer_idx = rng.choice(customers.index.to_numpy(), size=n, p=customer_weights / customer_weights.sum())
     selected_customers = customers.loc[customer_idx].reset_index(drop=True)
 
-    order_ts = random_timestamps(rng, start_ts, end_ts, n, evening_bias=True)
+    legacy_order_ts: pd.Series | None = None
+    if config.drift.enabled:
+        legacy_bit_generator = type(rng.bit_generator)()
+        legacy_bit_generator.state = copy.deepcopy(rng.bit_generator.state)
+        legacy_rng = np.random.Generator(legacy_bit_generator)
+        legacy_order_ts = random_timestamps(legacy_rng, start_ts, end_ts, n, evening_bias=True)
+
+    order_ts = generate_order_timestamps_with_drift(
+        rng,
+        start_ts=start_ts,
+        end_ts=end_ts,
+        size=n,
+        drift=config.drift,
+    )
     preferred_categories = segment_affinity_to_categories(selected_customers, config)
     category_values = []
     for preferred in preferred_categories:
@@ -44,7 +60,8 @@ def _generate_orders(
     has_coupon = rng.random(n) < (0.18 + 0.35 * coupon_affinities)
     promotion_ids = []
     coupon_codes = []
-    for category, timestamp, coupon in zip(category_values, order_ts, has_coupon):
+    promotion_timestamps = legacy_order_ts if legacy_order_ts is not None else order_ts
+    for category, timestamp, coupon in zip(category_values, promotion_timestamps, has_coupon):
         active = promotions[
             (promotions["category"].eq(category))
             & (promotions["promotion_start_ts"].le(timestamp))
