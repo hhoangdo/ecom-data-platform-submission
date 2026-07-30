@@ -33,6 +33,8 @@ from vina_bim_shop.generators.streaming.envelope import (
 )
 from vina_bim_shop.generators.streaming.session_events import (
     COMMERCE_EVENT_TYPE_MAP,
+    _STREAM_EVENT_ORDINAL,
+    _STREAM_SESSION_ORDINAL,
     _abandoned_sessions,
     _device_os,
     _events_from_orders,
@@ -47,6 +49,13 @@ from vina_bim_shop.generators.streaming.topic_fulfillment import _fulfillment_to
 class StreamingGeneration:
     topic_events: dict[str, pd.DataFrame]
     issue_records: list[dict[str, Any]]
+
+
+def _attach_stable_stream_lineage(events: pd.DataFrame) -> pd.DataFrame:
+    output = events.copy()
+    output[_STREAM_EVENT_ORDINAL] = np.arange(len(output), dtype=np.int64)
+    output[_STREAM_SESSION_ORDINAL] = pd.factorize(output["session_id"], sort=False)[0]
+    return output
 
 
 def _build_topic_events(
@@ -87,8 +96,12 @@ def generate_streaming_events(
     events = _events_from_orders(config, rng, orders, order_items)
     abandoned = _abandoned_sessions(config, rng, customers, products, orders)
     events = pd.concat([events, abandoned], ignore_index=True)
+    if config.drift.enabled:
+        events = _attach_stable_stream_lineage(events)
     events = events.sort_values(["event_timestamp", "session_id", "event_type"]).reset_index(drop=True)
     events["event_id"] = _assign_event_ids(events)
+    if config.drift.enabled:
+        events = events.sort_values(_STREAM_EVENT_ORDINAL, kind="stable").reset_index(drop=True)
 
     events = _apply_created_ts_and_late_arrivals(config, rng, events)
     events = _inject_device_missingness(config, rng, events)

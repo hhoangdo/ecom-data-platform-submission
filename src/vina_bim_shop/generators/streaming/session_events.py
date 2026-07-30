@@ -18,6 +18,9 @@ COMMERCE_EVENT_TYPE_MAP: dict[str, str] = {
     "payment_failed": "payment_failed",
 }
 
+_STREAM_EVENT_ORDINAL = "_stream_event_ordinal"
+_STREAM_SESSION_ORDINAL = "_stream_session_ordinal"
+
 
 def _device_os(device_type: str | None) -> str | None:
     if device_type == "app_ios":

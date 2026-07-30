@@ -15,6 +15,20 @@ from vina_bim_shop.generators.streaming.envelope import (
 )
 
 
+def _stable_session_order(events: pd.DataFrame) -> pd.DataFrame:
+    from vina_bim_shop.generators.streaming.session_events import (
+        _STREAM_EVENT_ORDINAL,
+        _STREAM_SESSION_ORDINAL,
+    )
+
+    if _STREAM_SESSION_ORDINAL not in events.columns:
+        return events
+    return events.sort_values(
+        [_STREAM_SESSION_ORDINAL, _STREAM_EVENT_ORDINAL],
+        kind="stable",
+    )
+
+
 def _commerce_topic_events(
     config: GeneratorConfig,
     rng: np.random.Generator,
@@ -61,7 +75,9 @@ def _commerce_topic_events(
             )
         )
 
-    first_session_events = ordered_events.drop_duplicates("session_id")
+    first_session_events = _stable_session_order(
+        ordered_events.drop_duplicates("session_id")
+    )
     for seq, event in enumerate(first_session_events.itertuples(index=False), start=1):
         started_ts = pd.Timestamp(event.event_timestamp) - pd.Timedelta(seconds=1)
         rows.append(
@@ -93,7 +109,11 @@ def _commerce_topic_events(
             )
         )
 
-    cart_events = ordered_events[ordered_events["event_type"].eq("add_to_cart")].drop_duplicates("session_id")
+    cart_events = _stable_session_order(
+        ordered_events[ordered_events["event_type"].eq("add_to_cart")].drop_duplicates(
+            "session_id"
+        )
+    )
     remove_events = cart_events.head(max(1, int(len(cart_events) * 0.06)))
     for seq, event in enumerate(remove_events.itertuples(index=False), start=1):
         remove_ts = pd.Timestamp(event.event_timestamp) + pd.Timedelta(seconds=45)
@@ -122,6 +142,7 @@ def _commerce_topic_events(
     ].drop_duplicates("session_id")
     if checkout_events.empty:
         checkout_events = ordered_events[ordered_events["event_type"].eq("checkout_started")].head(1)
+    checkout_events = _stable_session_order(checkout_events)
     for seq, event in enumerate(checkout_events.itertuples(index=False), start=1):
         abandoned_ts = pd.Timestamp(event.event_timestamp) + pd.Timedelta(minutes=20)
         rows.append(

@@ -23,8 +23,13 @@ from vina_bim_shop.generators.drift import (
 from vina_bim_shop.generators.offline import orders as orders_module
 from vina_bim_shop.generators.offline.generator import generate_offline
 from vina_bim_shop.generators.profiles import random_timestamps
+from vina_bim_shop.generators.streaming import generator as streaming_generator_module
 from vina_bim_shop.generators.streaming.generator import generate_streaming_events
 from vina_bim_shop.generators.writer import write_raw_outputs
+
+
+STREAM_EVENT_ORDINAL = "_stream_event_ordinal"
+STREAM_SESSION_ORDINAL = "_stream_session_ordinal"
 
 
 HOURLY_WEIGHTS = np.array(
@@ -77,6 +82,70 @@ def _legacy_timestamp_hook(
 ) -> pd.Series:
     del drift
     return random_timestamps(rng, start_ts, end_ts, size, evening_bias=True)
+
+
+def _legacy_and_drift_offline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[GeneratorConfig, Any, Any]:
+    config = _config()
+    actual_hook = orders_module.generate_order_timestamps_with_drift
+
+    monkeypatch.setattr(orders_module, "generate_order_timestamps_with_drift", _legacy_timestamp_hook)
+    legacy = generate_offline(config)
+    monkeypatch.setattr(orders_module, "generate_order_timestamps_with_drift", actual_hook)
+    drift = generate_offline(config)
+    return config, legacy, drift
+
+
+def _session_quality_projection(events: pd.DataFrame) -> pd.DataFrame:
+    projection = events.copy()
+    projection["created_delay_seconds"] = (
+        pd.to_datetime(projection["created_ts"]) - pd.to_datetime(projection["event_timestamp"])
+    ).dt.total_seconds()
+    columns = [
+        STREAM_EVENT_ORDINAL,
+        STREAM_SESSION_ORDINAL,
+        "event_type",
+        "customer_id",
+        "product_id",
+        "device_type",
+        "source",
+        "primary_category",
+        "payload",
+        "is_late_arrival",
+        "created_delay_seconds",
+    ]
+    return projection[columns].sort_values(
+        [STREAM_EVENT_ORDINAL, STREAM_SESSION_ORDINAL],
+        kind="stable",
+    ).reset_index(drop=True)
+
+
+def _synthetic_order_session_projection(
+    commerce_events: pd.DataFrame,
+    orders: pd.DataFrame,
+) -> list[tuple[int, str, str]]:
+    session_ordinals = {
+        str(session_id): ordinal
+        for ordinal, session_id in enumerate(orders["session_id"])
+    }
+    projection = []
+    for event in commerce_events[
+        commerce_events["event_type"].isin(
+            {"session_started", "search_performed", "remove_from_cart"}
+        )
+    ].itertuples(index=False):
+        session_id = str(event.correlation_ids.get("session_id"))
+        if session_id not in session_ordinals:
+            continue
+        projection.append(
+            (
+                session_ordinals[session_id],
+                str(event.event_type),
+                json.dumps(event.payload, sort_keys=True, separators=(",", ":")),
+            )
+        )
+    return sorted(projection)
 
 
 def test_resolve_drift_window_uses_configuration_boundaries() -> None:
@@ -451,3 +520,76 @@ def test_enabled_generation_changes_only_timestamp_derived_offline_fields(
         expected_types = expected_stream.topic_events[topic]["event_type"].value_counts().sort_index()
         actual_types = actual_stream.topic_events[topic]["event_type"].value_counts().sort_index()
         pd.testing.assert_series_equal(expected_types, actual_types)
+
+
+def test_enabled_stream_quality_choices_follow_source_lineage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, legacy, drift = _legacy_and_drift_offline(monkeypatch)
+    captured: list[pd.DataFrame] = []
+
+    def capture_session_events(
+        config: GeneratorConfig,
+        rng: np.random.Generator,
+        session_events: pd.DataFrame,
+        offline_datasets: dict[str, pd.DataFrame],
+    ) -> dict[str, pd.DataFrame]:
+        del config, rng, offline_datasets
+        captured.append(session_events.copy())
+        return {}
+
+    monkeypatch.setattr(streaming_generator_module, "_build_topic_events", capture_session_events)
+    generate_streaming_events(config, legacy.datasets)
+    generate_streaming_events(config, drift.datasets)
+
+    assert len(captured) == 2
+    pd.testing.assert_frame_equal(
+        _session_quality_projection(captured[0]),
+        _session_quality_projection(captured[1]),
+        check_exact=True,
+    )
+
+
+def test_enabled_synthetic_commerce_choices_follow_source_lineage_without_leaks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, legacy, drift = _legacy_and_drift_offline(monkeypatch)
+
+    legacy_stream = generate_streaming_events(config, legacy.datasets)
+    drift_stream = generate_streaming_events(config, drift.datasets)
+
+    assert _synthetic_order_session_projection(
+        legacy_stream.topic_events["commerce_events"],
+        legacy.datasets["orders"],
+    ) == _synthetic_order_session_projection(
+        drift_stream.topic_events["commerce_events"],
+        drift.datasets["orders"],
+    )
+    for frame in drift_stream.topic_events.values():
+        serialized = json.dumps(frame.to_dict("records"), default=str)
+        assert STREAM_EVENT_ORDINAL not in frame.columns
+        assert STREAM_SESSION_ORDINAL not in frame.columns
+        assert STREAM_EVENT_ORDINAL not in serialized
+        assert STREAM_SESSION_ORDINAL not in serialized
+
+
+def test_disabled_streaming_skips_stable_lineage_helper(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = replace(_config(), drift=replace(_config().drift, enabled=False))
+    offline = generate_offline(config)
+
+    def fail_if_called(events: pd.DataFrame) -> pd.DataFrame:
+        del events
+        raise AssertionError("disabled streaming must retain the legacy ordering path")
+
+    monkeypatch.setattr(
+        streaming_generator_module,
+        "_attach_stable_stream_lineage",
+        fail_if_called,
+        raising=False,
+    )
+
+    result = generate_streaming_events(config, offline.datasets)
+
+    assert result.topic_events
