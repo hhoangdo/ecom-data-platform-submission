@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import inspect
 import json
 from pathlib import Path
 
 import pandas as pd
 from PIL import Image
+import pytest
 import yaml
 
+from vina_bim_shop.generators import drift_evidence as drift_evidence_module
+from vina_bim_shop.generators import runner as runner_module
 from vina_bim_shop.generators.runner import run_generation
 
 
@@ -119,3 +123,62 @@ def test_disabled_drift_emits_no_section03_tree_or_keys(tmp_path: Path) -> None:
     assert not (tmp_path / "evidence" / "section03").exists()
     assert not any(key.startswith("section03_") for key in result.evidence_paths)
     assert (tmp_path / "evidence" / "run_manifest.json").is_file()
+
+
+def test_medium_stable_only_health_preserves_prior_candidate_pointer(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    evidence_root = tmp_path / "evidence"
+    first = run_generation(
+        config_path=repo_root / "configs" / "generator" / "base.yaml",
+        scale="smoke",
+        mode="offline",
+        raw_root=tmp_path / "raw",
+        evidence_root=evidence_root,
+        clean=True,
+        seed=42,
+    )
+    pointer = first.evidence_paths["section03_manifest"]
+    pointer_before = pointer.read_bytes()
+    runs_root = pointer.parent / "runs"
+    runs_before = {path.name for path in runs_root.iterdir()}
+    real_loader = runner_module.load_generator_config
+    real_health_builder = drift_evidence_module.build_feature_health_daily
+
+    def medium_smoke_loader(*args: object, **kwargs: object) -> object:
+        return replace(real_loader(*args, **kwargs), scale="medium")
+
+    def stable_health(*args: object, **kwargs: object) -> pd.DataFrame:
+        health = real_health_builder(*args, **kwargs)
+        health["psi_vs_baseline"] = 0.0
+        health["drift_status"] = "stable"
+        health["warning_flag"] = False
+        health["alert_flag"] = False
+        return health
+
+    monkeypatch.setattr(runner_module, "load_generator_config", medium_smoke_loader)
+    monkeypatch.setattr(
+        drift_evidence_module,
+        "build_feature_health_daily",
+        stable_health,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="^canonical medium evidence requires at least one warning-or-alert day$",
+    ):
+        run_generation(
+            config_path=repo_root / "configs" / "generator" / "base.yaml",
+            scale="smoke",
+            mode="offline",
+            raw_root=tmp_path / "raw",
+            evidence_root=evidence_root,
+            clean=True,
+            seed=42,
+        )
+
+    assert pointer.read_bytes() == pointer_before
+    assert {path.name for path in runs_root.iterdir()} == runs_before
+    assert not any(path.name.startswith(".staging-") for path in runs_root.iterdir())

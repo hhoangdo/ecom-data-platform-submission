@@ -22,7 +22,7 @@ Features are cutoff-safe at `2026-04-24T23:59:00Z` and labels use the exclusive-
 
 ## Daily PSI Summary
 
-22 complete-day rows; maximum PSI `0.068131800343` for the fixed baseline-known cohort.
+22 complete-day rows; maximum PSI `0.120526925411` for the fixed baseline-known cohort.
 
 ## Alerts
 

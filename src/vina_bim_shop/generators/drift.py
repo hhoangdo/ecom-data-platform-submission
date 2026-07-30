@@ -44,6 +44,7 @@ _EVENING_HOURLY_WEIGHTS = np.array(
     dtype=float,
 )
 _CHILD_RNG_NAMESPACE = b"section03-order-timestamps-v1\0"
+_CUSTOMER_FREQUENCY_ASSIGNMENT_NAMESPACE = b"section03-customer-frequency-assignment-v1\0"
 
 
 @dataclass(frozen=True)
@@ -155,6 +156,72 @@ def _child_seed(rng: np.random.Generator) -> int:
     ).encode("utf-8")
     digest = hashlib.sha256(_CHILD_RNG_NAMESPACE + state).digest()
     return int.from_bytes(digest, "big")
+
+
+def assign_customer_frequency_drift_timestamps(
+    timestamps: pd.Series,
+    customer_ids: pd.Series,
+    *,
+    drift_start_ts: pd.Timestamp,
+    random_seed: int,
+) -> pd.Series:
+    if timestamps.empty:
+        raise ValueError("timestamps and customer_ids must be nonempty")
+    if len(timestamps) != len(customer_ids):
+        raise ValueError("timestamps and customer_ids must have the same length")
+    if customer_ids.isna().any():
+        raise ValueError("customer_ids must be non-null")
+
+    parsed = pd.to_datetime(timestamps, errors="coerce", format="mixed")
+    if parsed.isna().any():
+        raise ValueError("timestamps must contain valid timestamps")
+    cutoff = pd.Timestamp(drift_start_ts)
+    try:
+        post_mask = parsed.ge(cutoff).to_numpy(dtype=bool)
+    except TypeError as exc:
+        raise ValueError("timestamps and drift_start_ts must use compatible timezones") from exc
+    pre_mask = ~post_mask
+    if not pre_mask.any() or not post_mask.any():
+        raise ValueError("timestamps must contain pre- and post-drift rows")
+
+    customer_values = customer_ids.astype("string").tolist()
+    realized_frequency = pd.Series(customer_values, dtype="string").value_counts()
+    scores: list[float] = []
+    for ordinal, customer_id in enumerate(customer_values):
+        payload = (
+            _CUSTOMER_FREQUENCY_ASSIGNMENT_NAMESPACE
+            + str(random_seed).encode("utf-8")
+            + b"\0"
+            + str(ordinal).encode("utf-8")
+            + b"\0"
+            + str(customer_id).encode("utf-8")
+        )
+        digest = hashlib.sha256(payload).digest()
+        uniform = (int.from_bytes(digest[:8], "big") + 0.5) / 2**64
+        weight = float(realized_frequency.loc[customer_id])
+        scores.append(float(np.log(weight) - np.log(-np.log(uniform))))
+
+    post_count = int(post_mask.sum())
+    ranked_ordinals = sorted(
+        range(len(scores)),
+        key=lambda ordinal: (-scores[ordinal], ordinal),
+    )
+    post_targets = sorted(ranked_ordinals[:post_count])
+    post_target_set = set(post_targets)
+    pre_targets = [ordinal for ordinal in range(len(scores)) if ordinal not in post_target_set]
+    pre_values = timestamps.iloc[np.flatnonzero(pre_mask)].tolist()
+    post_values = timestamps.iloc[np.flatnonzero(post_mask)].tolist()
+    assigned: list[object] = [None] * len(timestamps)
+    for target, value in zip(pre_targets, pre_values, strict=True):
+        assigned[target] = value
+    for target, value in zip(post_targets, post_values, strict=True):
+        assigned[target] = value
+    return pd.Series(
+        assigned,
+        index=timestamps.index,
+        name=timestamps.name,
+        dtype=timestamps.dtype,
+    )
 
 
 def generate_order_timestamps_with_drift(

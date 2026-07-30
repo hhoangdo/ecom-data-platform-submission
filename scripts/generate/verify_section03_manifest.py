@@ -234,8 +234,45 @@ def verify_manifest(
     psi = pd.to_numeric(health["psi_vs_baseline"], errors="coerce")
     if not np.isfinite(psi).all() or not psi.ge(0).all():
         raise ValueError("health PSI contains nonfinite values")
-    if not alerts.empty and not alerts["psi_value"].ge(0.15).all():
+    warning_values = health["warning_flag"].astype(str).str.lower()
+    alert_values = health["alert_flag"].astype(str).str.lower()
+    if not warning_values.isin({"true", "false"}).all() or not alert_values.isin(
+        {"true", "false"}
+    ).all():
+        raise ValueError("health threshold status is invalid")
+    warning_flags = warning_values.eq("true")
+    alert_flags = alert_values.eq("true")
+    expected_status = pd.Series(
+        np.where(psi.ge(0.15), "alert", np.where(psi.ge(0.10), "warning", "stable")),
+        index=health.index,
+    )
+    if (
+        not health["drift_status"].astype(str).eq(expected_status).all()
+        or not warning_flags.eq(psi.ge(0.10)).all()
+        or not alert_flags.eq(psi.ge(0.15)).all()
+    ):
+        raise ValueError("health threshold status is invalid")
+    if manifest["scale"] == "medium" and not warning_flags.any():
+        raise ValueError(
+            "canonical medium evidence requires at least one warning-or-alert day"
+        )
+    alert_psi = pd.to_numeric(alerts["psi_value"], errors="coerce")
+    if (
+        not np.isfinite(alert_psi).all()
+        or not alert_psi.ge(0.15).all()
+        or not pd.to_numeric(alerts["threshold"], errors="coerce").eq(0.15).all()
+    ):
         raise ValueError("alert threshold is invalid")
+    expected_alert_rows = {
+        (str(row.monitoring_date), str(row.feature_name), float(row.psi_vs_baseline))
+        for row in health.loc[alert_flags].itertuples(index=False)
+    }
+    actual_alert_rows = {
+        (str(row.alert_date), str(row.feature_name), float(row.psi_value))
+        for row in alerts.itertuples(index=False)
+    }
+    if expected_alert_rows != actual_alert_rows or len(actual_alert_rows) != len(alerts):
+        raise ValueError("alert rows do not match health status")
     image_path = _artifact_path(root, artifacts["evidence_image"]["path"], bundle_id=bundle_id)
     with Image.open(image_path) as image:
         image.verify()

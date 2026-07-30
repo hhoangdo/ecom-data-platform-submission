@@ -509,6 +509,10 @@ def _write_section03_evidence_unlocked(
             window=window,
             drift=config.drift,
         )
+        if config.scale == "medium" and not health["warning_flag"].eq(True).any():
+            raise ValueError(
+                "canonical medium evidence requires at least one warning-or-alert day"
+            )
         alerts = build_feature_drift_alerts(health, alert_threshold=config.drift.psi_alert)
         source_hash = _sha256(config.source_config_path)
         snapshot = {

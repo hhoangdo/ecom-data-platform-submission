@@ -6,7 +6,10 @@ import numpy as np
 import pandas as pd
 
 from vina_bim_shop.generators.config import GeneratorConfig
-from vina_bim_shop.generators.drift import generate_order_timestamps_with_drift
+from vina_bim_shop.generators.drift import (
+    assign_customer_frequency_drift_timestamps,
+    generate_order_timestamps_with_drift,
+)
 from vina_bim_shop.generators.ids import dated_ids
 from vina_bim_shop.generators.profiles import random_timestamps, weighted_choice
 from vina_bim_shop.generators.skew import (
@@ -47,6 +50,14 @@ def _generate_orders(
         size=n,
         drift=config.drift,
     )
+    if config.drift.enabled:
+        order_ts = assign_customer_frequency_drift_timestamps(
+            order_ts,
+            selected_customers["customer_id"],
+            drift_start_ts=start_ts
+            + (end_ts - start_ts) * config.drift.cutoff_fraction,
+            random_seed=config.random_seed,
+        )
     preferred_categories = segment_affinity_to_categories(selected_customers, config)
     category_values = []
     for preferred in preferred_categories:

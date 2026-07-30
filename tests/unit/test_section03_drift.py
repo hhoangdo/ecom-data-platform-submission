@@ -16,6 +16,7 @@ from vina_bim_shop.generators.config import GeneratorConfig, load_generator_conf
 from vina_bim_shop.generators.drift import (
     DriftRateSummary,
     DriftWindow,
+    assign_customer_frequency_drift_timestamps,
     calculate_psi,
     generate_order_timestamps_with_drift,
     resolve_drift_window,
@@ -371,6 +372,195 @@ def test_enabled_sampler_is_reproducible_bounded_and_fixed_count() -> None:
     assert not first.equals(different)
     assert len(first) == 1_000
     assert first.between(start_ts, end_ts, inclusive="both").all()
+
+
+def test_customer_frequency_assignment_is_deterministic_seeded_and_preserves_timestamps() -> None:
+    timestamps = pd.Series(
+        pd.to_datetime(
+            [
+                "2026-01-01T00:00:01Z",
+                "2026-01-03T00:00:02Z",
+                "2026-01-01T00:00:03Z",
+                "2026-01-03T00:00:04Z",
+                "2026-01-01T00:00:05Z",
+                "2026-01-03T00:00:06Z",
+                "2026-01-01T00:00:07Z",
+                "2026-01-03T00:00:08Z",
+            ]
+        ),
+        index=pd.Index(range(10, 18), name="row"),
+        name="order_timestamp",
+    )
+    customer_ids = pd.Series(
+        ["CUS-A", "CUS-A", "CUS-A", "CUS-B", "CUS-C", "CUS-D", "CUS-E", "CUS-F"],
+        index=timestamps.index,
+    )
+    cutoff = pd.Timestamp("2026-01-02T00:00:00Z")
+
+    first = assign_customer_frequency_drift_timestamps(
+        timestamps,
+        customer_ids,
+        drift_start_ts=cutoff,
+        random_seed=42,
+    )
+    second = assign_customer_frequency_drift_timestamps(
+        timestamps,
+        customer_ids,
+        drift_start_ts=cutoff,
+        random_seed=42,
+    )
+    different = assign_customer_frequency_drift_timestamps(
+        timestamps,
+        customer_ids,
+        drift_start_ts=cutoff,
+        random_seed=43,
+    )
+
+    pd.testing.assert_series_equal(first, second)
+    assert not first.equals(different)
+    assert first.index.equals(timestamps.index)
+    assert first.name == timestamps.name
+    assert first.dtype == timestamps.dtype
+    assert int(first.lt(cutoff).sum()) == int(timestamps.lt(cutoff).sum())
+    assert int(first.ge(cutoff).sum()) == int(timestamps.ge(cutoff).sum())
+    pd.testing.assert_series_equal(
+        first.sort_values(ignore_index=True),
+        timestamps.sort_values(ignore_index=True),
+    )
+
+
+def test_customer_frequency_assignment_biases_repeat_customers_post_cutoff() -> None:
+    customer_ids = pd.Series(
+        ["CUS-REPEAT"] * 40 + [f"CUS-{index:03d}" for index in range(60)]
+    )
+    timestamps = pd.Series(
+        pd.date_range("2026-01-01T00:00:00Z", periods=50, freq="min").tolist()
+        + pd.date_range("2026-01-03T00:00:00Z", periods=50, freq="min").tolist()
+    )
+    cutoff = pd.Timestamp("2026-01-02T00:00:00Z")
+    before = int(
+        (
+            customer_ids.eq("CUS-REPEAT")
+            & pd.to_datetime(timestamps).ge(cutoff)
+        ).sum()
+    )
+
+    assigned = assign_customer_frequency_drift_timestamps(
+        timestamps,
+        customer_ids,
+        drift_start_ts=cutoff,
+        random_seed=42,
+    )
+    after = int(
+        (
+            customer_ids.eq("CUS-REPEAT")
+            & pd.to_datetime(assigned).ge(cutoff)
+        ).sum()
+    )
+
+    assert before == 0
+    assert after > before
+
+
+def test_customer_frequency_assignment_uses_namespaced_hash_without_rng(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    timestamps = pd.Series(
+        pd.to_datetime(
+            [
+                "2026-01-01T00:00:00Z",
+                "2026-01-03T00:00:00Z",
+            ]
+        )
+    )
+    customer_ids = pd.Series(["CUS-A", "CUS-B"])
+    payloads: list[bytes] = []
+    real_sha256 = hashlib.sha256
+
+    def recording_sha256(payload: bytes = b"") -> Any:
+        payloads.append(payload)
+        return real_sha256(payload)
+
+    def fail_rng(*args: Any, **kwargs: Any) -> None:
+        del args, kwargs
+        raise AssertionError("customer-frequency assignment must not use an RNG")
+
+    monkeypatch.setattr(drift_module.hashlib, "sha256", recording_sha256)
+    monkeypatch.setattr(drift_module.np.random, "default_rng", fail_rng)
+
+    assign_customer_frequency_drift_timestamps(
+        timestamps,
+        customer_ids,
+        drift_start_ts=pd.Timestamp("2026-01-02T00:00:00Z"),
+        random_seed=42,
+    )
+
+    assert len(payloads) == len(timestamps)
+    assert all(
+        payload.startswith(b"section03-customer-frequency-assignment-v1\0")
+        for payload in payloads
+    )
+
+
+@pytest.mark.parametrize(
+    ("timestamps", "customer_ids", "message"),
+    [
+        (pd.Series(dtype="datetime64[ns]"), pd.Series(dtype="string"), "nonempty"),
+        (
+            pd.Series(pd.to_datetime(["2026-01-01", "2026-01-03"])),
+            pd.Series(["CUS-A"]),
+            "same length",
+        ),
+        (
+            pd.Series(pd.to_datetime(["2026-01-01", "2026-01-03"])),
+            pd.Series(["CUS-A", None]),
+            "non-null",
+        ),
+        (
+            pd.Series(["invalid", "2026-01-03"]),
+            pd.Series(["CUS-A", "CUS-B"]),
+            "valid timestamps",
+        ),
+        (
+            pd.Series(pd.to_datetime(["2026-01-03", "2026-01-04"])),
+            pd.Series(["CUS-A", "CUS-B"]),
+            "pre- and post-drift",
+        ),
+    ],
+)
+def test_customer_frequency_assignment_rejects_invalid_inputs(
+    timestamps: pd.Series,
+    customer_ids: pd.Series,
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        assign_customer_frequency_drift_timestamps(
+            timestamps,
+            customer_ids,
+            drift_start_ts=pd.Timestamp("2026-01-02"),
+            random_seed=42,
+        )
+
+
+def test_disabled_generation_skips_customer_frequency_assignment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = replace(_config(), drift=replace(_config().drift, enabled=False))
+
+    def fail_assignment(*args: Any, **kwargs: Any) -> None:
+        del args, kwargs
+        raise AssertionError("disabled generation must not assign drift timestamps")
+
+    monkeypatch.setattr(
+        orders_module,
+        "assign_customer_frequency_drift_timestamps",
+        fail_assignment,
+        raising=False,
+    )
+
+    result = generate_offline(config)
+
+    assert result.datasets["orders"].shape[0] == config.entities["orders"]
 
 
 def test_summarize_drift_rates_uses_exact_elapsed_seconds() -> None:
