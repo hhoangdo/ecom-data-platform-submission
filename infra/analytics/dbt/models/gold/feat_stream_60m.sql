@@ -1,3 +1,14 @@
+with parameters as (
+  select cast('{{ var('feature_cutoff_ts') }}' as timestamp) as feature_cutoff_ts
+),
+available_events as (
+  select events.*
+  from {{ ref('stg_commerce_events') }} events
+  cross join parameters p
+  where events.customer_id is not null
+    and events.event_timestamp <= p.feature_cutoff_ts
+    and events.created_ts <= p.feature_cutoff_ts
+)
 select
   customer_id,
   date_trunc('hour', event_timestamp) as event_timestamp,
@@ -12,6 +23,5 @@ select
     else 0
   end as f_stream_cart_to_purchase_ratio_60m,
   max(created_ts) as created
-from {{ ref('stg_commerce_events') }}
-where customer_id is not null
+from available_events
 group by 1, 2

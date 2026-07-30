@@ -1,0 +1,219 @@
+version: 2
+
+models:
+  - name: ml_customer_label
+    config:
+      contract:
+        enforced: true
+    constraints:
+      - type: primary_key
+        columns: [id]
+    columns:
+      - name: id
+        data_type: varchar
+        constraints:
+          - type: not_null
+          - type: unique
+          - type: foreign_key
+            to: ref('dim_customer')
+            to_columns: [customer_id]
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_id
+      - name: label
+        data_type: integer
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+
+  - name: agg_feature_health_daily
+    config:
+      contract:
+        enforced: true
+    constraints:
+      - type: primary_key
+        columns: [monitoring_date, feature_name]
+    columns:
+      - name: monitoring_date
+        data_type: date
+        constraints:
+          - type: not_null
+      - name: feature_name
+        data_type: varchar
+        constraints:
+          - type: not_null
+        tests:
+          - accepted_values:
+              arguments:
+                values: [f_customer_order_frequency_7d]
+      - name: window_days
+        data_type: integer
+        constraints:
+          - type: not_null
+        tests:
+          - accepted_values:
+              arguments:
+                values: [7]
+      - name: baseline_date
+        data_type: date
+        constraints:
+          - type: not_null
+      - name: customer_count
+        data_type: bigint
+        constraints:
+          - type: not_null
+      - name: mean_value
+        data_type: double
+        constraints:
+          - type: not_null
+      - name: stddev_value
+        data_type: double
+        constraints:
+          - type: not_null
+      - name: psi_vs_baseline
+        data_type: double
+        constraints:
+          - type: not_null
+      - name: drift_status
+        data_type: varchar
+        constraints:
+          - type: not_null
+        tests:
+          - accepted_values:
+              arguments:
+                values: [stable, warning, alert]
+      - name: warning_flag
+        data_type: boolean
+        constraints:
+          - type: not_null
+      - name: alert_flag
+        data_type: boolean
+        constraints:
+          - type: not_null
+
+  - name: feature_drift_alerts
+    config:
+      contract:
+        enforced: true
+    constraints:
+      - type: primary_key
+        columns: [alert_date, feature_name]
+    columns:
+      - name: alert_date
+        data_type: date
+        constraints:
+          - type: not_null
+        tests:
+          - relationships:
+              arguments:
+                to: ref('agg_feature_health_daily')
+                field: monitoring_date
+      - name: feature_name
+        data_type: varchar
+        constraints:
+          - type: not_null
+        tests:
+          - accepted_values:
+              arguments:
+                values: [f_customer_order_frequency_7d]
+      - name: psi_value
+        data_type: double
+        constraints:
+          - type: not_null
+      - name: threshold
+        data_type: double
+        constraints:
+          - type: not_null
+      - name: action
+        data_type: varchar
+        constraints:
+          - type: not_null
+        tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - Investigate customer_order_frequency drift
+
+  - name: ml_customer_purchase_training
+    config:
+      contract:
+        enforced: true
+    constraints:
+      - type: primary_key
+        columns: [id]
+    columns:
+      - name: id
+        data_type: varchar
+        constraints:
+          - type: not_null
+          - type: unique
+          - type: foreign_key
+            to: ref('ml_customer_label')
+            to_columns: [id]
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('ml_customer_label')
+                field: id
+      - name: event_timestamp
+        data_type: timestamp
+        constraints:
+          - type: not_null
+      - name: label
+        data_type: integer
+        constraints:
+          - type: not_null
+        tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+      - name: f_customer_total_orders_90d
+        data_type: bigint
+        constraints:
+          - type: not_null
+      - name: f_customer_paid_revenue_90d
+        data_type: double
+        constraints:
+          - type: not_null
+      - name: f_customer_avg_order_value_90d
+        data_type: double
+        constraints:
+          - type: not_null
+      - name: f_customer_distinct_categories_90d
+        data_type: bigint
+        constraints:
+          - type: not_null
+      - name: f_stream_views_60m
+        data_type: hugeint
+        constraints:
+          - type: not_null
+      - name: f_stream_add_to_cart_60m
+        data_type: hugeint
+        constraints:
+          - type: not_null
+      - name: f_stream_checkout_started_60m
+        data_type: hugeint
+        constraints:
+          - type: not_null
+      - name: f_stream_order_placed_60m
+        data_type: hugeint
+        constraints:
+          - type: not_null
+      - name: f_stream_cart_to_purchase_ratio_60m
+        data_type: double
+        constraints:
+          - type: not_null
+      - name: created
+        data_type: timestamp
+        constraints:
+          - type: not_null

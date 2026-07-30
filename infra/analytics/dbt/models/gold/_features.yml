@@ -21,6 +21,7 @@ models:
         - customer_id
       tests:
       - not_null
+      - unique
     - name: event_timestamp
       data_type: timestamp
       constraints:
@@ -37,6 +38,10 @@ models:
       data_type: bigint
     - name: created
       data_type: timestamp
+      constraints:
+      - type: not_null
+      tests:
+      - not_null
   - name: feat_stream_60m
     config:
       contract:
@@ -75,6 +80,10 @@ models:
       data_type: double
     - name: created
       data_type: timestamp
+      constraints:
+      - type: not_null
+      tests:
+      - not_null
   - name: feat_customer_unified
     config:
       contract:
@@ -95,6 +104,7 @@ models:
         - customer_id
       tests:
       - not_null
+      - unique
     - name: event_timestamp
       data_type: timestamp
       constraints:
@@ -121,3 +131,7 @@ models:
       data_type: double
     - name: created
       data_type: timestamp
+      constraints:
+      - type: not_null
+      tests:
+      - not_null

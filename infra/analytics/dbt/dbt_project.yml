@@ -29,3 +29,8 @@ models:
 
 vars:
   raw_root: data/raw
+
+# Section 03 models require these runtime-only vars from run_section03_dbt.py:
+# drift_start_ts, feature_cutoff_ts, label_end_ts, baseline_date,
+# psi_warning, psi_alert, psi_epsilon, psi_quantile_bins.
+# They intentionally have no project defaults.
