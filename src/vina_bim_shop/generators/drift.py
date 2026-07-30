@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal, ROUND_HALF_EVEN
 import hashlib
 import json
 from typing import Any
@@ -64,6 +65,58 @@ class DriftRateSummary:
     pre_rate_per_day: float
     post_rate_per_day: float
     normalized_post_pre_ratio: float
+
+
+def _round_half_even_12(value: float) -> float:
+    return float(Decimal(str(value)).quantize(Decimal("0.000000000001"), rounding=ROUND_HALF_EVEN))
+
+
+def calculate_psi(
+    baseline: pd.Series,
+    current: pd.Series,
+    *,
+    quantile_bins: int = 10,
+    epsilon: float = 1e-6,
+) -> float:
+    if isinstance(quantile_bins, bool) or quantile_bins < 2:
+        raise ValueError("quantile_bins must be at least 2")
+    if not np.isfinite(epsilon) or not 0 < epsilon < 1:
+        raise ValueError("epsilon must be between 0 and 1")
+
+    def finite_values(values: pd.Series, name: str) -> np.ndarray:
+        numeric = pd.to_numeric(values, errors="coerce").to_numpy(dtype=np.float64)
+        numeric = numeric[np.isfinite(numeric)]
+        if numeric.size == 0:
+            raise ValueError(f"{name} must contain a finite value")
+        return numeric
+
+    baseline_values = np.sort(finite_values(baseline, "baseline"))
+    current_values = finite_values(current, "current")
+    quantiles = np.linspace(0.0, 1.0, quantile_bins + 1)
+    positions = (baseline_values.size - 1) * quantiles
+    lower = np.floor(positions).astype(int)
+    upper = np.minimum(lower + 1, baseline_values.size - 1)
+    fractions = positions - lower
+    type_7_edges = baseline_values[lower] + fractions * (
+        baseline_values[upper] - baseline_values[lower]
+    )
+    effective_edges = np.unique(type_7_edges)
+    shifted_edges = np.nextafter(effective_edges, np.inf)
+    histogram_edges = np.concatenate(([-np.inf], shifted_edges, [np.inf]))
+
+    baseline_counts, _ = np.histogram(baseline_values, bins=histogram_edges)
+    current_counts, _ = np.histogram(current_values, bins=histogram_edges)
+    baseline_p = baseline_counts.astype(np.float64) / baseline_values.size
+    current_p = current_counts.astype(np.float64) / current_values.size
+    baseline_p = np.where(baseline_p == 0, epsilon, baseline_p)
+    current_p = np.where(current_p == 0, epsilon, current_p)
+    baseline_p /= baseline_p.sum()
+    current_p /= current_p.sum()
+    value = float(np.sum((current_p - baseline_p) * np.log(current_p / baseline_p)))
+    if not np.isfinite(value):
+        raise ValueError("PSI calculation produced a nonfinite value")
+    rounded = _round_half_even_12(value)
+    return 0.0 if rounded == 0.0 else rounded
 
 
 def resolve_drift_window(config: GeneratorConfig) -> DriftWindow:

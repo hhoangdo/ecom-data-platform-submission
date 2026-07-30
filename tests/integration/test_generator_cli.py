@@ -32,7 +32,11 @@ def test_generator_cli_runs_smoke_full_mode(tmp_path: Path) -> None:
 
     assert completed.returncode == 0, completed.stderr
     assert "Generated Section 01 data" in completed.stdout
+    assert "Section 03 evidence:" in completed.stdout
     assert (tmp_path / "raw" / "orders").exists()
     assert not (tmp_path / "raw" / "stream_events").exists()
     assert (tmp_path / "raw" / "kafka_topics" / "commerce_events" / "events.jsonl").is_file()
     assert (tmp_path / "evidence" / "run_manifest.json").is_file()
+    candidate = tmp_path / "evidence" / "section03" / "section03_candidate_manifest.json"
+    assert str(candidate) in completed.stdout
+    assert candidate.is_file()

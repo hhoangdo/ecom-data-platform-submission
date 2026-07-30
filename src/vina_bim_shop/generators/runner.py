@@ -14,6 +14,7 @@ from vina_bim_shop.generators.bad_records import (
 )
 from vina_bim_shop.generators.config import load_generator_config
 from vina_bim_shop.generators.duplicates import quarantine_issue_records
+from vina_bim_shop.generators.drift_evidence import write_section03_evidence
 from vina_bim_shop.generators.evidence import write_evidence
 from vina_bim_shop.generators.offline.generator import generate_offline
 from vina_bim_shop.generators.streaming.generator import generate_streaming_events
@@ -92,6 +93,32 @@ def run_generation(
             flush_timeout_seconds=kafka_flush_timeout_seconds,
         )
     evidence_paths = write_evidence(config, datasets, issue_records, mode=mode, topic_events=topic_events)
+    if config.drift.enabled and mode in {"offline", "full"}:
+        section03 = write_section03_evidence(
+            config,
+            datasets,
+            topic_events,
+            clean=clean,
+        )
+        evidence_paths.update(
+            {
+                f"section03_{key}": value
+                for key, value in {
+                    "config_snapshot": section03.config_snapshot,
+                    "labels": section03.labels,
+                    "feature_health_daily": section03.feature_health_daily,
+                    "drift_alerts": section03.drift_alerts,
+                    "training_join": section03.training_join,
+                    "labels_sample": section03.labels_sample,
+                    "feature_health_sample": section03.feature_health_sample,
+                    "drift_alerts_sample": section03.drift_alerts_sample,
+                    "training_sample": section03.training_sample,
+                    "evidence_image": section03.evidence_image,
+                    "report": section03.report,
+                    "manifest": section03.manifest,
+                }.items()
+            }
+        )
     row_counts = {name: len(frame) for name, frame in datasets.items()}
     if topic_events:
         row_counts["kafka_topics"] = sum(len(frame) for frame in topic_events.values())

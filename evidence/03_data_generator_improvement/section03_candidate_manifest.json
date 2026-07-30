@@ -1,0 +1,292 @@
+{
+  "schema_version": 1,
+  "section": "03_data_generator_improvement",
+  "generated_at": "2026-07-30T08:11:55.430929Z",
+  "source_config_path": "configs/generator/base.yaml",
+  "source_config_sha256": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97",
+  "bundle_id": "08c3ed4561bf17c0359ed8741d7d2bbd3fe8e52ab5aa088ea75e8532670b6e49",
+  "previous_bundle_id": null,
+  "config_snapshot": "runs/08c3ed4561bf17c0359ed8741d7d2bbd3fe8e52ab5aa088ea75e8532670b6e49/config_snapshot.yaml",
+  "scale": "medium",
+  "random_seed": 42,
+  "history_days": 60,
+  "windows": {
+    "start_ts": "2026-03-03T23:59:00Z",
+    "end_ts": "2026-05-01T23:59:00Z",
+    "drift_start_ts": "2026-04-11T08:23:00Z",
+    "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+    "label_end_ts": "2026-05-01T23:59:00Z",
+    "baseline_date": "2026-04-10"
+  },
+  "drift_config": {
+    "enabled": true,
+    "scenario": "customer_order_frequency",
+    "mode": "abrupt",
+    "cutoff_fraction": 0.65,
+    "post_rate_multiplier": 1.5,
+    "psi_warning": 0.1,
+    "psi_alert": 0.15,
+    "label_horizon_days": 7
+  },
+  "configured_entity_counts": {
+    "customers": 12000,
+    "sellers": 600,
+    "products": 6000,
+    "orders": 45000,
+    "promotions": 80
+  },
+  "observed_entity_counts": {
+    "customers": 12000,
+    "sellers": 600,
+    "products": 6000,
+    "orders": 45000,
+    "promotions": 80
+  },
+  "rate_summary": {
+    "order_pre_count": 24754,
+    "order_post_count": 20246,
+    "order_pre_rate_per_day": 645.475880052151,
+    "order_post_rate_per_day": 980.43583535109,
+    "order_normalized_post_pre_ratio": 1.518934890754,
+    "stream_pre_count": 52490,
+    "stream_post_count": 43011,
+    "stream_normalized_post_pre_ratio": 1.52176741148
+  },
+  "consumer_contract": {
+    "schema_version": 1,
+    "label": {
+      "artifact_key": "labels",
+      "path": "runs/08c3ed4561bf17c0359ed8741d7d2bbd3fe8e52ab5aa088ea75e8532670b6e49/ml_customer_label.csv",
+      "sha256": "1a62321bc4fd5b1373579ed86ed842fa5127150fb442ed05321ebc107620820e",
+      "columns": [
+        "id",
+        "label"
+      ],
+      "entity_key": "id"
+    },
+    "training_join": {
+      "artifact_key": "training_join",
+      "path": "runs/08c3ed4561bf17c0359ed8741d7d2bbd3fe8e52ab5aa088ea75e8532670b6e49/ml_customer_purchase_training.csv",
+      "sha256": "cd72fafdc4b0950b2db7b892f5f451aa60f993b4e6c796c08ebc8fb9769ff981",
+      "entity_key": "id",
+      "event_timestamp_column": "event_timestamp",
+      "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+      "point_in_time_rule": "event_timestamp <= as_of and created <= event_timestamp"
+    },
+    "feature_health": {
+      "artifact_key": "feature_health_daily",
+      "path": "runs/08c3ed4561bf17c0359ed8741d7d2bbd3fe8e52ab5aa088ea75e8532670b6e49/agg_feature_health_daily.csv",
+      "sha256": "19f27a44f3d40a4c73970f62af72702081798cacf6c53c42dfeddae7fcc309fc",
+      "feature_name": "f_customer_order_frequency_7d",
+      "window_days": 7,
+      "baseline_date": "2026-04-10",
+      "monitoring_start": "2026-04-10",
+      "monitoring_end": "2026-05-01",
+      "cohort_size": 11966,
+      "psi_column": "psi_vs_baseline",
+      "status_column": "drift_status",
+      "warning_threshold": 0.1,
+      "alert_threshold": 0.15
+    }
+  },
+  "rubric_cells": {
+    "E32": {
+      "points": 1,
+      "status": "Candidate",
+      "required_checks": [
+        "configured_counts_preserved",
+        "streaming_distribution_inherited",
+        "training_join_one_to_one",
+        "point_in_time_safe"
+      ],
+      "artifact_keys": [
+        "config_snapshot",
+        "training_join",
+        "evidence_image"
+      ]
+    },
+    "E33": {
+      "points": 1,
+      "status": "Candidate",
+      "required_checks": [
+        "configured_counts_preserved"
+      ],
+      "artifact_keys": [
+        "config_snapshot"
+      ]
+    },
+    "E34": {
+      "points": 2,
+      "status": "Candidate",
+      "required_checks": [
+        "labels_exact_schema",
+        "labels_unique",
+        "labels_binary"
+      ],
+      "artifact_keys": [
+        "labels",
+        "labels_sample"
+      ]
+    }
+  },
+  "checks": {
+    "configured_counts_preserved": true,
+    "streaming_distribution_inherited": true,
+    "labels_exact_schema": true,
+    "labels_unique": true,
+    "labels_binary": true,
+    "training_join_one_to_one": true,
+    "point_in_time_safe": true,
+    "psi_finite": true,
+    "alert_threshold_respected": true
+  },
+  "runtime_evidence": {
+    "status": "pending",
+    "spark": null,
+    "airflow": null,
+    "datahub": null
+  },
+  "artifacts": {
+    "config_snapshot": {
+      "path": "runs/08c3ed4561bf17c0359ed8741d7d2bbd3fe8e52ab5aa088ea75e8532670b6e49/config_snapshot.yaml",
+      "size_bytes": 760,
+      "sha256": "7405c3e2a27d87be522bea9de7dcc559ad8baff5274a8bed98f002b2753a9196"
+    },
+    "labels": {
+      "path": "runs/08c3ed4561bf17c0359ed8741d7d2bbd3fe8e52ab5aa088ea75e8532670b6e49/ml_customer_label.csv",
+      "row_count": 11996,
+      "columns": [
+        "id",
+        "label"
+      ],
+      "size_bytes": 227933,
+      "sha256": "1a62321bc4fd5b1373579ed86ed842fa5127150fb442ed05321ebc107620820e"
+    },
+    "feature_health_daily": {
+      "path": "runs/08c3ed4561bf17c0359ed8741d7d2bbd3fe8e52ab5aa088ea75e8532670b6e49/agg_feature_health_daily.csv",
+      "row_count": 22,
+      "columns": [
+        "monitoring_date",
+        "feature_name",
+        "window_days",
+        "baseline_date",
+        "customer_count",
+        "mean_value",
+        "stddev_value",
+        "psi_vs_baseline",
+        "drift_status",
+        "warning_flag",
+        "alert_flag"
+      ],
+      "size_bytes": 2875,
+      "sha256": "19f27a44f3d40a4c73970f62af72702081798cacf6c53c42dfeddae7fcc309fc"
+    },
+    "drift_alerts": {
+      "path": "runs/08c3ed4561bf17c0359ed8741d7d2bbd3fe8e52ab5aa088ea75e8532670b6e49/feature_drift_alerts.csv",
+      "row_count": 0,
+      "columns": [
+        "alert_date",
+        "feature_name",
+        "psi_value",
+        "threshold",
+        "action"
+      ],
+      "size_bytes": 51,
+      "sha256": "b656dccc0c86abdf5896e3db1788f04a0fb128e27f2218331f8cc49df188e76a"
+    },
+    "training_join": {
+      "path": "runs/08c3ed4561bf17c0359ed8741d7d2bbd3fe8e52ab5aa088ea75e8532670b6e49/ml_customer_purchase_training.csv",
+      "row_count": 11996,
+      "columns": [
+        "id",
+        "event_timestamp",
+        "label",
+        "f_customer_total_orders_90d",
+        "f_customer_paid_revenue_90d",
+        "f_customer_avg_order_value_90d",
+        "f_customer_distinct_categories_90d",
+        "f_stream_views_60m",
+        "f_stream_add_to_cart_60m",
+        "f_stream_checkout_started_60m",
+        "f_stream_order_placed_60m",
+        "f_stream_cart_to_purchase_ratio_60m",
+        "created"
+      ],
+      "size_bytes": 1103171,
+      "sha256": "cd72fafdc4b0950b2db7b892f5f451aa60f993b4e6c796c08ebc8fb9769ff981"
+    },
+    "labels_sample": {
+      "path": "runs/08c3ed4561bf17c0359ed8741d7d2bbd3fe8e52ab5aa088ea75e8532670b6e49/sample_rows/ml_customer_label.csv",
+      "row_count": 20,
+      "columns": [
+        "id",
+        "label"
+      ],
+      "size_bytes": 389,
+      "sha256": "b9c62f8102bb6d85bb450998c5b0bbc596cec20f95e424accdd2bf671a1b60c9"
+    },
+    "feature_health_sample": {
+      "path": "runs/08c3ed4561bf17c0359ed8741d7d2bbd3fe8e52ab5aa088ea75e8532670b6e49/sample_rows/agg_feature_health_daily.csv",
+      "row_count": 20,
+      "columns": [
+        "monitoring_date",
+        "feature_name",
+        "window_days",
+        "baseline_date",
+        "customer_count",
+        "mean_value",
+        "stddev_value",
+        "psi_vs_baseline",
+        "drift_status",
+        "warning_flag",
+        "alert_flag"
+      ],
+      "size_bytes": 2627,
+      "sha256": "30655f514b58b42449438f5bb320ebd75caa4a4dd70fa514af02d56f42ce2ae9"
+    },
+    "drift_alerts_sample": {
+      "path": "runs/08c3ed4561bf17c0359ed8741d7d2bbd3fe8e52ab5aa088ea75e8532670b6e49/sample_rows/feature_drift_alerts.csv",
+      "row_count": 0,
+      "columns": [
+        "alert_date",
+        "feature_name",
+        "psi_value",
+        "threshold",
+        "action"
+      ],
+      "size_bytes": 51,
+      "sha256": "b656dccc0c86abdf5896e3db1788f04a0fb128e27f2218331f8cc49df188e76a"
+    },
+    "training_sample": {
+      "path": "runs/08c3ed4561bf17c0359ed8741d7d2bbd3fe8e52ab5aa088ea75e8532670b6e49/sample_rows/ml_customer_purchase_training.csv",
+      "row_count": 20,
+      "columns": [
+        "id",
+        "event_timestamp",
+        "label",
+        "f_customer_total_orders_90d",
+        "f_customer_paid_revenue_90d",
+        "f_customer_avg_order_value_90d",
+        "f_customer_distinct_categories_90d",
+        "f_stream_views_60m",
+        "f_stream_add_to_cart_60m",
+        "f_stream_checkout_started_60m",
+        "f_stream_order_placed_60m",
+        "f_stream_cart_to_purchase_ratio_60m",
+        "created"
+      ],
+      "size_bytes": 2150,
+      "sha256": "8b43ae492f321986c2344e44c340283d6f219b452311092223624d21b64242f7"
+    },
+    "evidence_image": {
+      "path": "runs/08c3ed4561bf17c0359ed8741d7d2bbd3fe8e52ab5aa088ea75e8532670b6e49/section03_config_and_training_join.png",
+      "size_bytes": 116352,
+      "sha256": "bb46d4994623454dc7a32598e5badb887cb3b40b77f8604702b49075d32bbb49"
+    },
+    "quality_report": {
+      "path": "runs/08c3ed4561bf17c0359ed8741d7d2bbd3fe8e52ab5aa088ea75e8532670b6e49/section03_report.md",
+      "size_bytes": 2063,
+      "sha256": "d523862ff9db7acdb037af83df739201a67d2273053292a95379fdf80327bed1"
+    }
+  }
+}

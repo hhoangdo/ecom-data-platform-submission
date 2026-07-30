@@ -28,7 +28,13 @@ def clean_outputs(raw_root: Path, evidence_root: Path) -> None:
         if dataset_path.exists():
             shutil.rmtree(dataset_path)
     if evidence_root.exists():
-        shutil.rmtree(evidence_root)
+        for child in evidence_root.iterdir():
+            if child.name == "section03":
+                continue
+            if child.is_dir():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
 
 
 def write_raw_outputs(

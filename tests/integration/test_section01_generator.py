@@ -5,6 +5,7 @@ import pandas as pd
 import yaml
 
 from vina_bim_shop.generators.runner import run_generation
+from vina_bim_shop.generators.writer import clean_outputs
 
 
 EXPECTED_CARDINALITY_ROWS = [
@@ -26,6 +27,24 @@ EXPECTED_RUBRIC_HEADINGS = [
     "Row 13 - Streaming Duplicates",
     "Row 14 - Streaming Generator Configuration",
 ]
+
+
+def test_clean_outputs_preserves_nested_section03_root(tmp_path: Path) -> None:
+    raw_root = tmp_path / "raw"
+    evidence_root = tmp_path / "evidence"
+    managed_raw = raw_root / "orders"
+    section01_file = evidence_root / "run_manifest.json"
+    section03_file = evidence_root / "section03" / "section03_candidate_manifest.json"
+    managed_raw.mkdir(parents=True)
+    section03_file.parent.mkdir(parents=True)
+    section01_file.write_text("section01", encoding="utf-8")
+    section03_file.write_text("section03", encoding="utf-8")
+
+    clean_outputs(raw_root, evidence_root)
+
+    assert not managed_raw.exists()
+    assert not section01_file.exists()
+    assert section03_file.read_text(encoding="utf-8") == "section03"
 
 
 def test_smoke_full_generation_writes_contracts_and_evidence(tmp_path: Path) -> None:

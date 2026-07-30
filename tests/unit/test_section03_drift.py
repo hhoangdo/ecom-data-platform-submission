@@ -16,9 +16,21 @@ from vina_bim_shop.generators.config import GeneratorConfig, load_generator_conf
 from vina_bim_shop.generators.drift import (
     DriftRateSummary,
     DriftWindow,
+    calculate_psi,
     generate_order_timestamps_with_drift,
     resolve_drift_window,
     summarize_drift_rates,
+)
+from vina_bim_shop.generators.drift_evidence import (
+    build_feature_drift_alerts,
+    build_feature_health_daily,
+)
+from vina_bim_shop.generators.labels import (
+    LABEL_COLUMNS,
+    build_feature_label_join,
+    build_point_in_time_customer_features,
+    build_purchase_labels,
+    normalize_commerce_events_for_features,
 )
 from vina_bim_shop.generators.offline import orders as orders_module
 from vina_bim_shop.generators.offline.generator import generate_offline
@@ -593,3 +605,388 @@ def test_disabled_streaming_skips_stable_lineage_helper(
     result = generate_streaming_events(config, offline.datasets)
 
     assert result.topic_events
+
+
+def _unit_window() -> DriftWindow:
+    return DriftWindow(
+        start_ts=pd.Timestamp("2026-01-01T00:00:00Z"),
+        end_ts=pd.Timestamp("2026-01-15T00:00:00Z"),
+        drift_start_ts=pd.Timestamp("2026-01-08T12:00:00Z"),
+        feature_cutoff_ts=pd.Timestamp("2026-01-08T00:00:00Z"),
+        label_end_ts=pd.Timestamp("2026-01-15T00:00:00Z"),
+        baseline_date=date(2026, 1, 7),
+    )
+
+
+def test_purchase_labels_use_exact_horizon_and_cutoff_known_cohort() -> None:
+    window = _unit_window()
+    customers = pd.DataFrame(
+        {
+            "customer_id": ["C1", "C2", "C3", "C4"],
+            "created_ts": [
+                "2026-01-01T00:00:00Z",
+                "2026-01-08T00:00:00Z",
+                "2026-01-07T00:00:00Z",
+                "2026-01-08T00:00:01Z",
+            ],
+        }
+    )
+    payments = pd.DataFrame(
+        {
+            "payment_id": [f"P{i}" for i in range(8)],
+            "customer_id": ["C1", "C1", "C1", "C2", "C2", "C3", "C3", "C4"],
+            "payment_timestamp": [
+                "2026-01-07T23:59:59Z",
+                "2026-01-08T00:00:00Z",
+                "2026-01-08T00:00:01Z",
+                "2026-01-15T00:00:00Z",
+                "2026-01-15T00:00:01Z",
+                "2026-01-09T00:00:00Z",
+                "2026-01-10T00:00:00Z",
+                "2026-01-09T00:00:00Z",
+            ],
+            "created_ts": [
+                "2026-01-07T23:59:59Z",
+                "2026-01-08T00:00:00Z",
+                "2026-01-08T00:00:01Z",
+                "2026-01-15T00:00:00Z",
+                "2026-01-15T00:00:01Z",
+                "2026-01-09T00:00:00Z",
+                "2026-01-16T00:00:00Z",
+                "2026-01-09T00:00:00Z",
+            ],
+            "payment_status": [
+                "success",
+                "success",
+                "success",
+                "success",
+                "success",
+                "failed",
+                "success",
+                "success",
+            ],
+        }
+    )
+
+    labels = build_purchase_labels(customers, payments, window=window)
+
+    assert tuple(labels.columns) == LABEL_COLUMNS
+    assert labels.to_dict("records") == [
+        {"id": "C1", "label": 1},
+        {"id": "C2", "label": 1},
+        {"id": "C3", "label": 0},
+    ]
+    assert str(labels["id"].dtype) == "string"
+    assert labels["label"].dtype == np.dtype("int8")
+
+
+@pytest.mark.parametrize(
+    "customers",
+    [
+        pd.DataFrame({"customer_id": ["C1", "C1"], "created_ts": ["2026-01-01", "2026-01-02"]}),
+        pd.DataFrame({"customer_id": ["C1", None], "created_ts": ["2026-01-01", "2026-01-02"]}),
+        pd.DataFrame({"customer_id": ["C1"], "created_ts": ["not-a-timestamp"]}),
+    ],
+)
+def test_purchase_labels_reject_invalid_customer_identity_or_time(
+    customers: pd.DataFrame,
+) -> None:
+    payments = pd.DataFrame(
+        columns=["payment_id", "customer_id", "payment_timestamp", "created_ts", "payment_status"]
+    )
+
+    with pytest.raises(ValueError):
+        build_purchase_labels(customers, payments, window=_unit_window())
+
+
+def test_point_in_time_features_exclude_future_and_keep_inactive_customers() -> None:
+    window = _unit_window()
+    customers = pd.DataFrame(
+        {
+            "customer_id": ["C1", "C2", "FUTURE"],
+            "created_ts": [
+                "2026-01-01T00:00:00Z",
+                "2026-01-01T00:00:00Z",
+                "2026-01-08T00:00:01Z",
+            ],
+        }
+    )
+    orders = pd.DataFrame(
+        {
+            "order_id": ["O1", "O2", "O3", "O4"],
+            "customer_id": ["C1", "C1", "C1", "FUTURE"],
+            "order_timestamp": [
+                "2026-01-07T23:00:00Z",
+                "2026-01-08T00:00:01Z",
+                "2026-01-07T22:00:00Z",
+                "2026-01-07T20:00:00Z",
+            ],
+            "created_ts": [
+                "2026-01-07T23:00:00Z",
+                "2026-01-08T00:00:01Z",
+                "2026-01-08T00:00:01Z",
+                "2026-01-07T20:00:00Z",
+            ],
+            "primary_category": ["FMCG", "ELHA", "Fashion", "FMCG"],
+        }
+    )
+    payments = pd.DataFrame(
+        {
+            "payment_id": ["P1", "P2"],
+            "order_id": ["O1", "O1"],
+            "customer_id": ["C1", "C1"],
+            "payment_timestamp": ["2026-01-07T23:05:00Z", "2026-01-07T23:06:00Z"],
+            "created_ts": ["2026-01-07T23:05:00Z", "2026-01-08T00:00:01Z"],
+            "payment_status": ["success", "success"],
+            "amount": [25.0, 999.0],
+        }
+    )
+    raw_events = pd.DataFrame(
+        {
+            "event_id": ["E1", "E2", "E3", "E4"],
+            "event_type": ["product_viewed", "add_to_cart", "order_placed", "add_to_cart"],
+            "event_timestamp": [
+                "2026-01-07T23:30:00Z",
+                "2026-01-07T23:45:00Z",
+                "2026-01-07T23:50:00Z",
+                "2026-01-07T23:40:00Z",
+            ],
+            "created_ts": [
+                "2026-01-07T23:31:00Z",
+                "2026-01-08T00:00:01Z",
+                "2026-01-07T23:51:00Z",
+                "2026-01-07T23:41:00Z",
+            ],
+            "correlation_ids": [
+                {"customer_id": "C1"},
+                {"customer_id": "C1"},
+                {"customer_id": "C1", "order_id": "O1"},
+                {"customer_id": "C1"},
+            ],
+            "payload": [{}, {}, {}, {}],
+        }
+    )
+    events = normalize_commerce_events_for_features({"commerce_events": raw_events})
+
+    features = build_point_in_time_customer_features(
+        customers,
+        orders,
+        payments,
+        events,
+        window=window,
+    )
+
+    assert features["id"].tolist() == ["C1", "C2"]
+    active = features.set_index("id").loc["C1"]
+    assert active["f_customer_total_orders_90d"] == 1
+    assert active["f_customer_paid_revenue_90d"] == 25.0
+    assert active["f_customer_avg_order_value_90d"] == 25.0
+    assert active["f_customer_distinct_categories_90d"] == 1
+    assert active["f_stream_views_60m"] == 1
+    assert active["f_stream_add_to_cart_60m"] == 1
+    assert active["f_stream_order_placed_60m"] == 1
+    assert active["f_stream_cart_to_purchase_ratio_60m"] == 1.0
+    inactive = features.set_index("id").loc["C2"]
+    numeric = [column for column in features if column.startswith("f_")]
+    assert (inactive[numeric].astype(float) == 0.0).all()
+    assert (features["event_timestamp"] == window.feature_cutoff_ts).all()
+    assert (features["created"] == window.feature_cutoff_ts).all()
+
+
+def test_feature_label_join_is_exact_and_one_to_one() -> None:
+    labels = pd.DataFrame({"id": pd.Series(["C1", "C2"], dtype="string"), "label": pd.Series([1, 0], dtype="int8")})
+    features = pd.DataFrame(
+        {
+            "id": pd.Series(["C1", "C2"], dtype="string"),
+            "event_timestamp": pd.to_datetime(["2026-01-08T00:00:00Z"] * 2),
+            "f_customer_total_orders_90d": [1, 0],
+            "f_customer_paid_revenue_90d": [25.0, 0.0],
+            "f_customer_avg_order_value_90d": [25.0, 0.0],
+            "f_customer_distinct_categories_90d": [1, 0],
+            "f_stream_views_60m": [1, 0],
+            "f_stream_add_to_cart_60m": [0, 0],
+            "f_stream_checkout_started_60m": [0, 0],
+            "f_stream_order_placed_60m": [1, 0],
+            "f_stream_cart_to_purchase_ratio_60m": [1.0, 0.0],
+            "created": pd.to_datetime(["2026-01-08T00:00:00Z"] * 2),
+        }
+    )
+
+    training = build_feature_label_join(labels, features)
+
+    assert list(training.columns) == [
+        "id",
+        "event_timestamp",
+        "label",
+        "f_customer_total_orders_90d",
+        "f_customer_paid_revenue_90d",
+        "f_customer_avg_order_value_90d",
+        "f_customer_distinct_categories_90d",
+        "f_stream_views_60m",
+        "f_stream_add_to_cart_60m",
+        "f_stream_checkout_started_60m",
+        "f_stream_order_placed_60m",
+        "f_stream_cart_to_purchase_ratio_60m",
+        "created",
+    ]
+    assert training[["id", "label"]].equals(labels)
+    with pytest.raises(ValueError):
+        build_feature_label_join(labels, features.iloc[[0]])
+
+
+@pytest.mark.parametrize(
+    ("baseline", "current", "expected_zero"),
+    [
+        ([0, 1, 2, 3], [0, 1, 2, 3], True),
+        ([0, 0, 0, 0], [0, 1, 2, 3], False),
+        ([0, 0, 1, 1, 2, 2], [0, 0, 0, 2, 2, 2], False),
+    ],
+)
+def test_calculate_psi_is_finite_and_handles_repeated_or_zero_bins(
+    baseline: list[float],
+    current: list[float],
+    expected_zero: bool,
+) -> None:
+    result = calculate_psi(pd.Series(baseline), pd.Series(current))
+
+    assert np.isfinite(result)
+    assert result >= 0
+    assert (result == 0.0) is expected_zero
+
+
+@pytest.mark.parametrize(
+    ("baseline", "current", "kwargs"),
+    [
+        ([], [1], {}),
+        ([1], [], {}),
+        ([np.nan, np.inf], [1], {}),
+        ([1], [1], {"quantile_bins": 1}),
+        ([1], [1], {"epsilon": 0.0}),
+        ([1], [1], {"epsilon": 1.0}),
+    ],
+)
+def test_calculate_psi_rejects_invalid_inputs(
+    baseline: list[float],
+    current: list[float],
+    kwargs: dict[str, Any],
+) -> None:
+    with pytest.raises(ValueError):
+        calculate_psi(pd.Series(baseline), pd.Series(current), **kwargs)
+
+
+def test_health_uses_fixed_cohort_complete_windows_and_inclusive_statuses(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    window = _unit_window()
+    customers = pd.DataFrame(
+        {
+            "customer_id": ["C1", "C2", "LATE"],
+            "created_ts": [
+                "2026-01-01T00:00:00Z",
+                "2026-01-07T23:59:59Z",
+                "2026-01-08T00:00:00Z",
+            ],
+        }
+    )
+    orders = pd.DataFrame(
+        {
+            "order_id": ["OLD", "B1", "C1", "LATE"],
+            "customer_id": ["C1", "C1", "C1", "LATE"],
+            "order_timestamp": [
+                "2025-12-31T23:59:59Z",
+                "2026-01-07T12:00:00Z",
+                "2026-01-08T12:00:00Z",
+                "2026-01-08T12:00:00Z",
+            ],
+            "created_ts": [
+                "2025-12-31T23:59:59Z",
+                "2026-01-07T12:00:00Z",
+                "2026-01-08T12:00:00Z",
+                "2026-01-08T12:00:00Z",
+            ],
+        }
+    )
+    observed = iter([0.0, 0.099999, 0.10, 0.149999, 0.15, 0.2, 0.0, 0.0, 0.0])
+    monkeypatch.setattr(
+        "vina_bim_shop.generators.drift_evidence.calculate_psi",
+        lambda baseline, current: next(observed),
+    )
+
+    health = build_feature_health_daily(
+        customers,
+        orders,
+        window=window,
+        drift=_config().drift,
+    )
+
+    assert health["customer_count"].eq(2).all()
+    assert health["monitoring_date"].min() == date(2026, 1, 7)
+    assert health["monitoring_date"].max() == date(2026, 1, 15)
+    assert health["drift_status"].tolist()[:5] == [
+        "stable",
+        "stable",
+        "warning",
+        "warning",
+        "alert",
+    ]
+    alerts = build_feature_drift_alerts(health, alert_threshold=0.15)
+    assert (alerts["psi_value"] >= 0.15).all()
+    assert alerts["action"].eq("Investigate customer_order_frequency drift").all()
+
+
+def test_normalized_commerce_events_rank_duplicates_and_reject_ambiguous_ties() -> None:
+    base = {
+        "event_id": "E1",
+        "event_type": "product_viewed",
+        "event_timestamp": "2026-01-07T23:00:00Z",
+        "created_ts": "2026-01-07T23:01:00Z",
+        "ingest_ts": "2026-01-07T23:02:00Z",
+        "correlation_ids": {"customer_id": "C1", "product_id": "P1"},
+        "payload": {"primary_category": "FMCG"},
+    }
+    older = dict(base, created_ts="2026-01-07T23:00:30Z")
+    winner = dict(base, correlation_ids='{"customer_id":"C2","product_id":"P1"}')
+
+    normalized = normalize_commerce_events_for_features(
+        {"commerce_events": pd.DataFrame([older, winner, winner])}
+    )
+
+    assert len(normalized) == 1
+    assert normalized.loc[0, "customer_id"] == "C2"
+    conflicting = dict(winner, payload={"primary_category": "ELHA"})
+    with pytest.raises(ValueError, match="ambiguous normalized winner"):
+        normalize_commerce_events_for_features(
+            {"commerce_events": pd.DataFrame([winner, conflicting])}
+        )
+
+
+def test_smoke_normalized_stream_preserves_boundary_offsets_without_ratio_claim() -> None:
+    config = _config(scale="smoke")
+    window = resolve_drift_window(config)
+    offline = generate_offline(config)
+    streaming = generate_streaming_events(config, offline.datasets)
+    normalized = normalize_commerce_events_for_features(streaming.topic_events)
+    orders = offline.datasets["orders"][["order_id", "order_timestamp"]].copy()
+    order_events = normalized.dropna(subset=["order_id"]).merge(
+        orders,
+        on="order_id",
+        how="inner",
+        validate="many_to_one",
+    )
+    event_times = pd.to_datetime(order_events["event_timestamp"], utc=True)
+    order_times = pd.to_datetime(order_events["order_timestamp"], utc=True)
+    offsets = (event_times - order_times).dt.total_seconds()
+
+    assert offsets.between(-240, 2100, inclusive="both").all()
+    cutoff = pd.Timestamp(window.drift_start_ts)
+    if cutoff.tzinfo is None:
+        cutoff = cutoff.tz_localize("UTC")
+    else:
+        cutoff = cutoff.tz_convert("UTC")
+    far_from_cutoff = (order_times - cutoff).abs().dt.total_seconds().gt(2100)
+    assert (
+        event_times.loc[far_from_cutoff].ge(cutoff)
+        == order_times.loc[far_from_cutoff].ge(cutoff)
+    ).all()
+    crossing = event_times.ge(cutoff) != order_times.ge(cutoff)
+    assert (order_times.loc[crossing] - cutoff).abs().dt.total_seconds().le(2100).all()

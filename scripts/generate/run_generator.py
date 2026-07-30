@@ -42,6 +42,8 @@ def main() -> None:
     )
     for dataset, row_count in sorted(result.row_counts.items()):
         print(f"- {dataset}: {row_count:,} rows")
+    if "section03_manifest" in result.evidence_paths:
+        print(f"Section 03 evidence: {result.evidence_paths['section03_manifest']}")
 
 
 if __name__ == "__main__":
