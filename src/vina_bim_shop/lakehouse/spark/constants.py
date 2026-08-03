@@ -64,18 +64,31 @@ GOLD_FACT_TABLES = (
     "fact_promotion_application",
 )
 
-GOLD_SERVING_TABLES = (
-    "obt_order_performance",
-    "agg_hourly_reconciled_kpi",
+DP3_GOLD_TABLES = (
     "feat_customer_90d",
     "feat_stream_60m",
     "feat_customer_unified",
+    "ml_customer_label",
+    "agg_feature_health_daily",
+    "feature_drift_alerts",
+    "ml_customer_purchase_training",
+)
+
+GOLD_SERVING_TABLES = (
+    "obt_order_performance",
+    "agg_hourly_reconciled_kpi",
+    *DP3_GOLD_TABLES,
 )
 
 REQUIRED_GOLD_TABLES = (
     *GOLD_DIMENSION_TABLES,
     *GOLD_FACT_TABLES,
     *GOLD_SERVING_TABLES,
+)
+
+assert len(REQUIRED_GOLD_TABLES) == len(set(REQUIRED_GOLD_TABLES))
+assert not set(GOLD_DIMENSION_TABLES + GOLD_FACT_TABLES + ("obt_order_performance", "agg_hourly_reconciled_kpi")) & set(
+    DP3_GOLD_TABLES
 )
 
 SILVER_PARTITIONED_BY = {

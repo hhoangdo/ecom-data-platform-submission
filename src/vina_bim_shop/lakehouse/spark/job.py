@@ -11,6 +11,8 @@ from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
 
+from vina_bim_shop.generators.config import load_generator_config
+from vina_bim_shop.generators.drift import resolve_drift_window
 from vina_bim_shop.lakehouse.spark.constants import (
     BRONZE_BATCH_DATASETS,
     BRONZE_EVENT_TOPICS,
@@ -28,6 +30,7 @@ from vina_bim_shop.lakehouse.spark.layout_profile import (
     validate_layout_profile,
 )
 from vina_bim_shop.lakehouse.spark.sql import (
+    Section03SqlParameters,
     ordered_core_gold_queries,
     ordered_feature_queries,
     ordered_gold_queries,
@@ -43,12 +46,45 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mode", required=True, choices=["hourly", "backfill"])
     parser.add_argument("--evidence-root", default="evidence/05_spark_batch")
     parser.add_argument("--stage", default="full", choices=["full", "core", "features"])
+    parser.add_argument("--generator-config", default="configs/generator/base.yaml")
+    parser.add_argument("--generator-scale", default="medium")
+    parser.add_argument("--section03-manifest")
     parser.add_argument(
         "--layout-profile",
         default=STANDARD_LAYOUT_PROFILE,
         choices=[STANDARD_LAYOUT_PROFILE, COMPACTION_EVIDENCE_LAYOUT_PROFILE],
     )
     return parser.parse_args()
+
+
+def _utc_iso(value: object) -> str:
+    rendered = value.isoformat()  # type: ignore[union-attr]
+    if rendered.endswith("+00:00"):
+        return rendered[:-6] + "Z"
+    return rendered if rendered.endswith("Z") else rendered + "Z"
+
+
+def _load_section03_parameters(
+    *,
+    generator_config: str | Path,
+    generator_scale: str,
+) -> tuple[Section03SqlParameters, BatchWindow]:
+    config = load_generator_config(generator_config, scale=generator_scale)
+    drift_window = resolve_drift_window(config)
+    parameters = Section03SqlParameters(
+        drift_start_ts=_utc_iso(drift_window.drift_start_ts),
+        feature_cutoff_ts=_utc_iso(drift_window.feature_cutoff_ts),
+        label_end_ts=_utc_iso(drift_window.label_end_ts),
+        baseline_date=drift_window.baseline_date.isoformat(),
+        psi_warning=config.drift.psi_warning,
+        psi_alert=config.drift.psi_alert,
+    )
+    derived_window = BatchWindow.from_args(
+        start_ts=_utc_iso(drift_window.start_ts),
+        end_ts=_utc_iso(drift_window.end_ts),
+        mode="backfill",
+    )
+    return parameters, derived_window
 
 
 def build_spark_session() -> SparkSession:
@@ -640,9 +676,14 @@ def _persist_gold_query_group(
 def _persist_gold_tables(
     spark: SparkSession,
     *,
+    parameters: Section03SqlParameters,
     layout_profile: str = STANDARD_LAYOUT_PROFILE,
 ) -> list[dict[str, object]]:
-    return _persist_gold_query_group(spark, ordered_gold_queries(), layout_profile=layout_profile)
+    return _persist_gold_query_group(
+        spark,
+        ordered_gold_queries(parameters),
+        layout_profile=layout_profile,
+    )
 
 
 def _capture_table_row_counts(
@@ -674,6 +715,10 @@ def _write_job_manifest(
     gx_report: dict[str, Any],
     layout_profile: str,
     has_compaction_layout_manifest: bool,
+    generator_config: str | Path,
+    generator_scale: str,
+    section03_manifest: str | Path | None,
+    section03_parameters: Section03SqlParameters,
 ) -> None:
     artifacts = [
         "pyspark_validation_report.json",
@@ -694,6 +739,19 @@ def _write_job_manifest(
         "pyspark_validation_success": validation_report["success"],
         "gx_validation_success": gx_report["success"],
         "layout_profile": layout_profile,
+        "generator_config": str(generator_config),
+        "generator_scale": generator_scale,
+        "section03_manifest": str(section03_manifest) if section03_manifest is not None else None,
+        "section03_parameters": {
+            "drift_start_ts": section03_parameters.drift_start_ts,
+            "feature_cutoff_ts": section03_parameters.feature_cutoff_ts,
+            "label_end_ts": section03_parameters.label_end_ts,
+            "baseline_date": section03_parameters.baseline_date,
+            "psi_warning": section03_parameters.psi_warning,
+            "psi_alert": section03_parameters.psi_alert,
+            "psi_epsilon": section03_parameters.psi_epsilon,
+            "psi_quantile_bins": section03_parameters.psi_quantile_bins,
+        },
         "artifacts": artifacts,
     }
     evidence_path = Path(evidence_root)
@@ -734,8 +792,20 @@ def run_job(
     evidence_root: str | Path,
     stage: str = "full",
     layout_profile: str = STANDARD_LAYOUT_PROFILE,
+    generator_config: str | Path = "configs/generator/base.yaml",
+    generator_scale: str = "medium",
+    section03_manifest: str | Path | None = None,
 ) -> dict[str, Any]:
     window = BatchWindow.from_args(start_ts=start_ts, end_ts=end_ts, mode=mode)
+    section03_parameters, derived_window = _load_section03_parameters(
+        generator_config=generator_config,
+        generator_scale=generator_scale,
+    )
+    if section03_manifest is not None:
+        if window.start_ts != derived_window.start_ts:
+            raise ValueError("start_ts does not match the config-derived Section 03 window")
+        if window.end_ts != derived_window.end_ts:
+            raise ValueError("end_ts does not match the config-derived Section 03 window")
     if stage not in {"full", "core", "features"}:
         raise ValueError(f"Unsupported Spark job stage: {stage!r}")
     validate_layout_profile(layout_profile)
@@ -770,13 +840,16 @@ def run_job(
             )
 
         if stage in {"full", "features"}:
-            _persist_gold_query_group(spark, ordered_feature_queries())
+            _persist_gold_query_group(spark, ordered_feature_queries(section03_parameters))
 
         if stage != "full":
             stage_tables = (
                 tuple(table_name for table_name, _query in ordered_core_gold_queries())
                 if stage == "core"
-                else tuple(table_name for table_name, _query in ordered_feature_queries())
+                else tuple(
+                    table_name
+                    for table_name, _query in ordered_feature_queries(section03_parameters)
+                )
             )
             return {
                 "window": {
@@ -804,6 +877,10 @@ def run_job(
             gx_report=gx_report,
             layout_profile=layout_profile,
             has_compaction_layout_manifest=bool(layout_results),
+            generator_config=generator_config,
+            generator_scale=generator_scale,
+            section03_manifest=section03_manifest,
+            section03_parameters=section03_parameters,
         )
         return {
             "window": {
@@ -811,8 +888,17 @@ def run_job(
                 "end_ts": window.end_ts.isoformat().replace("+00:00", "Z"),
                 "mode": window.mode,
             },
-            "row_counts": row_counts,
-            "layout_profile": layout_profile,
+        "row_counts": row_counts,
+        "layout_profile": layout_profile,
+        "generator_config": str(generator_config),
+        "generator_scale": generator_scale,
+        "section03_manifest": str(section03_manifest) if section03_manifest is not None else None,
+        "section03_parameters": {
+            "drift_start_ts": section03_parameters.drift_start_ts,
+            "feature_cutoff_ts": section03_parameters.feature_cutoff_ts,
+            "label_end_ts": section03_parameters.label_end_ts,
+            "baseline_date": section03_parameters.baseline_date,
+        },
         }
     finally:
         spark.stop()
@@ -827,4 +913,7 @@ def main() -> None:
         evidence_root=args.evidence_root,
         stage=args.stage,
         layout_profile=args.layout_profile,
+        generator_config=args.generator_config,
+        generator_scale=args.generator_scale,
+        section03_manifest=args.section03_manifest,
     )

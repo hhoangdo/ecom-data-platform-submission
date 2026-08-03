@@ -1,5 +1,61 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+import math
+
+from vina_bim_shop.lakehouse.spark.constants import DP3_GOLD_TABLES
+
+
+@dataclass(frozen=True)
+class Section03SqlParameters:
+    drift_start_ts: str
+    feature_cutoff_ts: str
+    label_end_ts: str
+    baseline_date: str
+    psi_warning: float
+    psi_alert: float
+    psi_epsilon: float = 1e-6
+    psi_quantile_bins: int = 10
+
+    def __post_init__(self) -> None:
+        for name in ("drift_start_ts", "feature_cutoff_ts", "label_end_ts", "baseline_date"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value:
+                raise ValueError(f"{name} must be a non-empty string")
+        for name in ("psi_warning", "psi_alert", "psi_epsilon"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not math.isfinite(float(value)):
+                raise ValueError(f"{name} must be finite")
+        if not 0 < self.psi_epsilon < 1:
+            raise ValueError("psi_epsilon must be between 0 and 1")
+        if isinstance(self.psi_quantile_bins, bool) or self.psi_quantile_bins < 2:
+            raise ValueError("psi_quantile_bins must be at least 2")
+
+    @classmethod
+    def from_generator_config(cls, config: object) -> "Section03SqlParameters":
+        from vina_bim_shop.generators.drift import resolve_drift_window
+
+        window = resolve_drift_window(config)
+
+        def utc_iso(value: object) -> str:
+            rendered = value.isoformat()  # type: ignore[union-attr]
+            if rendered.endswith("+00:00"):
+                return rendered[:-6] + "Z"
+            return rendered if rendered.endswith("Z") else rendered + "Z"
+
+        return cls(
+            drift_start_ts=utc_iso(window.drift_start_ts),
+            feature_cutoff_ts=utc_iso(window.feature_cutoff_ts),
+            label_end_ts=utc_iso(window.label_end_ts),
+            baseline_date=window.baseline_date.isoformat(),  # type: ignore[union-attr]
+            psi_warning=config.drift.psi_warning,  # type: ignore[union-attr]
+            psi_alert=config.drift.psi_alert,  # type: ignore[union-attr]
+        )
+
+
+def _sql_string(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
 
 def category_cost_rate_sql(expression: str) -> str:
     return f"""case
@@ -691,24 +747,424 @@ left join event_hourly e using (metric_hour)
     ]
 
 
+def _section03_feature_queries(parameters: Section03SqlParameters) -> list[tuple[str, str]]:
+    cutoff = _sql_string(parameters.feature_cutoff_ts)
+    label_end = _sql_string(parameters.label_end_ts)
+    baseline = _sql_string(parameters.baseline_date)
+    drift_start = _sql_string(parameters.drift_start_ts)
+    psi_warning = repr(float(parameters.psi_warning))
+    psi_alert = repr(float(parameters.psi_alert))
+    psi_epsilon = repr(float(parameters.psi_epsilon))
+    psi_quantile_bins = str(int(parameters.psi_quantile_bins))
+    common_parameters = f"""
+with parameters as (
+  select
+    cast({drift_start} as timestamp) as drift_start_ts,
+    cast({cutoff} as timestamp) as feature_cutoff_ts,
+    cast({label_end} as timestamp) as label_end_ts,
+    cast({baseline} as date) as baseline_date,
+    cast({psi_warning} as double) as psi_warning,
+    cast({psi_alert} as double) as psi_alert,
+    cast({psi_epsilon} as double) as psi_epsilon,
+    cast({psi_quantile_bins} as int) as psi_quantile_bins,
+    datediff(cast({label_end} as date), cast({cutoff} as date)) as window_days
+),"""
+
+    return [
+        (
+            "feat_customer_90d",
+            common_parameters
+            + """
+eligible_customers as (
+  select customer.customer_id
+  from dim_customer customer
+  cross join parameters p
+  where customer.customer_id is not null
+    and customer.created_ts <= p.feature_cutoff_ts
+),
+eligible_orders as (
+  select
+    orders.order_id,
+    orders.customer_id,
+    orders.primary_category,
+    orders.order_net_amount
+  from fact_order orders
+  cross join parameters p
+  where orders.customer_id is not null
+    and orders.order_timestamp > p.feature_cutoff_ts - interval 90 days
+    and orders.order_timestamp <= p.feature_cutoff_ts
+    and orders.created_ts <= p.feature_cutoff_ts
+),
+successful_orders as (
+  select distinct payment.order_id
+  from fact_payment_attempt payment
+  cross join parameters p
+  where payment.is_payment_success
+    and payment.payment_timestamp <= p.feature_cutoff_ts
+    and payment.created_ts <= p.feature_cutoff_ts
+),
+customer_orders as (
+  select
+    customer.customer_id,
+    count(orders.order_id) as f_customer_total_orders_90d,
+    sum(case when paid.order_id is not null then orders.order_net_amount else 0 end) as f_customer_paid_revenue_90d,
+    avg(case when paid.order_id is not null then orders.order_net_amount end) as f_customer_avg_order_value_90d,
+    count(distinct orders.primary_category) as f_customer_distinct_categories_90d
+  from eligible_customers customer
+  left join eligible_orders orders
+    on customer.customer_id = orders.customer_id
+  left join successful_orders paid
+    on orders.order_id = paid.order_id
+  group by customer.customer_id
+)
+select
+  customer.customer_id,
+  cast(p.feature_cutoff_ts as timestamp) as event_timestamp,
+  coalesce(customer.f_customer_total_orders_90d, 0) as f_customer_total_orders_90d,
+  coalesce(customer.f_customer_paid_revenue_90d, cast(0.0 as double)) as f_customer_paid_revenue_90d,
+  coalesce(customer.f_customer_avg_order_value_90d, cast(0.0 as double)) as f_customer_avg_order_value_90d,
+  coalesce(customer.f_customer_distinct_categories_90d, 0) as f_customer_distinct_categories_90d,
+  cast(p.feature_cutoff_ts as timestamp) as created
+from customer_orders customer
+cross join parameters p
+""",
+        ),
+        (
+            "feat_stream_60m",
+            common_parameters
+            + """
+available_events as (
+  select events.*
+  from stg_commerce_events events
+  cross join parameters p
+  where events.customer_id is not null
+    and events.event_timestamp <= p.feature_cutoff_ts
+    and events.created_ts <= p.feature_cutoff_ts
+)
+select
+  customer_id,
+  date_trunc('hour', event_timestamp) as event_timestamp,
+  sum(case when event_type = 'product_viewed' then 1 else 0 end) as f_stream_views_60m,
+  sum(case when event_type = 'add_to_cart' then 1 else 0 end) as f_stream_add_to_cart_60m,
+  sum(case when event_type = 'checkout_started' then 1 else 0 end) as f_stream_checkout_started_60m,
+  sum(case when event_type = 'order_placed' then 1 else 0 end) as f_stream_order_placed_60m,
+  case
+    when sum(case when event_type = 'add_to_cart' then 1 else 0 end) > 0
+    then cast(sum(case when event_type = 'order_placed' then 1 else 0 end) as double)
+       / sum(case when event_type = 'add_to_cart' then 1 else 0 end)
+    else cast(0.0 as double)
+  end as f_stream_cart_to_purchase_ratio_60m,
+  max(created_ts) as created
+from available_events
+group by customer_id, date_trunc('hour', event_timestamp)
+""",
+        ),
+        (
+            "feat_customer_unified",
+            common_parameters
+            + """
+latest_stream as (
+  select
+    customer_id,
+    event_timestamp,
+    f_stream_views_60m,
+    f_stream_add_to_cart_60m,
+    f_stream_checkout_started_60m,
+    f_stream_order_placed_60m,
+    f_stream_cart_to_purchase_ratio_60m,
+    created
+  from (
+    select
+      stream.*,
+      row_number() over (
+        partition by customer_id
+        order by event_timestamp desc, created desc
+      ) as rn
+    from feat_stream_60m stream
+  ) ranked
+  where rn = 1
+)
+select
+  customer.customer_id,
+  cast(p.feature_cutoff_ts as timestamp) as event_timestamp,
+  customer.f_customer_total_orders_90d,
+  customer.f_customer_paid_revenue_90d,
+  customer.f_customer_avg_order_value_90d,
+  customer.f_customer_distinct_categories_90d,
+  coalesce(stream.f_stream_views_60m, 0) as f_stream_views_60m,
+  coalesce(stream.f_stream_add_to_cart_60m, 0) as f_stream_add_to_cart_60m,
+  coalesce(stream.f_stream_checkout_started_60m, 0) as f_stream_checkout_started_60m,
+  coalesce(stream.f_stream_order_placed_60m, 0) as f_stream_order_placed_60m,
+  coalesce(stream.f_stream_cart_to_purchase_ratio_60m, cast(0.0 as double)) as f_stream_cart_to_purchase_ratio_60m,
+  cast(p.feature_cutoff_ts as timestamp) as created
+from feat_customer_90d customer
+cross join parameters p
+left join latest_stream stream
+  on customer.customer_id = stream.customer_id
+""",
+        ),
+        (
+            "ml_customer_label",
+            common_parameters
+            + """
+eligible_customers as (
+  select customer.customer_id as id
+  from dim_customer customer
+  cross join parameters p
+  where customer.customer_id is not null
+    and customer.created_ts <= p.feature_cutoff_ts
+),
+positive_customers as (
+  select distinct payment.customer_id as id
+  from fact_payment_attempt payment
+  cross join parameters p
+  where payment.customer_id is not null
+    and payment.is_payment_success
+    and payment.payment_timestamp > p.feature_cutoff_ts
+    and payment.payment_timestamp <= p.label_end_ts
+    and payment.created_ts <= p.label_end_ts
+)
+select
+  cast(customer.id as string) as id,
+  cast(case when positive.id is not null then 1 else 0 end as int) as label
+from eligible_customers customer
+left join positive_customers positive
+  on customer.id = positive.id
+""",
+        ),
+        (
+            "agg_feature_health_daily",
+            common_parameters
+            + """
+fixed_cohort as (
+  select customer.customer_id
+  from dim_customer customer
+  cross join parameters p
+  where customer.customer_id is not null
+    and customer.created_ts < cast(p.baseline_date as timestamp) + interval 1 day
+),
+monitoring_dates as (
+  select explode(sequence(to_date(p.baseline_date), to_date(p.label_end_ts), interval 1 day)) as monitoring_date
+  from parameters p
+),
+window_counts as (
+  select
+    dates.monitoring_date,
+    customer.customer_id,
+    count(orders.order_id) as feature_value
+  from monitoring_dates dates
+  cross join fixed_cohort customer
+  cross join parameters p
+  left join fact_order orders
+    on customer.customer_id = orders.customer_id
+    and orders.order_timestamp >= cast(date_sub(dates.monitoring_date, p.window_days - 1) as timestamp)
+    and orders.order_timestamp < cast(dates.monitoring_date as timestamp) + interval 1 day
+    and orders.created_ts < cast(dates.monitoring_date as timestamp) + interval 1 day
+  group by dates.monitoring_date, customer.customer_id
+),
+baseline_ranked as (
+  select
+    feature_value,
+    row_number() over (order by feature_value, customer_id) - 1 as value_index,
+    count(*) over () as value_count
+  from window_counts
+  cross join parameters p
+  where monitoring_date = p.baseline_date
+),
+quantile_positions as (
+  select
+    bin_index,
+    (baseline.value_count - 1)
+      * (cast(bin_index as double) / p.psi_quantile_bins) as position,
+    baseline.value_count
+  from (select distinct value_count from baseline_ranked) baseline
+  cross join parameters p
+  lateral view explode(sequence(0, p.psi_quantile_bins)) bins as bin_index
+),
+quantile_edges as (
+  select distinct
+    lower_value.feature_value
+      + (position.position - floor(position.position))
+        * (upper_value.feature_value - lower_value.feature_value) as edge
+  from quantile_positions position
+  join baseline_ranked lower_value
+    on lower_value.value_index = cast(floor(position.position) as bigint)
+  join baseline_ranked upper_value
+    on upper_value.value_index = least(
+      cast(floor(position.position) as bigint) + 1,
+      position.value_count - 1
+    )
+),
+bin_numbers as (
+  select explode(sequence(0, edge_count)) as bin_index
+  from (select count(*) as edge_count from quantile_edges) edges
+),
+binned_counts as (
+  select
+    binned.monitoring_date,
+    binned.bin_index,
+    count(*) as observation_count
+  from (
+    select
+      counts.monitoring_date,
+      counts.customer_id,
+      count(edge.edge) as bin_index
+    from window_counts counts
+    left join quantile_edges edge
+      on edge.edge < counts.feature_value
+    group by counts.monitoring_date, counts.customer_id
+  ) binned
+  group by binned.monitoring_date, binned.bin_index
+),
+distribution_grid as (
+  select
+    dates.monitoring_date,
+    bins.bin_index,
+    coalesce(counts.observation_count, 0) as observation_count
+  from monitoring_dates dates
+  cross join bin_numbers bins
+  left join binned_counts counts
+    on dates.monitoring_date = counts.monitoring_date
+    and bins.bin_index = counts.bin_index
+),
+smoothed_distributions as (
+  select
+    grid.monitoring_date,
+    grid.bin_index,
+    case
+      when grid.observation_count = 0 then p.psi_epsilon
+      else cast(grid.observation_count as double) / cohort.customer_count
+    end as smoothed_probability
+  from distribution_grid grid
+  cross join parameters p
+  cross join (select count(*) as customer_count from fixed_cohort) cohort
+),
+normalized_distributions as (
+  select
+    monitoring_date,
+    bin_index,
+    smoothed_probability
+      / sum(smoothed_probability) over (partition by monitoring_date) as probability
+  from smoothed_distributions
+),
+psi_by_date as (
+  select
+    current.monitoring_date,
+    sum(
+      (current.probability - baseline.probability)
+      * ln(current.probability / baseline.probability)
+    ) as psi_value
+  from normalized_distributions current
+  cross join parameters p
+  join normalized_distributions baseline
+    on baseline.monitoring_date = p.baseline_date
+    and current.bin_index = baseline.bin_index
+  group by current.monitoring_date
+),
+daily_metrics as (
+  select
+    monitoring_date,
+    count(*) as customer_count,
+    avg(feature_value) as mean_value,
+    coalesce(stddev_pop(feature_value), cast(0.0 as double)) as stddev_value
+  from window_counts
+  group by monitoring_date
+),
+canonical as (
+  select
+    metrics.monitoring_date,
+    p.baseline_date,
+    p.window_days,
+    metrics.customer_count,
+    bround(metrics.mean_value, 12) as mean_value,
+    bround(metrics.stddev_value, 12) as stddev_value,
+    greatest(bround(psi.psi_value, 12), cast(0.0 as double)) as psi_vs_baseline,
+    p.psi_warning,
+    p.psi_alert
+  from daily_metrics metrics
+  join psi_by_date psi
+    on metrics.monitoring_date = psi.monitoring_date
+  cross join parameters p
+)
+select
+  cast(monitoring_date as date) as monitoring_date,
+  'f_customer_order_frequency_7d' as feature_name,
+  cast(window_days as int) as window_days,
+  cast(baseline_date as date) as baseline_date,
+  cast(customer_count as bigint) as customer_count,
+  cast(mean_value as double) as mean_value,
+  cast(stddev_value as double) as stddev_value,
+  cast(psi_vs_baseline as double) as psi_vs_baseline,
+  case
+    when psi_vs_baseline >= psi_alert then 'alert'
+    when psi_vs_baseline >= psi_warning then 'warning'
+    else 'stable'
+  end as drift_status,
+  psi_vs_baseline >= psi_warning as warning_flag,
+  psi_vs_baseline >= psi_alert as alert_flag
+from canonical
+""",
+        ),
+        (
+            "feature_drift_alerts",
+            common_parameters
+            + """
+health as (
+  select * from agg_feature_health_daily
+)
+select
+  cast(health.monitoring_date as date) as alert_date,
+  health.feature_name,
+  cast(health.psi_vs_baseline as double) as psi_value,
+  cast(p.psi_alert as double) as threshold,
+  'Investigate customer_order_frequency drift' as action
+from health
+cross join parameters p
+where health.psi_vs_baseline >= p.psi_alert
+""",
+        ),
+        (
+            "ml_customer_purchase_training",
+            common_parameters.rstrip(",")
+            + """
+select
+  cast(label.id as string) as id,
+  cast(features.event_timestamp as timestamp) as event_timestamp,
+  cast(label.label as int) as label,
+  features.f_customer_total_orders_90d,
+  features.f_customer_paid_revenue_90d,
+  features.f_customer_avg_order_value_90d,
+  features.f_customer_distinct_categories_90d,
+  features.f_stream_views_60m,
+  features.f_stream_add_to_cart_60m,
+  features.f_stream_checkout_started_60m,
+  features.f_stream_order_placed_60m,
+  features.f_stream_cart_to_purchase_ratio_60m,
+  cast(features.created as timestamp) as created
+from ml_customer_label label
+inner join feat_customer_unified features
+  on label.id = features.customer_id
+""",
+        ),
+    ]
+
+
 def ordered_core_gold_queries() -> list[tuple[str, str]]:
-    """Return every non-feature Gold query in deterministic dependency order."""
+    """Return every non-DP3 Gold query in deterministic dependency order."""
     return [
         (table_name, query)
         for table_name, query in _legacy_ordered_gold_queries()
-        if not table_name.startswith("feat_")
+        if table_name not in DP3_GOLD_TABLES
     ]
 
 
-def ordered_feature_queries() -> list[tuple[str, str]]:
-    """Return the three offline-feature Gold queries in their public order."""
-    return [
-        (table_name, query)
-        for table_name, query in _legacy_ordered_gold_queries()
-        if table_name.startswith("feat_")
-    ]
+def ordered_feature_queries(parameters: Section03SqlParameters) -> list[tuple[str, str]]:
+    """Return the seven parameterized Section 03 Gold queries in DP3 order."""
+    queries = _section03_feature_queries(parameters)
+    assert tuple(table_name for table_name, _query in queries) == DP3_GOLD_TABLES
+    return queries
 
 
-def ordered_gold_queries() -> list[tuple[str, str]]:
-    """Preserve the full Gold API as the core stage followed by DP3 features."""
-    return [*ordered_core_gold_queries(), *ordered_feature_queries()]
+def ordered_gold_queries(parameters: Section03SqlParameters) -> list[tuple[str, str]]:
+    """Return the core Gold queries followed by the parameterized DP3 queries."""
+    return [*ordered_core_gold_queries(), *ordered_feature_queries(parameters)]

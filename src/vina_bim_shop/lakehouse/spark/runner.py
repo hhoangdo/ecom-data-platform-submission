@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from vina_bim_shop.generators.config import load_generator_config
+from vina_bim_shop.generators.drift import resolve_drift_window
 from vina_bim_shop.lakehouse.spark.evidence import capture_evidence
 from vina_bim_shop.lakehouse.spark.executive_mart import export_executive_mart
 from vina_bim_shop.lakehouse.spark.parity import run_parity_checks
+from vina_bim_shop.lakehouse.spark.sql import Section03SqlParameters
 from vina_bim_shop.lakehouse.spark.trino import run_gold_smoke_queries
 from vina_bim_shop.lakehouse.spark.window import BatchWindow
 
@@ -23,16 +27,52 @@ def _run_command(command: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, check=True, text=True, capture_output=True, encoding="utf-8", errors="replace")
 
 
+def _container_workspace_path(path: str | Path) -> str:
+    value = Path(path).as_posix()
+    return value if Path(path).is_absolute() else f"/workspace/{value}"
+
+
+def _section03_runtime_context(
+    *,
+    generator_config: str | Path,
+    generator_scale: str,
+) -> tuple[BatchWindow, Section03SqlParameters]:
+    config = load_generator_config(generator_config, scale=generator_scale)
+    drift_window = resolve_drift_window(config)
+    parameters = Section03SqlParameters(
+        drift_start_ts=drift_window.drift_start_ts.isoformat() + "Z",
+        feature_cutoff_ts=drift_window.feature_cutoff_ts.isoformat() + "Z",
+        label_end_ts=drift_window.label_end_ts.isoformat() + "Z",
+        baseline_date=drift_window.baseline_date.isoformat(),
+        psi_warning=config.drift.psi_warning,
+        psi_alert=config.drift.psi_alert,
+    )
+    window = BatchWindow.from_args(
+        start_ts=drift_window.start_ts.isoformat() + "Z",
+        end_ts=drift_window.end_ts.isoformat() + "Z",
+        mode="backfill",
+    )
+    return window, parameters
+
+
 def build_spark_submit_command(
     window: BatchWindow,
     *,
     evidence_root: str | Path,
     stage: str = "full",
+    generator_config: str | Path = "configs/generator/base.yaml",
+    generator_scale: str = "medium",
+    section03_manifest: str | Path | None = None,
 ) -> list[str]:
-    evidence_path = Path(evidence_root)
-    container_evidence_root = evidence_path.as_posix()
-    if not evidence_path.is_absolute():
-        container_evidence_root = f"/workspace/{container_evidence_root}"
+    args = (
+        " --evidence-root "
+        + _container_workspace_path(evidence_root)
+        + f" --stage {stage}"
+        + f" --generator-config {_container_workspace_path(generator_config)}"
+        + f" --generator-scale {generator_scale}"
+    )
+    if section03_manifest is not None:
+        args += f" --section03-manifest {_container_workspace_path(section03_manifest)}"
     return [
         "docker",
         "compose",
@@ -49,12 +89,27 @@ def build_spark_submit_command(
         "--conf spark.eventLog.dir=s3a://checkpoints/spark-events "
         "scripts/spark/job.py "
         + " ".join(window.to_cli_args())
-        + f" --evidence-root {container_evidence_root} --stage {stage}",
+        + args,
     ]
 
 
-def build_dbt_build_command() -> list[str]:
-    return ["dbt", "build", "--project-dir", "dbt", "--profiles-dir", "dbt"]
+def build_section03_dbt_command(
+    *,
+    generator_config: str | Path,
+    generator_scale: str,
+) -> list[str]:
+    return [
+        sys.executable,
+        "scripts/analytics/run_section03_dbt.py",
+        "--config",
+        str(generator_config),
+        "--scale",
+        generator_scale,
+        "--project-dir",
+        "infra/analytics/dbt",
+        "--profiles-dir",
+        "infra/analytics/dbt",
+    ]
 
 
 def persist_run_summary(*, evidence_root: str | Path, summary: dict[str, Any]) -> Path:
@@ -71,6 +126,9 @@ def run_batch_pipeline(
     end_ts: str,
     mode: str,
     evidence_root: str | Path = "evidence/05_spark_batch",
+    generator_config: str | Path = "configs/generator/base.yaml",
+    generator_scale: str = "medium",
+    section03_manifest: str | Path | None = None,
     run_command: RunCommand = _run_command,
     capture_evidence_fn: CaptureEvidence = capture_evidence,
 ) -> dict[str, Any]:
@@ -80,13 +138,43 @@ def run_batch_pipeline(
     propagate so orchestration records the batch as failed.
     """
 
+    derived_window: BatchWindow | None = None
+    if section03_manifest is not None:
+        derived_window, _parameters = _section03_runtime_context(
+            generator_config=generator_config,
+            generator_scale=generator_scale,
+        )
+        supplied_window = BatchWindow.from_args(start_ts=start_ts, end_ts=end_ts, mode=mode)
+        if supplied_window.start_ts != derived_window.start_ts:
+            raise ValueError("start_ts does not match the config-derived Section 03 window")
+        if supplied_window.end_ts != derived_window.end_ts:
+            raise ValueError("end_ts does not match the config-derived Section 03 window")
     window = BatchWindow.from_args(start_ts=start_ts, end_ts=end_ts, mode=mode)
-    spark_submit = build_spark_submit_command(window, evidence_root=evidence_root)
+    spark_submit = build_spark_submit_command(
+        window,
+        evidence_root=evidence_root,
+        generator_config=generator_config,
+        generator_scale=generator_scale,
+        section03_manifest=section03_manifest,
+    )
     spark_result = run_command(spark_submit)
 
-    dbt_command = build_dbt_build_command()
+    dbt_command = build_section03_dbt_command(
+        generator_config=generator_config,
+        generator_scale=generator_scale,
+    )
     dbt_result = run_command(dbt_command)
-    parity_report = run_parity_checks(evidence_root=evidence_root)
+    if section03_manifest is None:
+        parity_report = run_parity_checks(evidence_root=evidence_root)
+    else:
+        parity_report = run_parity_checks(
+            evidence_root=evidence_root,
+            section03_manifest=section03_manifest,
+            generator_config=generator_config,
+            generator_scale=generator_scale,
+            dbt_command=dbt_command,
+            spark_command=spark_submit,
+        )
     trino_smoke = run_gold_smoke_queries(evidence_root=evidence_root)
     executive_mart = export_executive_mart(evidence_root=evidence_root)
     evidence_manifest = capture_evidence_fn(evidence_root=evidence_root)
@@ -101,6 +189,9 @@ def run_batch_pipeline(
         "dbt_build_command": dbt_command,
         "spark_stdout": spark_result.stdout,
         "dbt_stdout": dbt_result.stdout,
+        "generator_config": str(generator_config),
+        "generator_scale": generator_scale,
+        "section03_manifest": str(section03_manifest) if section03_manifest is not None else None,
         "parity_success": parity_report["success"],
         "trino_smoke_queries": list(trino_smoke),
         "executive_mart": {
@@ -121,10 +212,20 @@ def run_spark_stage(
     end_ts: str,
     mode: str,
     evidence_root: str | Path,
+    generator_config: str | Path = "configs/generator/base.yaml",
+    generator_scale: str = "medium",
+    section03_manifest: str | Path | None = None,
     run_command: RunCommand = _run_command,
 ) -> dict[str, Any]:
     window = BatchWindow.from_args(start_ts=start_ts, end_ts=end_ts, mode=mode)
-    command = build_spark_submit_command(window, evidence_root=evidence_root, stage=stage)
+    command = build_spark_submit_command(
+        window,
+        evidence_root=evidence_root,
+        stage=stage,
+        generator_config=generator_config,
+        generator_scale=generator_scale,
+        section03_manifest=section03_manifest,
+    )
     result = run_command(command)
     return {
         "stage": stage,
@@ -135,6 +236,9 @@ def run_spark_stage(
         },
         "spark_submit_command": command,
         "spark_stdout": result.stdout,
+        "generator_config": str(generator_config),
+        "generator_scale": generator_scale,
+        "section03_manifest": str(section03_manifest) if section03_manifest is not None else None,
     }
 
 

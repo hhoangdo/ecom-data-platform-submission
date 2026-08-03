@@ -11,6 +11,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--end-ts", required=True)
     parser.add_argument("--mode", required=True, choices=["hourly", "backfill"])
     parser.add_argument("--evidence-root", default="evidence/05_spark_batch")
+    parser.add_argument("--generator-config", default="configs/generator/base.yaml")
+    parser.add_argument("--generator-scale", default="medium")
+    parser.add_argument("--section03-manifest")
     return parser.parse_args()
 
 
@@ -20,6 +23,9 @@ def main() -> None:
         start_ts=args.start_ts,
         end_ts=args.end_ts,
         mode=args.mode,
+        generator_config=args.generator_config,
+        generator_scale=args.generator_scale,
+        section03_manifest=args.section03_manifest,
         evidence_root=args.evidence_root,
     )
     window = summary["window"]
