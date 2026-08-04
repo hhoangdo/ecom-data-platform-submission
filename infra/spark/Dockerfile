@@ -10,6 +10,14 @@ ENV SPARK_HOME=/opt/spark
 ENV JAVA_HOME=/opt/java/openjdk
 ENV PATH=/opt/spark/bin:/opt/spark/sbin:/opt/java/openjdk/bin:${PATH}
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY infra/spark/certs/RB_RootCA_RSA_G01-pem.cer /usr/local/share/ca-certificates/rb-rootca-rsa-g01.crt
+
+RUN update-ca-certificates
+
 RUN curl -fsSL \
     "https://repo.maven.apache.org/maven2/org/apache/iceberg/iceberg-spark-runtime-4.0_2.13/${ICEBERG_VERSION}/iceberg-spark-runtime-4.0_2.13-${ICEBERG_VERSION}.jar" \
     -o "${SPARK_HOME}/jars/iceberg-spark-runtime-4.0_2.13-${ICEBERG_VERSION}.jar" \
