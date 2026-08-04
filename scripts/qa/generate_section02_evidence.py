@@ -14,6 +14,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from scripts.analytics.run_section03_dbt import build_section03_vars
+
 
 RAW_INPUT_HINT = "uv run python scripts/generate/run_generator.py --scale smoke --mode full --clean"
 DBT_PROJECT_DIR = "infra/analytics/dbt"
@@ -24,6 +30,15 @@ DBT_TARGET = Path(DBT_PROJECT_DIR) / "target"
 DUCKDB_PATH = Path("data/gold/vina_bim_shop.duckdb")
 SCHEMA_DESIGN_SOURCE = Path("architecture/diagrams/schema_design.puml")
 ALL_ZONE_MODEL_DIRECTORIES = ("bronze", "silver", "gold")
+
+
+def build_section02_dbt_commands(repo_root: Path) -> list[list[str]]:
+    variables = build_section03_vars(repo_root / "configs" / "generator" / "base.yaml", "medium")
+    serialized = json.dumps(variables, sort_keys=True, separators=(",", ":"))
+    return [
+        [*DBT_BUILD_COMMAND, "--vars", serialized],
+        [*DBT_DOCS_COMMAND, "--vars", serialized],
+    ]
 
 REQUIRED_RAW_INPUTS = [
     Path("data/raw/customers/part-000.parquet"),
@@ -68,9 +83,10 @@ def main() -> int:
     evidence_root.mkdir(parents=True, exist_ok=True)
     screenshots_root.mkdir(parents=True, exist_ok=True)
 
-    build_result = run_command(DBT_BUILD_COMMAND, repo_root)
+    dbt_build_command, dbt_docs_command = build_section02_dbt_commands(repo_root)
+    build_result = run_command(dbt_build_command, repo_root)
     build_run_results = read_json(repo_root / DBT_TARGET / "run_results.json")
-    docs_result = run_command(DBT_DOCS_COMMAND, repo_root)
+    docs_result = run_command(dbt_docs_command, repo_root)
 
     manifest = read_json(repo_root / DBT_TARGET / "manifest.json")
     catalog = read_json(repo_root / DBT_TARGET / "catalog.json")

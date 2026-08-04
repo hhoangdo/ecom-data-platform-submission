@@ -47,7 +47,7 @@ orders,status,str,45000,0.0
 orders,shipping_city,str,45000,0.0
 orders,shipping_region,str,45000,0.0
 orders,shipping_method,str,43622,0.03062
-orders,fulfillment_channel,str,24641,0.45242
+orders,fulfillment_channel,str,27466,0.38964
 orders,promotion_id,str,15348,0.65893
 orders,coupon_code,str,15348,0.65893
 orders,item_count,int64,45000,0.0

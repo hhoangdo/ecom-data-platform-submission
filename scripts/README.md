@@ -36,6 +36,7 @@ Run `make help` at any time to print the full catalog.
 | Script | Why it stays on `main` |
 | --- | --- |
 | `scripts/analytics/benchmark_duckdb_index.py` | Runs the isolated DuckDB ART-index benchmark without mutating the canonical dbt database. |
+| `scripts/analytics/run_section03_dbt.py` | Derives Section 03 dbt variables from the validated generator configuration and builds the required Gold graph. |
 | `scripts/datahub/capture_evidence.py` | Referenced by the DataHub governance deliverable for official governance evidence. |
 | `scripts/datahub/restore_search_indices.py` | Restores DataHub search indices and verifies representative datasets are indexed after recovery. |
 | `scripts/datahub/restore_search_indices.py` | Replays persisted DataHub metadata through GMS to restore indexed-search evidence after a governed runtime recovery. |
@@ -45,6 +46,7 @@ Run `make help` at any time to print the full catalog.
 | `scripts/flink/run_commerce_metrics_job.py` | Flink job entry point referenced by deliverables, tests, and `infra/flink/bin/submit-jobs.sh`. |
 | `scripts/flink/run_ops_alerts_job.py` | Flink job entry point referenced by deliverables, tests, and `infra/flink/bin/submit-jobs.sh`. |
 | `scripts/generate/run_generator.py` | Official Section 01 generator entry point referenced by README, deliverables, and integration tests. |
+| `scripts/generate/verify_section03_manifest.py` | Independently verifies the Section 03 candidate manifest, artifact hashes, schemas, and runtime-pending contract. |
 | `scripts/kafka/bootstrap_topics.py` | Kafka topic bootstrap command referenced by the Kafka ingestion deliverable. |
 | `scripts/kafka/capture_connect_image_optimization.py` | Captures the Kafka Connect image-size optimization evidence package. |
 | `scripts/kafka/capture_evidence.py` | Kafka evidence command referenced by the Kafka ingestion deliverable. |

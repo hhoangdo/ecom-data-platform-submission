@@ -90,6 +90,37 @@ def test_wrapper_derives_exact_medium_vars() -> None:
     }
 
 
+def test_wrapper_supports_explicit_all_gold_selection() -> None:
+    wrapper = _load_wrapper()
+
+    args = wrapper.parse_args(
+        [
+            "--config",
+            "configs/generator/base.yaml",
+            "--scale",
+            "medium",
+            "--all-gold",
+        ]
+    )
+
+    assert args.all_gold is True
+    assert wrapper.build_dbt_command(
+        dbt_executable="dbt",
+        project_dir="infra/analytics/dbt",
+        profiles_dir="infra/analytics/dbt",
+        variables={},
+        selectors=("+path:models/gold",),
+    )[-1] == "+path:models/gold"
+
+
+def test_stream_model_enforces_the_cutoff_safe_sixty_minute_window() -> None:
+    model = (DBT_ROOT / "models" / "gold" / "feat_stream_60m.sql").read_text(encoding="utf-8")
+
+    assert "events.event_timestamp > p.feature_cutoff_ts - interval '60 minutes'" in model
+    assert "events.event_timestamp <= p.feature_cutoff_ts" in model
+    assert "events.created_ts <= p.feature_cutoff_ts" in model
+
+
 def test_wrapper_builds_parent_inclusive_command_and_propagates_status(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

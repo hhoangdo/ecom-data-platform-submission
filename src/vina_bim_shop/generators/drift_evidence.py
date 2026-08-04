@@ -247,7 +247,13 @@ def _repo_relative(path: Path) -> str:
         return path.resolve().as_posix()
 
 
-def _write_csv(path: Path, frame: pd.DataFrame, *, health: bool = False) -> None:
+def _write_csv(
+    path: Path,
+    frame: pd.DataFrame,
+    *,
+    health: bool = False,
+    fixed_decimal: bool = False,
+) -> None:
     output = frame.copy()
     for column in output.columns:
         if pd.api.types.is_datetime64_any_dtype(output[column]):
@@ -261,7 +267,7 @@ def _write_csv(path: Path, frame: pd.DataFrame, *, health: bool = False) -> None
         index=False,
         encoding="utf-8",
         lineterminator="\n",
-        float_format="%.12f" if health else "%.12g",
+        float_format="%.12f" if health or fixed_decimal else "%.12g",
     )
 
 
@@ -566,6 +572,7 @@ def _write_section03_evidence_unlocked(
                 staging / ARTIFACT_FILENAMES[key],
                 frame,
                 health=key in {"feature_health_daily", "feature_health_sample"},
+                fixed_decimal=key in {"training_join", "training_sample"},
             )
         _write_image(
             staging / ARTIFACT_FILENAMES["evidence_image"],

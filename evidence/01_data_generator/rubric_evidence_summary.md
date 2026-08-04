@@ -18,8 +18,8 @@
 | --- | --- | ---: | ---: | ---: |
 | customers | customer_id | 12,000 | 12,422 | 1.00000 |
 | products | product_id | 6,000 | 7,538 | 1.00000 |
-| orders | order_id | 45,000 | 55,332 | 1.00000 |
-| events | event_id | 639,537 | 749,707 | 1.00000 |
+| orders | order_id | 45,000 | 45,880 | 1.00000 |
+| events | event_id | 639,537 | 715,181 | 1.00000 |
 
 ## Row 7 - Offline Schema Evolution
 
@@ -47,7 +47,7 @@
 
 | Profile | History days | Entity counts |
 | --- | ---: | --- |
-| smoke | 7 | customers=800; sellers=80; products=600; orders=1800; promotions=16 |
+| smoke | 14 | customers=800; sellers=80; products=600; orders=1800; promotions=16 |
 | medium | 60 | customers=12000; sellers=600; products=6000; orders=45000; promotions=80 |
 | coursework | 90 | customers=50000; sellers=2500; products=30000; orders=150000; promotions=180 |
 

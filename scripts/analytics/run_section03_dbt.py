@@ -19,6 +19,7 @@ DEFAULT_SELECTORS = (
     "+ml_customer_purchase_training",
     "+feature_drift_alerts",
 )
+ALL_GOLD_SELECTOR = "+path:models/gold"
 
 
 def _utc_iso(value: object) -> str:
@@ -103,8 +104,17 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         nargs="+",
         default=list(DEFAULT_SELECTORS),
     )
+    parser.add_argument(
+        "--all-gold",
+        action="store_true",
+        help="Build the complete Gold graph for strict runtime parity.",
+    )
     args = parser.parse_args(argv)
-    if tuple(args.select) != DEFAULT_SELECTORS:
+    if args.all_gold:
+        if tuple(args.select) != DEFAULT_SELECTORS:
+            parser.error("--all-gold cannot be combined with a custom --select")
+        args.select = [ALL_GOLD_SELECTOR]
+    elif tuple(args.select) != DEFAULT_SELECTORS:
         parser.error(
             "--select must be the parent-inclusive Section 03 graph: "
             + " ".join(DEFAULT_SELECTORS)

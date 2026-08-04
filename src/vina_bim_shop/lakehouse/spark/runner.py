@@ -109,6 +109,7 @@ def build_section03_dbt_command(
         "infra/analytics/dbt",
         "--profiles-dir",
         "infra/analytics/dbt",
+        "--all-gold",
     ]
 
 

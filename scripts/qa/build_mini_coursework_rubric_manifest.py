@@ -144,8 +144,8 @@ def _gate_datahub(stage: str, proof: str) -> Gate:
 
 def _gate_schema(root: Path) -> None:
     manifest = _read_json(root, "evidence/02_schema_design/run_manifest.json")
-    _require(manifest["schema_design_model_counts"] == {"bronze": 16, "silver": 14, "gold": 22}, "all-zone ERD inventory changed")
-    _require(manifest["dbt_model_count"] == 52 and manifest["dbt_test_count"] == 66, "dbt evidence is incomplete")
+    _require(manifest["schema_design_model_counts"] == {"bronze": 16, "silver": 14, "gold": 26}, "all-zone ERD inventory changed")
+    _require(manifest["dbt_model_count"] == 56 and manifest["dbt_test_count"] == 90, "dbt evidence is incomplete")
 
 
 def _gate_features(root: Path) -> None:

@@ -33,6 +33,10 @@ TableGroup serving_features [color: #EEE7F8, note: 'Derived feature tables for M
   feat_customer_90d
   feat_stream_60m
   feat_customer_unified
+  ml_customer_label
+  agg_feature_health_daily
+  feature_drift_alerts
+  ml_customer_purchase_training
 }
 
 TableGroup obt [color: #D5F5E3, note: 'One Big Table (OBT) for wide analytics and executive readouts.'] {
@@ -437,6 +441,57 @@ Table feat_customer_unified [headercolor: #8E7CC3] {
   Note: 'Unified customer feature table keyed by customer_id + event_timestamp.'
 }
 
+Table ml_customer_label [headercolor: #8E7CC3] {
+  id varchar [pk, not null, ref: > dim_customer.customer_id]
+  label integer [not null]
+
+  Note: 'Exact binary purchase label keyed by customer id.'
+}
+
+Table agg_feature_health_daily [headercolor: #8E7CC3] {
+  monitoring_date date [pk, not null]
+  feature_name varchar [pk, not null]
+  window_days integer [not null]
+  baseline_date date [not null]
+  customer_count bigint [not null]
+  mean_value double [not null]
+  stddev_value double [not null]
+  psi_vs_baseline double [not null]
+  drift_status varchar [not null]
+  warning_flag boolean [not null]
+  alert_flag boolean [not null]
+
+  Note: 'Daily fixed-cohort PSI health output keyed by monitoring date and feature.'
+}
+
+Table feature_drift_alerts [headercolor: #8E7CC3] {
+  alert_date date [pk, not null]
+  feature_name varchar [pk, not null]
+  psi_value double [not null]
+  threshold double [not null]
+  action varchar [not null]
+
+  Note: 'Alert rows filtered from daily feature health at the configured threshold.'
+}
+
+Table ml_customer_purchase_training [headercolor: #8E7CC3] {
+  id varchar [pk, not null, ref: > ml_customer_label.id]
+  event_timestamp timestamp [not null]
+  label integer [not null]
+  f_customer_total_orders_90d bigint [not null]
+  f_customer_paid_revenue_90d double [not null]
+  f_customer_avg_order_value_90d double [not null]
+  f_customer_distinct_categories_90d bigint [not null]
+  f_stream_views_60m hugeint [not null]
+  f_stream_add_to_cart_60m hugeint [not null]
+  f_stream_checkout_started_60m hugeint [not null]
+  f_stream_order_placed_60m hugeint [not null]
+  f_stream_cart_to_purchase_ratio_60m double [not null]
+  created timestamp [not null]
+
+  Note: 'One-to-one cutoff-safe training join keyed by customer id.'
+}
+
 
 DiagramView Default {
   Tables {
@@ -462,5 +517,9 @@ DiagramView Default {
     feat_customer_90d
     feat_stream_60m
     feat_customer_unified
+    ml_customer_label
+    agg_feature_health_daily
+    feature_drift_alerts
+    ml_customer_purchase_training
   }
 }

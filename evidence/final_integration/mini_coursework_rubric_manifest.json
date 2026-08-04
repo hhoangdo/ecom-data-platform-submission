@@ -15,10 +15,10 @@
         "scripts/qa/audit_public_documentation.py"
       ],
       "implementation_sha256": {
-        "README.md": "88d812e4b49ee8b9ec9f6a541fb091d47a7b25031f63c93eae3cdd979be989c6",
-        "architecture/diagrams/README.md": "0d5b1ab1b73b7e98743e4cc4defa576c44cce69a9e999de3e7118ea7b1dc53fb",
-        "deliverables/13_mini_coursework_rubric_evidence.md": "f6939a77b8c69f35e3a2d987a75622b1c34775b39b28d9b9b97132ab597c8ea9",
-        "scripts/qa/audit_public_documentation.py": "bb6a3d6d2366384380846caa04f1ed2020e69c64fb422233cfd20d040c80ee08"
+        "README.md": "9bb8e787a720b53ac771b062889819d7a29ce5a832db46517cea8fa1cf30024b",
+        "architecture/diagrams/README.md": "9a892e3973ed01663dd92b4b034c3f2881d2ed7bf9b60fa83e2cd38b306f6c80",
+        "deliverables/13_mini_coursework_rubric_evidence.md": "a650e85912c9438e2f73df84936a2e74bbe3855657f9650b4c785a272432fecb",
+        "scripts/qa/audit_public_documentation.py": "9707281e8827e452000b62f21e236a8cff22f85f48ae73f8a18c10998271df4f"
       },
       "notes": "Central reviewer navigation and declared API coverage.",
       "points": 10,
@@ -41,7 +41,7 @@
         "infra/kafka/connect/Dockerfile"
       ],
       "implementation_sha256": {
-        "infra/kafka/connect/Dockerfile": "d68c5728a25c8cf434d5536f416f3076a5e525d385b6b4a18811403529fef902"
+        "infra/kafka/connect/Dockerfile": "1854bd0626431cba8d5c6366f79d77296a3dd69e84e3529f2f85944bed76609e"
       },
       "notes": "Measured Kafka Connect image reduction.",
       "points": 1,
@@ -58,13 +58,13 @@
         "evidence/00_engineering_fundamentals/kafka_connect_plugin_smoke.json"
       ],
       "evidence_sha256": {
-        "evidence/00_engineering_fundamentals/kafka_connect_plugin_smoke.json": "42a791d9a410122e52fa73c95fb410a3838f5c99aeba0c877319b0f631d2ca4c"
+        "evidence/00_engineering_fundamentals/kafka_connect_plugin_smoke.json": "82d561b9218e398b29101b79507ef63a8678442a80ed6c65439a5e5c8c5c76fd"
       },
       "implementation_paths": [
         "infra/kafka/connect/Dockerfile"
       ],
       "implementation_sha256": {
-        "infra/kafka/connect/Dockerfile": "d68c5728a25c8cf434d5536f416f3076a5e525d385b6b4a18811403529fef902"
+        "infra/kafka/connect/Dockerfile": "1854bd0626431cba8d5c6366f79d77296a3dd69e84e3529f2f85944bed76609e"
       },
       "notes": "Multi-stage Kafka Connect build and runtime smoke proof.",
       "points": 1,
@@ -82,16 +82,16 @@
         "evidence/01_data_generator/run_manifest.json"
       ],
       "evidence_sha256": {
-        "evidence/01_data_generator/rubric_evidence_summary.md": "4de39ecd32743c036ec1e7a64511c42acef19a08eef8713879182e41ef2824f3",
-        "evidence/01_data_generator/run_manifest.json": "d4d027fdd8f90ef890490197662c94af7886c23c627e76119bc657c18230f0eb"
+        "evidence/01_data_generator/rubric_evidence_summary.md": "2e119ae08e259361bb360a0d2b59a38bb53cd64de57ff7d30bfae45fb763b4fe",
+        "evidence/01_data_generator/run_manifest.json": "0cf8bb381e952ee1d2af21abf6589e6e9eccd7711c359403541f43cd1dfa634c"
       },
       "implementation_paths": [
         "configs/generator/base.yaml",
         "src/vina_bim_shop/generators/runner.py"
       ],
       "implementation_sha256": {
-        "configs/generator/base.yaml": "b044c217d68c501269cd670261b16fa49ab0aa8f86355e0bfa28543ee780cb11",
-        "src/vina_bim_shop/generators/runner.py": "be9ea0423d955bca6618b6e688b79691cab648b4cfcfde711a9c8a77072b58b4"
+        "configs/generator/base.yaml": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97",
+        "src/vina_bim_shop/generators/runner.py": "87079fe33206e5ec3fd6d5fb887044b2d8fd6cbed45d7e70b1b33b8038f81ac0"
       },
       "notes": "Generator Row 5 evidence.",
       "points": 2,
@@ -109,16 +109,16 @@
         "evidence/01_data_generator/run_manifest.json"
       ],
       "evidence_sha256": {
-        "evidence/01_data_generator/rubric_evidence_summary.md": "4de39ecd32743c036ec1e7a64511c42acef19a08eef8713879182e41ef2824f3",
-        "evidence/01_data_generator/run_manifest.json": "d4d027fdd8f90ef890490197662c94af7886c23c627e76119bc657c18230f0eb"
+        "evidence/01_data_generator/rubric_evidence_summary.md": "2e119ae08e259361bb360a0d2b59a38bb53cd64de57ff7d30bfae45fb763b4fe",
+        "evidence/01_data_generator/run_manifest.json": "0cf8bb381e952ee1d2af21abf6589e6e9eccd7711c359403541f43cd1dfa634c"
       },
       "implementation_paths": [
         "configs/generator/base.yaml",
         "src/vina_bim_shop/generators/runner.py"
       ],
       "implementation_sha256": {
-        "configs/generator/base.yaml": "b044c217d68c501269cd670261b16fa49ab0aa8f86355e0bfa28543ee780cb11",
-        "src/vina_bim_shop/generators/runner.py": "be9ea0423d955bca6618b6e688b79691cab648b4cfcfde711a9c8a77072b58b4"
+        "configs/generator/base.yaml": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97",
+        "src/vina_bim_shop/generators/runner.py": "87079fe33206e5ec3fd6d5fb887044b2d8fd6cbed45d7e70b1b33b8038f81ac0"
       },
       "notes": "Generator Row 6 evidence.",
       "points": 2,
@@ -136,16 +136,16 @@
         "evidence/01_data_generator/run_manifest.json"
       ],
       "evidence_sha256": {
-        "evidence/01_data_generator/rubric_evidence_summary.md": "4de39ecd32743c036ec1e7a64511c42acef19a08eef8713879182e41ef2824f3",
-        "evidence/01_data_generator/run_manifest.json": "d4d027fdd8f90ef890490197662c94af7886c23c627e76119bc657c18230f0eb"
+        "evidence/01_data_generator/rubric_evidence_summary.md": "2e119ae08e259361bb360a0d2b59a38bb53cd64de57ff7d30bfae45fb763b4fe",
+        "evidence/01_data_generator/run_manifest.json": "0cf8bb381e952ee1d2af21abf6589e6e9eccd7711c359403541f43cd1dfa634c"
       },
       "implementation_paths": [
         "configs/generator/base.yaml",
         "src/vina_bim_shop/generators/runner.py"
       ],
       "implementation_sha256": {
-        "configs/generator/base.yaml": "b044c217d68c501269cd670261b16fa49ab0aa8f86355e0bfa28543ee780cb11",
-        "src/vina_bim_shop/generators/runner.py": "be9ea0423d955bca6618b6e688b79691cab648b4cfcfde711a9c8a77072b58b4"
+        "configs/generator/base.yaml": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97",
+        "src/vina_bim_shop/generators/runner.py": "87079fe33206e5ec3fd6d5fb887044b2d8fd6cbed45d7e70b1b33b8038f81ac0"
       },
       "notes": "Generator Row 7 evidence.",
       "points": 2,
@@ -163,16 +163,16 @@
         "evidence/01_data_generator/run_manifest.json"
       ],
       "evidence_sha256": {
-        "evidence/01_data_generator/rubric_evidence_summary.md": "4de39ecd32743c036ec1e7a64511c42acef19a08eef8713879182e41ef2824f3",
-        "evidence/01_data_generator/run_manifest.json": "d4d027fdd8f90ef890490197662c94af7886c23c627e76119bc657c18230f0eb"
+        "evidence/01_data_generator/rubric_evidence_summary.md": "2e119ae08e259361bb360a0d2b59a38bb53cd64de57ff7d30bfae45fb763b4fe",
+        "evidence/01_data_generator/run_manifest.json": "0cf8bb381e952ee1d2af21abf6589e6e9eccd7711c359403541f43cd1dfa634c"
       },
       "implementation_paths": [
         "configs/generator/base.yaml",
         "src/vina_bim_shop/generators/runner.py"
       ],
       "implementation_sha256": {
-        "configs/generator/base.yaml": "b044c217d68c501269cd670261b16fa49ab0aa8f86355e0bfa28543ee780cb11",
-        "src/vina_bim_shop/generators/runner.py": "be9ea0423d955bca6618b6e688b79691cab648b4cfcfde711a9c8a77072b58b4"
+        "configs/generator/base.yaml": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97",
+        "src/vina_bim_shop/generators/runner.py": "87079fe33206e5ec3fd6d5fb887044b2d8fd6cbed45d7e70b1b33b8038f81ac0"
       },
       "notes": "Generator Row 8 evidence.",
       "points": 2,
@@ -190,16 +190,16 @@
         "evidence/01_data_generator/run_manifest.json"
       ],
       "evidence_sha256": {
-        "evidence/01_data_generator/rubric_evidence_summary.md": "4de39ecd32743c036ec1e7a64511c42acef19a08eef8713879182e41ef2824f3",
-        "evidence/01_data_generator/run_manifest.json": "d4d027fdd8f90ef890490197662c94af7886c23c627e76119bc657c18230f0eb"
+        "evidence/01_data_generator/rubric_evidence_summary.md": "2e119ae08e259361bb360a0d2b59a38bb53cd64de57ff7d30bfae45fb763b4fe",
+        "evidence/01_data_generator/run_manifest.json": "0cf8bb381e952ee1d2af21abf6589e6e9eccd7711c359403541f43cd1dfa634c"
       },
       "implementation_paths": [
         "configs/generator/base.yaml",
         "src/vina_bim_shop/generators/runner.py"
       ],
       "implementation_sha256": {
-        "configs/generator/base.yaml": "b044c217d68c501269cd670261b16fa49ab0aa8f86355e0bfa28543ee780cb11",
-        "src/vina_bim_shop/generators/runner.py": "be9ea0423d955bca6618b6e688b79691cab648b4cfcfde711a9c8a77072b58b4"
+        "configs/generator/base.yaml": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97",
+        "src/vina_bim_shop/generators/runner.py": "87079fe33206e5ec3fd6d5fb887044b2d8fd6cbed45d7e70b1b33b8038f81ac0"
       },
       "notes": "Generator Row 9 evidence.",
       "points": 2,
@@ -217,16 +217,16 @@
         "evidence/01_data_generator/run_manifest.json"
       ],
       "evidence_sha256": {
-        "evidence/01_data_generator/rubric_evidence_summary.md": "4de39ecd32743c036ec1e7a64511c42acef19a08eef8713879182e41ef2824f3",
-        "evidence/01_data_generator/run_manifest.json": "d4d027fdd8f90ef890490197662c94af7886c23c627e76119bc657c18230f0eb"
+        "evidence/01_data_generator/rubric_evidence_summary.md": "2e119ae08e259361bb360a0d2b59a38bb53cd64de57ff7d30bfae45fb763b4fe",
+        "evidence/01_data_generator/run_manifest.json": "0cf8bb381e952ee1d2af21abf6589e6e9eccd7711c359403541f43cd1dfa634c"
       },
       "implementation_paths": [
         "configs/generator/base.yaml",
         "src/vina_bim_shop/generators/runner.py"
       ],
       "implementation_sha256": {
-        "configs/generator/base.yaml": "b044c217d68c501269cd670261b16fa49ab0aa8f86355e0bfa28543ee780cb11",
-        "src/vina_bim_shop/generators/runner.py": "be9ea0423d955bca6618b6e688b79691cab648b4cfcfde711a9c8a77072b58b4"
+        "configs/generator/base.yaml": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97",
+        "src/vina_bim_shop/generators/runner.py": "87079fe33206e5ec3fd6d5fb887044b2d8fd6cbed45d7e70b1b33b8038f81ac0"
       },
       "notes": "Generator Row 10 evidence.",
       "points": 2,
@@ -244,16 +244,16 @@
         "evidence/01_data_generator/run_manifest.json"
       ],
       "evidence_sha256": {
-        "evidence/01_data_generator/rubric_evidence_summary.md": "4de39ecd32743c036ec1e7a64511c42acef19a08eef8713879182e41ef2824f3",
-        "evidence/01_data_generator/run_manifest.json": "d4d027fdd8f90ef890490197662c94af7886c23c627e76119bc657c18230f0eb"
+        "evidence/01_data_generator/rubric_evidence_summary.md": "2e119ae08e259361bb360a0d2b59a38bb53cd64de57ff7d30bfae45fb763b4fe",
+        "evidence/01_data_generator/run_manifest.json": "0cf8bb381e952ee1d2af21abf6589e6e9eccd7711c359403541f43cd1dfa634c"
       },
       "implementation_paths": [
         "configs/generator/base.yaml",
         "src/vina_bim_shop/generators/runner.py"
       ],
       "implementation_sha256": {
-        "configs/generator/base.yaml": "b044c217d68c501269cd670261b16fa49ab0aa8f86355e0bfa28543ee780cb11",
-        "src/vina_bim_shop/generators/runner.py": "be9ea0423d955bca6618b6e688b79691cab648b4cfcfde711a9c8a77072b58b4"
+        "configs/generator/base.yaml": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97",
+        "src/vina_bim_shop/generators/runner.py": "87079fe33206e5ec3fd6d5fb887044b2d8fd6cbed45d7e70b1b33b8038f81ac0"
       },
       "notes": "Generator Row 11 evidence.",
       "points": 2,
@@ -271,16 +271,16 @@
         "evidence/01_data_generator/run_manifest.json"
       ],
       "evidence_sha256": {
-        "evidence/01_data_generator/rubric_evidence_summary.md": "4de39ecd32743c036ec1e7a64511c42acef19a08eef8713879182e41ef2824f3",
-        "evidence/01_data_generator/run_manifest.json": "d4d027fdd8f90ef890490197662c94af7886c23c627e76119bc657c18230f0eb"
+        "evidence/01_data_generator/rubric_evidence_summary.md": "2e119ae08e259361bb360a0d2b59a38bb53cd64de57ff7d30bfae45fb763b4fe",
+        "evidence/01_data_generator/run_manifest.json": "0cf8bb381e952ee1d2af21abf6589e6e9eccd7711c359403541f43cd1dfa634c"
       },
       "implementation_paths": [
         "configs/generator/base.yaml",
         "src/vina_bim_shop/generators/runner.py"
       ],
       "implementation_sha256": {
-        "configs/generator/base.yaml": "b044c217d68c501269cd670261b16fa49ab0aa8f86355e0bfa28543ee780cb11",
-        "src/vina_bim_shop/generators/runner.py": "be9ea0423d955bca6618b6e688b79691cab648b4cfcfde711a9c8a77072b58b4"
+        "configs/generator/base.yaml": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97",
+        "src/vina_bim_shop/generators/runner.py": "87079fe33206e5ec3fd6d5fb887044b2d8fd6cbed45d7e70b1b33b8038f81ac0"
       },
       "notes": "Generator Row 12 evidence.",
       "points": 2,
@@ -298,16 +298,16 @@
         "evidence/01_data_generator/run_manifest.json"
       ],
       "evidence_sha256": {
-        "evidence/01_data_generator/rubric_evidence_summary.md": "4de39ecd32743c036ec1e7a64511c42acef19a08eef8713879182e41ef2824f3",
-        "evidence/01_data_generator/run_manifest.json": "d4d027fdd8f90ef890490197662c94af7886c23c627e76119bc657c18230f0eb"
+        "evidence/01_data_generator/rubric_evidence_summary.md": "2e119ae08e259361bb360a0d2b59a38bb53cd64de57ff7d30bfae45fb763b4fe",
+        "evidence/01_data_generator/run_manifest.json": "0cf8bb381e952ee1d2af21abf6589e6e9eccd7711c359403541f43cd1dfa634c"
       },
       "implementation_paths": [
         "configs/generator/base.yaml",
         "src/vina_bim_shop/generators/runner.py"
       ],
       "implementation_sha256": {
-        "configs/generator/base.yaml": "b044c217d68c501269cd670261b16fa49ab0aa8f86355e0bfa28543ee780cb11",
-        "src/vina_bim_shop/generators/runner.py": "be9ea0423d955bca6618b6e688b79691cab648b4cfcfde711a9c8a77072b58b4"
+        "configs/generator/base.yaml": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97",
+        "src/vina_bim_shop/generators/runner.py": "87079fe33206e5ec3fd6d5fb887044b2d8fd6cbed45d7e70b1b33b8038f81ac0"
       },
       "notes": "Generator Row 13 evidence.",
       "points": 2,
@@ -325,16 +325,16 @@
         "evidence/01_data_generator/run_manifest.json"
       ],
       "evidence_sha256": {
-        "evidence/01_data_generator/rubric_evidence_summary.md": "4de39ecd32743c036ec1e7a64511c42acef19a08eef8713879182e41ef2824f3",
-        "evidence/01_data_generator/run_manifest.json": "d4d027fdd8f90ef890490197662c94af7886c23c627e76119bc657c18230f0eb"
+        "evidence/01_data_generator/rubric_evidence_summary.md": "2e119ae08e259361bb360a0d2b59a38bb53cd64de57ff7d30bfae45fb763b4fe",
+        "evidence/01_data_generator/run_manifest.json": "0cf8bb381e952ee1d2af21abf6589e6e9eccd7711c359403541f43cd1dfa634c"
       },
       "implementation_paths": [
         "configs/generator/base.yaml",
         "src/vina_bim_shop/generators/runner.py"
       ],
       "implementation_sha256": {
-        "configs/generator/base.yaml": "b044c217d68c501269cd670261b16fa49ab0aa8f86355e0bfa28543ee780cb11",
-        "src/vina_bim_shop/generators/runner.py": "be9ea0423d955bca6618b6e688b79691cab648b4cfcfde711a9c8a77072b58b4"
+        "configs/generator/base.yaml": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97",
+        "src/vina_bim_shop/generators/runner.py": "87079fe33206e5ec3fd6d5fb887044b2d8fd6cbed45d7e70b1b33b8038f81ac0"
       },
       "notes": "Generator Row 14 evidence.",
       "points": 2,
@@ -352,16 +352,16 @@
         "evidence/05_spark_batch/optimization/optimization_report.md"
       ],
       "evidence_sha256": {
-        "evidence/05_spark_batch/optimization/optimization_report.md": "8c60ab2238a55c6cba1c353319cb0c42eaab799b0283f578d7114a8b6a6029e2",
-        "evidence/05_spark_batch/optimization/run_manifest.json": "a8b4baa21273cfda9c0a71b86f7aef75e81d819362bb24ebe64f84766d4e0448"
+        "evidence/05_spark_batch/optimization/optimization_report.md": "33275b2c661ccbacc0ff88ed85d99e86ccb537f31c74e6262d02155c853b3563",
+        "evidence/05_spark_batch/optimization/run_manifest.json": "e43d5d6a895ed22795f2ec15ec1989f43bcfd4caabfbbe73e4089685d1e4f7ea"
       },
       "implementation_paths": [
         "scripts/spark/run_optimization_experiments.py",
         "src/vina_bim_shop/lakehouse/spark/runner.py"
       ],
       "implementation_sha256": {
-        "scripts/spark/run_optimization_experiments.py": "e05f74afda64fa00205da1af7d206c92252af6e7926847a34e8b07319d7115a6",
-        "src/vina_bim_shop/lakehouse/spark/runner.py": "0940bd670acf949e581e0f5667daf51c5420808af06e90fb428be918edc5ad69"
+        "scripts/spark/run_optimization_experiments.py": "779306a0d913c4a3ca6bdc335627b937ecff49af065b4d156ae3941b2ead749a",
+        "src/vina_bim_shop/lakehouse/spark/runner.py": "9f4e548f694aca2dce2c15ae0c0d1532e633fc6286655bcee664f3eecde79f7c"
       },
       "notes": "Spark optimization Row 15 evidence.",
       "points": 2,
@@ -379,16 +379,16 @@
         "evidence/05_spark_batch/optimization/optimization_report.md"
       ],
       "evidence_sha256": {
-        "evidence/05_spark_batch/optimization/optimization_report.md": "8c60ab2238a55c6cba1c353319cb0c42eaab799b0283f578d7114a8b6a6029e2",
-        "evidence/05_spark_batch/optimization/run_manifest.json": "a8b4baa21273cfda9c0a71b86f7aef75e81d819362bb24ebe64f84766d4e0448"
+        "evidence/05_spark_batch/optimization/optimization_report.md": "33275b2c661ccbacc0ff88ed85d99e86ccb537f31c74e6262d02155c853b3563",
+        "evidence/05_spark_batch/optimization/run_manifest.json": "e43d5d6a895ed22795f2ec15ec1989f43bcfd4caabfbbe73e4089685d1e4f7ea"
       },
       "implementation_paths": [
         "scripts/spark/run_optimization_experiments.py",
         "src/vina_bim_shop/lakehouse/spark/runner.py"
       ],
       "implementation_sha256": {
-        "scripts/spark/run_optimization_experiments.py": "e05f74afda64fa00205da1af7d206c92252af6e7926847a34e8b07319d7115a6",
-        "src/vina_bim_shop/lakehouse/spark/runner.py": "0940bd670acf949e581e0f5667daf51c5420808af06e90fb428be918edc5ad69"
+        "scripts/spark/run_optimization_experiments.py": "779306a0d913c4a3ca6bdc335627b937ecff49af065b4d156ae3941b2ead749a",
+        "src/vina_bim_shop/lakehouse/spark/runner.py": "9f4e548f694aca2dce2c15ae0c0d1532e633fc6286655bcee664f3eecde79f7c"
       },
       "notes": "Spark optimization Row 16 evidence.",
       "points": 2,
@@ -406,16 +406,16 @@
         "evidence/05_spark_batch/optimization/optimization_report.md"
       ],
       "evidence_sha256": {
-        "evidence/05_spark_batch/optimization/optimization_report.md": "8c60ab2238a55c6cba1c353319cb0c42eaab799b0283f578d7114a8b6a6029e2",
-        "evidence/05_spark_batch/optimization/run_manifest.json": "a8b4baa21273cfda9c0a71b86f7aef75e81d819362bb24ebe64f84766d4e0448"
+        "evidence/05_spark_batch/optimization/optimization_report.md": "33275b2c661ccbacc0ff88ed85d99e86ccb537f31c74e6262d02155c853b3563",
+        "evidence/05_spark_batch/optimization/run_manifest.json": "e43d5d6a895ed22795f2ec15ec1989f43bcfd4caabfbbe73e4089685d1e4f7ea"
       },
       "implementation_paths": [
         "scripts/spark/run_optimization_experiments.py",
         "src/vina_bim_shop/lakehouse/spark/runner.py"
       ],
       "implementation_sha256": {
-        "scripts/spark/run_optimization_experiments.py": "e05f74afda64fa00205da1af7d206c92252af6e7926847a34e8b07319d7115a6",
-        "src/vina_bim_shop/lakehouse/spark/runner.py": "0940bd670acf949e581e0f5667daf51c5420808af06e90fb428be918edc5ad69"
+        "scripts/spark/run_optimization_experiments.py": "779306a0d913c4a3ca6bdc335627b937ecff49af065b4d156ae3941b2ead749a",
+        "src/vina_bim_shop/lakehouse/spark/runner.py": "9f4e548f694aca2dce2c15ae0c0d1532e633fc6286655bcee664f3eecde79f7c"
       },
       "notes": "Spark optimization Row 17 evidence.",
       "points": 2,
@@ -433,16 +433,16 @@
         "evidence/05_spark_batch/optimization/optimization_report.md"
       ],
       "evidence_sha256": {
-        "evidence/05_spark_batch/optimization/optimization_report.md": "8c60ab2238a55c6cba1c353319cb0c42eaab799b0283f578d7114a8b6a6029e2",
-        "evidence/05_spark_batch/optimization/run_manifest.json": "a8b4baa21273cfda9c0a71b86f7aef75e81d819362bb24ebe64f84766d4e0448"
+        "evidence/05_spark_batch/optimization/optimization_report.md": "33275b2c661ccbacc0ff88ed85d99e86ccb537f31c74e6262d02155c853b3563",
+        "evidence/05_spark_batch/optimization/run_manifest.json": "e43d5d6a895ed22795f2ec15ec1989f43bcfd4caabfbbe73e4089685d1e4f7ea"
       },
       "implementation_paths": [
         "scripts/spark/run_optimization_experiments.py",
         "src/vina_bim_shop/lakehouse/spark/runner.py"
       ],
       "implementation_sha256": {
-        "scripts/spark/run_optimization_experiments.py": "e05f74afda64fa00205da1af7d206c92252af6e7926847a34e8b07319d7115a6",
-        "src/vina_bim_shop/lakehouse/spark/runner.py": "0940bd670acf949e581e0f5667daf51c5420808af06e90fb428be918edc5ad69"
+        "scripts/spark/run_optimization_experiments.py": "779306a0d913c4a3ca6bdc335627b937ecff49af065b4d156ae3941b2ead749a",
+        "src/vina_bim_shop/lakehouse/spark/runner.py": "9f4e548f694aca2dce2c15ae0c0d1532e633fc6286655bcee664f3eecde79f7c"
       },
       "notes": "Spark optimization Row 18 evidence.",
       "points": 2,
@@ -460,16 +460,16 @@
         "evidence/05_spark_batch/optimization/optimization_report.md"
       ],
       "evidence_sha256": {
-        "evidence/05_spark_batch/optimization/optimization_report.md": "8c60ab2238a55c6cba1c353319cb0c42eaab799b0283f578d7114a8b6a6029e2",
-        "evidence/05_spark_batch/optimization/run_manifest.json": "a8b4baa21273cfda9c0a71b86f7aef75e81d819362bb24ebe64f84766d4e0448"
+        "evidence/05_spark_batch/optimization/optimization_report.md": "33275b2c661ccbacc0ff88ed85d99e86ccb537f31c74e6262d02155c853b3563",
+        "evidence/05_spark_batch/optimization/run_manifest.json": "e43d5d6a895ed22795f2ec15ec1989f43bcfd4caabfbbe73e4089685d1e4f7ea"
       },
       "implementation_paths": [
         "scripts/spark/run_optimization_experiments.py",
         "src/vina_bim_shop/lakehouse/spark/runner.py"
       ],
       "implementation_sha256": {
-        "scripts/spark/run_optimization_experiments.py": "e05f74afda64fa00205da1af7d206c92252af6e7926847a34e8b07319d7115a6",
-        "src/vina_bim_shop/lakehouse/spark/runner.py": "0940bd670acf949e581e0f5667daf51c5420808af06e90fb428be918edc5ad69"
+        "scripts/spark/run_optimization_experiments.py": "779306a0d913c4a3ca6bdc335627b937ecff49af065b4d156ae3941b2ead749a",
+        "src/vina_bim_shop/lakehouse/spark/runner.py": "9f4e548f694aca2dce2c15ae0c0d1532e633fc6286655bcee664f3eecde79f7c"
       },
       "notes": "Spark optimization Row 19 evidence.",
       "points": 2,
@@ -487,16 +487,16 @@
         "evidence/05_spark_batch/optimization/optimization_report.md"
       ],
       "evidence_sha256": {
-        "evidence/05_spark_batch/optimization/optimization_report.md": "8c60ab2238a55c6cba1c353319cb0c42eaab799b0283f578d7114a8b6a6029e2",
-        "evidence/05_spark_batch/optimization/run_manifest.json": "a8b4baa21273cfda9c0a71b86f7aef75e81d819362bb24ebe64f84766d4e0448"
+        "evidence/05_spark_batch/optimization/optimization_report.md": "33275b2c661ccbacc0ff88ed85d99e86ccb537f31c74e6262d02155c853b3563",
+        "evidence/05_spark_batch/optimization/run_manifest.json": "e43d5d6a895ed22795f2ec15ec1989f43bcfd4caabfbbe73e4089685d1e4f7ea"
       },
       "implementation_paths": [
         "scripts/spark/run_optimization_experiments.py",
         "src/vina_bim_shop/lakehouse/spark/runner.py"
       ],
       "implementation_sha256": {
-        "scripts/spark/run_optimization_experiments.py": "e05f74afda64fa00205da1af7d206c92252af6e7926847a34e8b07319d7115a6",
-        "src/vina_bim_shop/lakehouse/spark/runner.py": "0940bd670acf949e581e0f5667daf51c5420808af06e90fb428be918edc5ad69"
+        "scripts/spark/run_optimization_experiments.py": "779306a0d913c4a3ca6bdc335627b937ecff49af065b4d156ae3941b2ead749a",
+        "src/vina_bim_shop/lakehouse/spark/runner.py": "9f4e548f694aca2dce2c15ae0c0d1532e633fc6286655bcee664f3eecde79f7c"
       },
       "notes": "Spark optimization Row 20 evidence.",
       "points": 2,
@@ -524,8 +524,8 @@
         "configs/pipelines/flink_baseline_experiment.yaml"
       ],
       "implementation_sha256": {
-        "configs/pipelines/flink_baseline_experiment.yaml": "1e7ab30ec8413d52c29fb0da124c1ab99b2eb9befcc797b4998ec805aa2f332b",
-        "src/vina_bim_shop/flink/baseline_experiment.py": "9a8057f5523e5b0610d4191a5fb3477a46701696d8834196553ed6995a35ebfd"
+        "configs/pipelines/flink_baseline_experiment.yaml": "f3400a517236f6dff433b6ae6cf56f69a31fba57deeb271b1dbc624a4da97bb6",
+        "src/vina_bim_shop/flink/baseline_experiment.py": "54d0308eb3ce0002ce285a9f48b0acc231c5564750414838df00b206fa2bc205"
       },
       "notes": "Flink optimization Row 21 evidence.",
       "points": 2,
@@ -553,8 +553,8 @@
         "configs/pipelines/flink_baseline_experiment.yaml"
       ],
       "implementation_sha256": {
-        "configs/pipelines/flink_baseline_experiment.yaml": "1e7ab30ec8413d52c29fb0da124c1ab99b2eb9befcc797b4998ec805aa2f332b",
-        "src/vina_bim_shop/flink/baseline_experiment.py": "9a8057f5523e5b0610d4191a5fb3477a46701696d8834196553ed6995a35ebfd"
+        "configs/pipelines/flink_baseline_experiment.yaml": "f3400a517236f6dff433b6ae6cf56f69a31fba57deeb271b1dbc624a4da97bb6",
+        "src/vina_bim_shop/flink/baseline_experiment.py": "54d0308eb3ce0002ce285a9f48b0acc231c5564750414838df00b206fa2bc205"
       },
       "notes": "Flink optimization Row 22 evidence.",
       "points": 2,
@@ -582,8 +582,8 @@
         "configs/pipelines/flink_baseline_experiment.yaml"
       ],
       "implementation_sha256": {
-        "configs/pipelines/flink_baseline_experiment.yaml": "1e7ab30ec8413d52c29fb0da124c1ab99b2eb9befcc797b4998ec805aa2f332b",
-        "src/vina_bim_shop/flink/baseline_experiment.py": "9a8057f5523e5b0610d4191a5fb3477a46701696d8834196553ed6995a35ebfd"
+        "configs/pipelines/flink_baseline_experiment.yaml": "f3400a517236f6dff433b6ae6cf56f69a31fba57deeb271b1dbc624a4da97bb6",
+        "src/vina_bim_shop/flink/baseline_experiment.py": "54d0308eb3ce0002ce285a9f48b0acc231c5564750414838df00b206fa2bc205"
       },
       "notes": "Flink optimization Row 23 evidence.",
       "points": 2,
@@ -611,8 +611,8 @@
         "configs/pipelines/flink_baseline_experiment.yaml"
       ],
       "implementation_sha256": {
-        "configs/pipelines/flink_baseline_experiment.yaml": "1e7ab30ec8413d52c29fb0da124c1ab99b2eb9befcc797b4998ec805aa2f332b",
-        "src/vina_bim_shop/flink/baseline_experiment.py": "9a8057f5523e5b0610d4191a5fb3477a46701696d8834196553ed6995a35ebfd"
+        "configs/pipelines/flink_baseline_experiment.yaml": "f3400a517236f6dff433b6ae6cf56f69a31fba57deeb271b1dbc624a4da97bb6",
+        "src/vina_bim_shop/flink/baseline_experiment.py": "54d0308eb3ce0002ce285a9f48b0acc231c5564750414838df00b206fa2bc205"
       },
       "notes": "Flink optimization Row 24 evidence.",
       "points": 2,
@@ -640,8 +640,8 @@
         "configs/pipelines/flink_baseline_experiment.yaml"
       ],
       "implementation_sha256": {
-        "configs/pipelines/flink_baseline_experiment.yaml": "1e7ab30ec8413d52c29fb0da124c1ab99b2eb9befcc797b4998ec805aa2f332b",
-        "src/vina_bim_shop/flink/baseline_experiment.py": "9a8057f5523e5b0610d4191a5fb3477a46701696d8834196553ed6995a35ebfd"
+        "configs/pipelines/flink_baseline_experiment.yaml": "f3400a517236f6dff433b6ae6cf56f69a31fba57deeb271b1dbc624a4da97bb6",
+        "src/vina_bim_shop/flink/baseline_experiment.py": "54d0308eb3ce0002ce285a9f48b0acc231c5564750414838df00b206fa2bc205"
       },
       "notes": "Flink optimization Row 25 evidence.",
       "points": 2,
@@ -662,13 +662,13 @@
       "evidence_sha256": {
         "evidence/04_lakehouse/optimization/after_file_stats.csv": "5bbeca03e7f2a8897c24c31ea67e508e09ce46018e3a1c9e97bddad5f76cb664",
         "evidence/04_lakehouse/optimization/before_file_stats.csv": "37ede89825dd0dc4030d82858138d7e0d0f36377e8f3a3a14cab57046dcd4ae5",
-        "evidence/04_lakehouse/optimization/compaction_results.json": "bb468f764c6570239613b8d4244562f10bb203caae045798d0ff37e7274a13eb"
+        "evidence/04_lakehouse/optimization/compaction_results.json": "adfea962d0249e2ed46437c15dcc1f8b1ea14f74ba7dd714180e63e1c1618e27"
       },
       "implementation_paths": [
         "scripts/lakehouse/optimize_iceberg.py"
       ],
       "implementation_sha256": {
-        "scripts/lakehouse/optimize_iceberg.py": "18424d3cde9e2dc88f3c248d68aa713a481256c8fa75dec63cc30d067d1f2485"
+        "scripts/lakehouse/optimize_iceberg.py": "b83951dcae7c352c5758b6359a7f8344604154ce1ee44746332f2736cf165736"
       },
       "notes": "Controlled compaction proof; not a general performance claim.",
       "points": 2,
@@ -686,14 +686,14 @@
         "evidence/10_duckdb_dbt_local_analytics/index_optimization/index_benchmark.json"
       ],
       "evidence_sha256": {
-        "evidence/04_lakehouse/optimization/query_benchmark.json": "957c008f23d4aafe6e12071bc572b1b3b376b3fdf3df54788f632b4f968b71fe",
+        "evidence/04_lakehouse/optimization/query_benchmark.json": "711de6560ab8751b0bd0033187f8979028f0c9d84dc79e115443657c94e02af4",
         "evidence/10_duckdb_dbt_local_analytics/index_optimization/index_benchmark.json": "973a6e97ffdfe2dc3a38c9a0dae50b40a05dcc828bcdb4829712b4e7f134b538"
       },
       "implementation_paths": [
         "scripts/analytics/benchmark_duckdb_index.py"
       ],
       "implementation_sha256": {
-        "scripts/analytics/benchmark_duckdb_index.py": "a607a6859d6dc13aeabfa8d78958c770f5e923eb6e050cc2e5fedb31a29e81c3"
+        "scripts/analytics/benchmark_duckdb_index.py": "8a83af647101677bdfa22ce246b25c8e20c75c8b3d6da1c635453f445ea4048b"
       },
       "notes": "Reproducible warehouse/index benchmark evidence.",
       "points": 2,
@@ -713,8 +713,8 @@
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_grid.png"
       ],
       "evidence_sha256": {
-        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/dp1_ingest.json": "fe16cb49df5e184ec7af818201985b23d0c4b3694354024b55aad45f5185d37f",
-        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/run_manifest.json": "8cc8da49f2dcc2c9777a662d6ed45b4fc7086be27daf00fe7c8b59eb089abc6d",
+        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/dp1_ingest.json": "0fc66e058ee377bf13f408e74c1523fab87b1eb00e7fcfa9a82f454f7f63df70",
+        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/run_manifest.json": "f4750e1734238035b477ac034382e169fa767945fa1a7961098260227713570c",
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_graph.png": "58a89520805e09efbafeb2c704f089037ee8b2af4f482f02374cb784d86c2e2e",
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_grid.png": "41eb87bb764b808b28cf3c95565f548c1968fd8113dbf97b4667cfc0d9784d09"
       },
@@ -723,8 +723,8 @@
         "infra/orchestration/airflow/dags/mini_coursework_pipeline.py"
       ],
       "implementation_sha256": {
-        "infra/orchestration/airflow/dags/mini_coursework_pipeline.py": "d7bd93fea50051d3d93331f130fbca4591363d9f273e91f1294077f5c863a9a8",
-        "src/vina_bim_shop/orchestration/mini_coursework_pipeline.py": "68b19556360ea81f9b897f1186ff916b021eb91ce0af754367bd795c7d9f4218"
+        "infra/orchestration/airflow/dags/mini_coursework_pipeline.py": "d014a007e30b1fdd21f5bebb624894a7e026f506c5427a492e2319116137586f",
+        "src/vina_bim_shop/orchestration/mini_coursework_pipeline.py": "21fee5c67bdb2a8a9d9d67b2e88ff59711eb6087ecb503df65008d1fef7245e6"
       },
       "notes": "Airflow coursework stage Row 28.",
       "points": 2,
@@ -744,8 +744,8 @@
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_grid.png"
       ],
       "evidence_sha256": {
-        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/dp1_validate.json": "53d0ee81b9e54adffa949d3e0269915240bd500f50a378b818f46ddd9029d81a",
-        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/run_manifest.json": "8cc8da49f2dcc2c9777a662d6ed45b4fc7086be27daf00fe7c8b59eb089abc6d",
+        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/dp1_validate.json": "46fef0750d12139c0b806a78d4f6cc8df7719181500876ca30f024227c94b62e",
+        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/run_manifest.json": "f4750e1734238035b477ac034382e169fa767945fa1a7961098260227713570c",
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_graph.png": "58a89520805e09efbafeb2c704f089037ee8b2af4f482f02374cb784d86c2e2e",
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_grid.png": "41eb87bb764b808b28cf3c95565f548c1968fd8113dbf97b4667cfc0d9784d09"
       },
@@ -754,8 +754,8 @@
         "infra/orchestration/airflow/dags/mini_coursework_pipeline.py"
       ],
       "implementation_sha256": {
-        "infra/orchestration/airflow/dags/mini_coursework_pipeline.py": "d7bd93fea50051d3d93331f130fbca4591363d9f273e91f1294077f5c863a9a8",
-        "src/vina_bim_shop/orchestration/mini_coursework_pipeline.py": "68b19556360ea81f9b897f1186ff916b021eb91ce0af754367bd795c7d9f4218"
+        "infra/orchestration/airflow/dags/mini_coursework_pipeline.py": "d014a007e30b1fdd21f5bebb624894a7e026f506c5427a492e2319116137586f",
+        "src/vina_bim_shop/orchestration/mini_coursework_pipeline.py": "21fee5c67bdb2a8a9d9d67b2e88ff59711eb6087ecb503df65008d1fef7245e6"
       },
       "notes": "Airflow coursework stage Row 29.",
       "points": 2,
@@ -775,8 +775,8 @@
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_grid.png"
       ],
       "evidence_sha256": {
-        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/dp2_transform.json": "313ccb0aeb2d00c124f34a753f0bd4a1ff371e2f0395d5104d0db6720276ab82",
-        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/run_manifest.json": "8cc8da49f2dcc2c9777a662d6ed45b4fc7086be27daf00fe7c8b59eb089abc6d",
+        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/dp2_transform.json": "03a91e2ab7130ea6c2ec849676c89dd76a7fcecee488b81bb701120a3c0899e9",
+        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/run_manifest.json": "f4750e1734238035b477ac034382e169fa767945fa1a7961098260227713570c",
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_graph.png": "58a89520805e09efbafeb2c704f089037ee8b2af4f482f02374cb784d86c2e2e",
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_grid.png": "41eb87bb764b808b28cf3c95565f548c1968fd8113dbf97b4667cfc0d9784d09"
       },
@@ -785,8 +785,8 @@
         "infra/orchestration/airflow/dags/mini_coursework_pipeline.py"
       ],
       "implementation_sha256": {
-        "infra/orchestration/airflow/dags/mini_coursework_pipeline.py": "d7bd93fea50051d3d93331f130fbca4591363d9f273e91f1294077f5c863a9a8",
-        "src/vina_bim_shop/orchestration/mini_coursework_pipeline.py": "68b19556360ea81f9b897f1186ff916b021eb91ce0af754367bd795c7d9f4218"
+        "infra/orchestration/airflow/dags/mini_coursework_pipeline.py": "d014a007e30b1fdd21f5bebb624894a7e026f506c5427a492e2319116137586f",
+        "src/vina_bim_shop/orchestration/mini_coursework_pipeline.py": "21fee5c67bdb2a8a9d9d67b2e88ff59711eb6087ecb503df65008d1fef7245e6"
       },
       "notes": "Airflow coursework stage Row 30.",
       "points": 2,
@@ -806,8 +806,8 @@
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_grid.png"
       ],
       "evidence_sha256": {
-        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/dp2_validate.json": "9bc535edcf63eea69069b3c0dcfc0236b40e753a0b410ab786fa322a2bc68c7b",
-        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/run_manifest.json": "8cc8da49f2dcc2c9777a662d6ed45b4fc7086be27daf00fe7c8b59eb089abc6d",
+        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/dp2_validate.json": "ca78971edfc9271389db691e00a7579eb8b059046e424278bab9d0a1ae349e21",
+        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/run_manifest.json": "f4750e1734238035b477ac034382e169fa767945fa1a7961098260227713570c",
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_graph.png": "58a89520805e09efbafeb2c704f089037ee8b2af4f482f02374cb784d86c2e2e",
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_grid.png": "41eb87bb764b808b28cf3c95565f548c1968fd8113dbf97b4667cfc0d9784d09"
       },
@@ -816,8 +816,8 @@
         "infra/orchestration/airflow/dags/mini_coursework_pipeline.py"
       ],
       "implementation_sha256": {
-        "infra/orchestration/airflow/dags/mini_coursework_pipeline.py": "d7bd93fea50051d3d93331f130fbca4591363d9f273e91f1294077f5c863a9a8",
-        "src/vina_bim_shop/orchestration/mini_coursework_pipeline.py": "68b19556360ea81f9b897f1186ff916b021eb91ce0af754367bd795c7d9f4218"
+        "infra/orchestration/airflow/dags/mini_coursework_pipeline.py": "d014a007e30b1fdd21f5bebb624894a7e026f506c5427a492e2319116137586f",
+        "src/vina_bim_shop/orchestration/mini_coursework_pipeline.py": "21fee5c67bdb2a8a9d9d67b2e88ff59711eb6087ecb503df65008d1fef7245e6"
       },
       "notes": "Airflow coursework stage Row 31.",
       "points": 2,
@@ -837,8 +837,8 @@
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_grid.png"
       ],
       "evidence_sha256": {
-        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/dp3_compute.json": "8fd0d16fea11bb1629ace1adf8d1ed0d121c6eeee745f337b3d3c15d4eb8fe91",
-        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/run_manifest.json": "8cc8da49f2dcc2c9777a662d6ed45b4fc7086be27daf00fe7c8b59eb089abc6d",
+        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/dp3_compute.json": "28cb3cb0ea817933ddcb41b63c2f39795c7d885a402f663bb18b314e4a50dfc8",
+        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/run_manifest.json": "f4750e1734238035b477ac034382e169fa767945fa1a7961098260227713570c",
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_graph.png": "58a89520805e09efbafeb2c704f089037ee8b2af4f482f02374cb784d86c2e2e",
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_grid.png": "41eb87bb764b808b28cf3c95565f548c1968fd8113dbf97b4667cfc0d9784d09"
       },
@@ -847,8 +847,8 @@
         "infra/orchestration/airflow/dags/mini_coursework_pipeline.py"
       ],
       "implementation_sha256": {
-        "infra/orchestration/airflow/dags/mini_coursework_pipeline.py": "d7bd93fea50051d3d93331f130fbca4591363d9f273e91f1294077f5c863a9a8",
-        "src/vina_bim_shop/orchestration/mini_coursework_pipeline.py": "68b19556360ea81f9b897f1186ff916b021eb91ce0af754367bd795c7d9f4218"
+        "infra/orchestration/airflow/dags/mini_coursework_pipeline.py": "d014a007e30b1fdd21f5bebb624894a7e026f506c5427a492e2319116137586f",
+        "src/vina_bim_shop/orchestration/mini_coursework_pipeline.py": "21fee5c67bdb2a8a9d9d67b2e88ff59711eb6087ecb503df65008d1fef7245e6"
       },
       "notes": "Airflow coursework stage Row 32.",
       "points": 2,
@@ -868,8 +868,8 @@
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_grid.png"
       ],
       "evidence_sha256": {
-        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/dp3_validate.json": "06550b4def42609ffa4f8cee2995fcba92baec920923d366ebd1567f7cffc05e",
-        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/run_manifest.json": "8cc8da49f2dcc2c9777a662d6ed45b4fc7086be27daf00fe7c8b59eb089abc6d",
+        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/dp3_validate.json": "8fcf09fcf272fbe80d98964bdd6ecb7da5c797e3710e4fd42af7011d4a93c014",
+        "evidence/08_airflow_gx/coursework_pipeline/topic07_20260711T124521Z/run_manifest.json": "f4750e1734238035b477ac034382e169fa767945fa1a7961098260227713570c",
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_graph.png": "58a89520805e09efbafeb2c704f089037ee8b2af4f482f02374cb784d86c2e2e",
         "evidence/08_airflow_gx/screenshots/mini_coursework_pipeline_grid.png": "41eb87bb764b808b28cf3c95565f548c1968fd8113dbf97b4667cfc0d9784d09"
       },
@@ -878,8 +878,8 @@
         "infra/orchestration/airflow/dags/mini_coursework_pipeline.py"
       ],
       "implementation_sha256": {
-        "infra/orchestration/airflow/dags/mini_coursework_pipeline.py": "d7bd93fea50051d3d93331f130fbca4591363d9f273e91f1294077f5c863a9a8",
-        "src/vina_bim_shop/orchestration/mini_coursework_pipeline.py": "68b19556360ea81f9b897f1186ff916b021eb91ce0af754367bd795c7d9f4218"
+        "infra/orchestration/airflow/dags/mini_coursework_pipeline.py": "d014a007e30b1fdd21f5bebb624894a7e026f506c5427a492e2319116137586f",
+        "src/vina_bim_shop/orchestration/mini_coursework_pipeline.py": "21fee5c67bdb2a8a9d9d67b2e88ff59711eb6087ecb503df65008d1fef7245e6"
       },
       "notes": "Airflow coursework stage Row 33.",
       "points": 2,
@@ -898,8 +898,8 @@
         "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json"
       ],
       "evidence_sha256": {
-        "evidence/09_datahub_governance/coursework_pipeline/dp1_lineage_capture.json": "da10bbea9a6840825c6f9386e2c2be214eebbc2fe12e5a34c841a2af07190fce",
-        "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json": "156e0e11c72e0d974661aea35820d448f801128b3ef487661c6047f1c962e233",
+        "evidence/09_datahub_governance/coursework_pipeline/dp1_lineage_capture.json": "8785af8609a3f9cdf51b97250a43a1135b9cf39cdd34469f6ae204d32a75b7f3",
+        "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json": "32eafb28131b24cdc36c6930c983a43cd1c140fd24db245d06cde9aaecf1576d",
         "evidence/09_datahub_governance/screenshots/datahub_dp1_lineage.png": "8109c154e0412578bcd47d0c56144e5563e2c794286877b1bfb2b3d39a4adff4"
       },
       "implementation_paths": [
@@ -907,8 +907,8 @@
         "scripts/datahub/capture_evidence.py"
       ],
       "implementation_sha256": {
-        "scripts/datahub/capture_evidence.py": "9c52726ef047cccae4da855af0cb106be9c2e06044e2866e6a260c3e0d73d302",
-        "src/vina_bim_shop/datahub_lineage/emitter.py": "fc8a18194c65f188906300e7e82e9b562ff3c94f214854203554c34964c48881"
+        "scripts/datahub/capture_evidence.py": "cc60cf4180a5025e40ef60c6fd5cb4c2a441c23206564cb7bbb988bb1e583c32",
+        "src/vina_bim_shop/datahub_lineage/emitter.py": "30a664193aaf1b1e5352f62c40a69a8da978fc695859e55ec2d73497a40ca4b4"
       },
       "notes": "DP1 lineage UI proof.",
       "points": 2,
@@ -927,8 +927,8 @@
         "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json"
       ],
       "evidence_sha256": {
-        "evidence/09_datahub_governance/coursework_pipeline/dp1_contract_capture.json": "6142bcc8e12200cccf16e2615993028032649fdf453d796a95eec79ce8fd1dd3",
-        "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json": "156e0e11c72e0d974661aea35820d448f801128b3ef487661c6047f1c962e233",
+        "evidence/09_datahub_governance/coursework_pipeline/dp1_contract_capture.json": "139d4f7cd960815f9a26f5d4668d603f8e900b0136f1af7ccb2926a64b8dc5db",
+        "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json": "32eafb28131b24cdc36c6930c983a43cd1c140fd24db245d06cde9aaecf1576d",
         "evidence/09_datahub_governance/screenshots/datahub_dp1_contract.png": "8d7d597ec5c29c52d893a46f41a6cfcaa0a5a4c6217b0d579b7c66174b8a9055"
       },
       "implementation_paths": [
@@ -936,8 +936,8 @@
         "scripts/datahub/capture_evidence.py"
       ],
       "implementation_sha256": {
-        "scripts/datahub/capture_evidence.py": "9c52726ef047cccae4da855af0cb106be9c2e06044e2866e6a260c3e0d73d302",
-        "src/vina_bim_shop/datahub_lineage/emitter.py": "fc8a18194c65f188906300e7e82e9b562ff3c94f214854203554c34964c48881"
+        "scripts/datahub/capture_evidence.py": "cc60cf4180a5025e40ef60c6fd5cb4c2a441c23206564cb7bbb988bb1e583c32",
+        "src/vina_bim_shop/datahub_lineage/emitter.py": "30a664193aaf1b1e5352f62c40a69a8da978fc695859e55ec2d73497a40ca4b4"
       },
       "notes": "DP1 contract UI proof.",
       "points": 2,
@@ -956,8 +956,8 @@
         "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json"
       ],
       "evidence_sha256": {
-        "evidence/09_datahub_governance/coursework_pipeline/dp2_lineage_capture.json": "6ceb996f89682e3f17eee2ff286839dd0e0f52031727af4fa4a053b3b432badb",
-        "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json": "156e0e11c72e0d974661aea35820d448f801128b3ef487661c6047f1c962e233",
+        "evidence/09_datahub_governance/coursework_pipeline/dp2_lineage_capture.json": "a21e8a8ea1f6a4db69d331462d8629c668870e2468bbd4427e9117bf05faf14a",
+        "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json": "32eafb28131b24cdc36c6930c983a43cd1c140fd24db245d06cde9aaecf1576d",
         "evidence/09_datahub_governance/screenshots/datahub_dp2_lineage.png": "a5eb31dd03bfa76d8a63a145042ec7b18c5c2c84e46e77cf8f0f2bfc48559268"
       },
       "implementation_paths": [
@@ -965,8 +965,8 @@
         "scripts/datahub/capture_evidence.py"
       ],
       "implementation_sha256": {
-        "scripts/datahub/capture_evidence.py": "9c52726ef047cccae4da855af0cb106be9c2e06044e2866e6a260c3e0d73d302",
-        "src/vina_bim_shop/datahub_lineage/emitter.py": "fc8a18194c65f188906300e7e82e9b562ff3c94f214854203554c34964c48881"
+        "scripts/datahub/capture_evidence.py": "cc60cf4180a5025e40ef60c6fd5cb4c2a441c23206564cb7bbb988bb1e583c32",
+        "src/vina_bim_shop/datahub_lineage/emitter.py": "30a664193aaf1b1e5352f62c40a69a8da978fc695859e55ec2d73497a40ca4b4"
       },
       "notes": "DP2 lineage UI proof.",
       "points": 2,
@@ -985,8 +985,8 @@
         "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json"
       ],
       "evidence_sha256": {
-        "evidence/09_datahub_governance/coursework_pipeline/dp2_contract_capture.json": "26b5aaa430e3c658f8765e68f73c525afb160bc9a065afd28a76308f3565a066",
-        "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json": "156e0e11c72e0d974661aea35820d448f801128b3ef487661c6047f1c962e233",
+        "evidence/09_datahub_governance/coursework_pipeline/dp2_contract_capture.json": "86533c1a04f54cf9c083176282f9c1b1650aaa81a507c14073f3bbc6ab1a9eb8",
+        "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json": "32eafb28131b24cdc36c6930c983a43cd1c140fd24db245d06cde9aaecf1576d",
         "evidence/09_datahub_governance/screenshots/datahub_dp2_contract.png": "64a1e7a65ad1ceb01c582209e8cf5bb1a2609fe1f0e612da5b20244f5dbc3178"
       },
       "implementation_paths": [
@@ -994,8 +994,8 @@
         "scripts/datahub/capture_evidence.py"
       ],
       "implementation_sha256": {
-        "scripts/datahub/capture_evidence.py": "9c52726ef047cccae4da855af0cb106be9c2e06044e2866e6a260c3e0d73d302",
-        "src/vina_bim_shop/datahub_lineage/emitter.py": "fc8a18194c65f188906300e7e82e9b562ff3c94f214854203554c34964c48881"
+        "scripts/datahub/capture_evidence.py": "cc60cf4180a5025e40ef60c6fd5cb4c2a441c23206564cb7bbb988bb1e583c32",
+        "src/vina_bim_shop/datahub_lineage/emitter.py": "30a664193aaf1b1e5352f62c40a69a8da978fc695859e55ec2d73497a40ca4b4"
       },
       "notes": "DP2 contract UI proof.",
       "points": 2,
@@ -1014,8 +1014,8 @@
         "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json"
       ],
       "evidence_sha256": {
-        "evidence/09_datahub_governance/coursework_pipeline/dp3_lineage_capture.json": "911c5256a18a71f541a06c88ac497eb5c8da753fb3fb20f820d5a26a017d9bf5",
-        "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json": "156e0e11c72e0d974661aea35820d448f801128b3ef487661c6047f1c962e233",
+        "evidence/09_datahub_governance/coursework_pipeline/dp3_lineage_capture.json": "602b76b4a0ec52182ee244df93568658831900c3a14c595dd53c5e5dbe338ec6",
+        "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json": "32eafb28131b24cdc36c6930c983a43cd1c140fd24db245d06cde9aaecf1576d",
         "evidence/09_datahub_governance/screenshots/datahub_dp3_lineage.png": "002d5bee443082746e0b00e61897010afcbce80479052efa62935019e10ed4e9"
       },
       "implementation_paths": [
@@ -1023,8 +1023,8 @@
         "scripts/datahub/capture_evidence.py"
       ],
       "implementation_sha256": {
-        "scripts/datahub/capture_evidence.py": "9c52726ef047cccae4da855af0cb106be9c2e06044e2866e6a260c3e0d73d302",
-        "src/vina_bim_shop/datahub_lineage/emitter.py": "fc8a18194c65f188906300e7e82e9b562ff3c94f214854203554c34964c48881"
+        "scripts/datahub/capture_evidence.py": "cc60cf4180a5025e40ef60c6fd5cb4c2a441c23206564cb7bbb988bb1e583c32",
+        "src/vina_bim_shop/datahub_lineage/emitter.py": "30a664193aaf1b1e5352f62c40a69a8da978fc695859e55ec2d73497a40ca4b4"
       },
       "notes": "DP3 lineage UI proof.",
       "points": 2,
@@ -1043,8 +1043,8 @@
         "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json"
       ],
       "evidence_sha256": {
-        "evidence/09_datahub_governance/coursework_pipeline/dp3_contract_capture.json": "5e10fc215662aafb060831cdc3b33711494406e76e8ba9f8126db3d8dfe358e8",
-        "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json": "156e0e11c72e0d974661aea35820d448f801128b3ef487661c6047f1c962e233",
+        "evidence/09_datahub_governance/coursework_pipeline/dp3_contract_capture.json": "834d777bb69f22b30f072afef076484eb41bc37a4026186e670722efa279ca50",
+        "evidence/09_datahub_governance/coursework_pipeline/ui_screenshot_manifest.json": "32eafb28131b24cdc36c6930c983a43cd1c140fd24db245d06cde9aaecf1576d",
         "evidence/09_datahub_governance/screenshots/datahub_dp3_contract.png": "76f948bf770649fbb9b172063fdd7851d3d1836e84fc3e7a296c70612694f679"
       },
       "implementation_paths": [
@@ -1052,8 +1052,8 @@
         "scripts/datahub/capture_evidence.py"
       ],
       "implementation_sha256": {
-        "scripts/datahub/capture_evidence.py": "9c52726ef047cccae4da855af0cb106be9c2e06044e2866e6a260c3e0d73d302",
-        "src/vina_bim_shop/datahub_lineage/emitter.py": "fc8a18194c65f188906300e7e82e9b562ff3c94f214854203554c34964c48881"
+        "scripts/datahub/capture_evidence.py": "cc60cf4180a5025e40ef60c6fd5cb4c2a441c23206564cb7bbb988bb1e583c32",
+        "src/vina_bim_shop/datahub_lineage/emitter.py": "30a664193aaf1b1e5352f62c40a69a8da978fc695859e55ec2d73497a40ca4b4"
       },
       "notes": "DP3 contract UI proof.",
       "points": 2,
@@ -1071,14 +1071,14 @@
         "evidence/02_schema_design/screenshots/schema_design.png"
       ],
       "evidence_sha256": {
-        "evidence/02_schema_design/run_manifest.json": "c42f9a31cb05d770bd8746ad93f5f7a4b7c47014c139c9607136cfb45e668c0b",
-        "evidence/02_schema_design/screenshots/schema_design.png": "06717d411c2f79da8faee41f7f162180858f7ffc6ca8fd2fb61c749a86d857b6"
+        "evidence/02_schema_design/run_manifest.json": "a52cc5fda6e1c4c51af6cfc7ca15e9e2c3fc16337a34336b58b0eff7bbc7f41e",
+        "evidence/02_schema_design/screenshots/schema_design.png": "5eed3a8e088f96e512bf16b9fbdb824a39aa34f6165ea7b8c7945f07312f07cf"
       },
       "implementation_paths": [
         "architecture/diagrams/schema_design.puml"
       ],
       "implementation_sha256": {
-        "architecture/diagrams/schema_design.puml": "fce33138edf07539c560a4c10cd0f01f560fc61353510ea88c7e02445b88861d"
+        "architecture/diagrams/schema_design.puml": "db3402bf5b15b35baeee775d7c82124c7ad54ba1c3173fcff11f604fc2312706"
       },
       "notes": "Generated all-zone ERD proof.",
       "points": 2,
@@ -1095,7 +1095,7 @@
         "evidence/02_schema_design/schema_inventory.csv"
       ],
       "evidence_sha256": {
-        "evidence/02_schema_design/schema_inventory.csv": "db7585139b0c22703116093503a592fb2659ca19715bdb9e37fd43c837b5a861"
+        "evidence/02_schema_design/schema_inventory.csv": "4d442a094b003052cbc9bb1836431eba6941e13c039c73a556d7e74237013941"
       },
       "implementation_paths": [
         "infra/analytics/dbt/models/gold/dim_customer.sql"
@@ -1119,16 +1119,16 @@
         "evidence/02_schema_design/schema_inventory.csv"
       ],
       "evidence_sha256": {
-        "evidence/02_schema_design/dbt_catalog_summary.csv": "66c4432bfd6b4154ce061437ea91de601ec32dba83f73c46ce3f8178a3c9d69c",
-        "evidence/02_schema_design/schema_inventory.csv": "db7585139b0c22703116093503a592fb2659ca19715bdb9e37fd43c837b5a861"
+        "evidence/02_schema_design/dbt_catalog_summary.csv": "d328a6154ec23d49725cabfb46bcf2d3994e3a02b3fc2398ff7e5a43ae634e25",
+        "evidence/02_schema_design/schema_inventory.csv": "4d442a094b003052cbc9bb1836431eba6941e13c039c73a556d7e74237013941"
       },
       "implementation_paths": [
         "infra/analytics/dbt/models/gold/_features.yml",
         "src/vina_bim_shop/lakehouse/spark/sql.py"
       ],
       "implementation_sha256": {
-        "infra/analytics/dbt/models/gold/_features.yml": "fcfc84d6139daf34c3d031bebb5be501c5653d9cb314bc98caed16c8e1a08f69",
-        "src/vina_bim_shop/lakehouse/spark/sql.py": "bcc90e55643cf47a047060a29a982a53934f71089e77c519d9cd4502171ee7c6"
+        "infra/analytics/dbt/models/gold/_features.yml": "fc32dbdca75b747c6bf53fd5ffac842948723880ffb4eaa004a0fb361b4e3278",
+        "src/vina_bim_shop/lakehouse/spark/sql.py": "cad4af9e17cebf0a6127722d8ce35481dfc157f482c3475c87cd0e0d87de1f3a"
       },
       "notes": "Exact feature created/event_timestamp contract.",
       "points": 1,
@@ -1151,7 +1151,7 @@
         "architecture/diagrams/erd/physical_gold_model.puml"
       ],
       "implementation_sha256": {
-        "architecture/diagrams/erd/physical_gold_model.puml": "72599fc63d9dccbf22df842177e56684d48f0c5d347d6f578181a18a776b3317"
+        "architecture/diagrams/erd/physical_gold_model.puml": "7f63df11487dc3b78b9ee62ea79a36a5772aee23a57ede3a259f57b840a6f5a1"
       },
       "notes": "Dimension/fact relationship proof.",
       "points": 2,
@@ -1168,13 +1168,13 @@
         "evidence/02_schema_design/run_manifest.json"
       ],
       "evidence_sha256": {
-        "evidence/02_schema_design/run_manifest.json": "c42f9a31cb05d770bd8746ad93f5f7a4b7c47014c139c9607136cfb45e668c0b"
+        "evidence/02_schema_design/run_manifest.json": "a52cc5fda6e1c4c51af6cfc7ca15e9e2c3fc16337a34336b58b0eff7bbc7f41e"
       },
       "implementation_paths": [
         "deliverables/02_schema_design.md"
       ],
       "implementation_sha256": {
-        "deliverables/02_schema_design.md": "181f499e093508c9648bcf0e29e94917d6639f9e4d3b07b9f4c8c2ad4152f319"
+        "deliverables/02_schema_design.md": "a3ae491fb7d362232443f31eb56e9ba614248694fa1c59488f73e7bba25203a8"
       },
       "notes": "Bronze/Silver/Gold naming-convention proof.",
       "points": 2,
@@ -1202,8 +1202,8 @@
         "deliverables/12_novel_ideas.md"
       ],
       "implementation_sha256": {
-        "deliverables/12_novel_ideas.md": "729fa045fb6f3e03e9f50b04ac03c00de7f51d732518908062eb9539e369e3a7",
-        "scripts/qa/capture_novel_ideas.py": "a91042c5f1402ab7feb1e7d3fb859ac3e82fcb40a86c86d30d70890bb883d646"
+        "deliverables/12_novel_ideas.md": "ad2b4f932dba8913d7acfd69e46caeef1e4cef10b6f86fb0d80a4d58bf967dd1",
+        "scripts/qa/capture_novel_ideas.py": "c73c514ca156b5c2b253b855f1ad8d9e9ce5756a32c5dcf44342427c4e105c01"
       },
       "notes": "Novel Idea 1: DuckDB/dbt local analytics.",
       "points": 5,
@@ -1231,8 +1231,8 @@
         "deliverables/12_novel_ideas.md"
       ],
       "implementation_sha256": {
-        "deliverables/12_novel_ideas.md": "729fa045fb6f3e03e9f50b04ac03c00de7f51d732518908062eb9539e369e3a7",
-        "scripts/qa/capture_novel_ideas.py": "a91042c5f1402ab7feb1e7d3fb859ac3e82fcb40a86c86d30d70890bb883d646"
+        "deliverables/12_novel_ideas.md": "ad2b4f932dba8913d7acfd69e46caeef1e4cef10b6f86fb0d80a4d58bf967dd1",
+        "scripts/qa/capture_novel_ideas.py": "c73c514ca156b5c2b253b855f1ad8d9e9ce5756a32c5dcf44342427c4e105c01"
       },
       "notes": "Novel Idea 2: Pinot realtime serving.",
       "points": 5,
@@ -1250,5 +1250,5 @@
     "Partial": 0,
     "Satisfied": 45
   },
-  "verified_at": "2026-07-13T05:09:40.186527+00:00"
+  "verified_at": "2026-08-04T10:52:30.249785+00:00"
 }

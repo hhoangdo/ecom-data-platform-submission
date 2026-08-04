@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "section": "03_data_generator_improvement",
-  "generated_at": "2026-07-30T09:50:13.666541Z",
+  "generated_at": "2026-08-04T10:42:23.562483Z",
   "source_config_path": "configs/generator/base.yaml",
   "source_config_sha256": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97",
-  "bundle_id": "c220ab9dc815fb6ccff187b661a0fa483f8c16bcda368dd214a0f78633d6c92f",
+  "bundle_id": "1b4123b312da3d1aca70c2dc4f44cf68db248f3b43aad830e8519ca7bbab7fd3",
   "previous_bundle_id": null,
-  "config_snapshot": "runs/c220ab9dc815fb6ccff187b661a0fa483f8c16bcda368dd214a0f78633d6c92f/config_snapshot.yaml",
+  "config_snapshot": "runs/1b4123b312da3d1aca70c2dc4f44cf68db248f3b43aad830e8519ca7bbab7fd3/config_snapshot.yaml",
   "scale": "medium",
   "random_seed": 42,
   "history_days": 60,
@@ -56,7 +56,7 @@
     "schema_version": 1,
     "label": {
       "artifact_key": "labels",
-      "path": "runs/c220ab9dc815fb6ccff187b661a0fa483f8c16bcda368dd214a0f78633d6c92f/ml_customer_label.csv",
+      "path": "runs/1b4123b312da3d1aca70c2dc4f44cf68db248f3b43aad830e8519ca7bbab7fd3/ml_customer_label.csv",
       "sha256": "526304d4e2d97a70ed6671993b2f5bc07e934dfbd72488cb98c32dcb924f0278",
       "columns": [
         "id",
@@ -66,8 +66,8 @@
     },
     "training_join": {
       "artifact_key": "training_join",
-      "path": "runs/c220ab9dc815fb6ccff187b661a0fa483f8c16bcda368dd214a0f78633d6c92f/ml_customer_purchase_training.csv",
-      "sha256": "76607ad6d92ffee2558568a37735c17a6c3e4f4fe32e0204b62f22e9afadc05b",
+      "path": "runs/1b4123b312da3d1aca70c2dc4f44cf68db248f3b43aad830e8519ca7bbab7fd3/ml_customer_purchase_training.csv",
+      "sha256": "603e21581668d9de0147ff1dd58c36fd0a1d0aefed24f237bf6398d816800841",
       "entity_key": "id",
       "event_timestamp_column": "event_timestamp",
       "feature_cutoff_ts": "2026-04-24T23:59:00Z",
@@ -75,7 +75,7 @@
     },
     "feature_health": {
       "artifact_key": "feature_health_daily",
-      "path": "runs/c220ab9dc815fb6ccff187b661a0fa483f8c16bcda368dd214a0f78633d6c92f/agg_feature_health_daily.csv",
+      "path": "runs/1b4123b312da3d1aca70c2dc4f44cf68db248f3b43aad830e8519ca7bbab7fd3/agg_feature_health_daily.csv",
       "sha256": "0d9a304b49fdae14aca134a11b8e3420fd202bf093535f1d7904fae8d020963f",
       "feature_name": "f_customer_order_frequency_7d",
       "window_days": 7,
@@ -148,12 +148,12 @@
   },
   "artifacts": {
     "config_snapshot": {
-      "path": "runs/c220ab9dc815fb6ccff187b661a0fa483f8c16bcda368dd214a0f78633d6c92f/config_snapshot.yaml",
+      "path": "runs/1b4123b312da3d1aca70c2dc4f44cf68db248f3b43aad830e8519ca7bbab7fd3/config_snapshot.yaml",
       "size_bytes": 760,
       "sha256": "7405c3e2a27d87be522bea9de7dcc559ad8baff5274a8bed98f002b2753a9196"
     },
     "labels": {
-      "path": "runs/c220ab9dc815fb6ccff187b661a0fa483f8c16bcda368dd214a0f78633d6c92f/ml_customer_label.csv",
+      "path": "runs/1b4123b312da3d1aca70c2dc4f44cf68db248f3b43aad830e8519ca7bbab7fd3/ml_customer_label.csv",
       "row_count": 11996,
       "columns": [
         "id",
@@ -163,7 +163,7 @@
       "sha256": "526304d4e2d97a70ed6671993b2f5bc07e934dfbd72488cb98c32dcb924f0278"
     },
     "feature_health_daily": {
-      "path": "runs/c220ab9dc815fb6ccff187b661a0fa483f8c16bcda368dd214a0f78633d6c92f/agg_feature_health_daily.csv",
+      "path": "runs/1b4123b312da3d1aca70c2dc4f44cf68db248f3b43aad830e8519ca7bbab7fd3/agg_feature_health_daily.csv",
       "row_count": 22,
       "columns": [
         "monitoring_date",
@@ -182,7 +182,7 @@
       "sha256": "0d9a304b49fdae14aca134a11b8e3420fd202bf093535f1d7904fae8d020963f"
     },
     "drift_alerts": {
-      "path": "runs/c220ab9dc815fb6ccff187b661a0fa483f8c16bcda368dd214a0f78633d6c92f/feature_drift_alerts.csv",
+      "path": "runs/1b4123b312da3d1aca70c2dc4f44cf68db248f3b43aad830e8519ca7bbab7fd3/feature_drift_alerts.csv",
       "row_count": 0,
       "columns": [
         "alert_date",
@@ -195,7 +195,7 @@
       "sha256": "b656dccc0c86abdf5896e3db1788f04a0fb128e27f2218331f8cc49df188e76a"
     },
     "training_join": {
-      "path": "runs/c220ab9dc815fb6ccff187b661a0fa483f8c16bcda368dd214a0f78633d6c92f/ml_customer_purchase_training.csv",
+      "path": "runs/1b4123b312da3d1aca70c2dc4f44cf68db248f3b43aad830e8519ca7bbab7fd3/ml_customer_purchase_training.csv",
       "row_count": 11996,
       "columns": [
         "id",
@@ -212,11 +212,11 @@
         "f_stream_cart_to_purchase_ratio_60m",
         "created"
       ],
-      "size_bytes": 1105328,
-      "sha256": "76607ad6d92ffee2558568a37735c17a6c3e4f4fe32e0204b62f22e9afadc05b"
+      "size_bytes": 1553823,
+      "sha256": "603e21581668d9de0147ff1dd58c36fd0a1d0aefed24f237bf6398d816800841"
     },
     "labels_sample": {
-      "path": "runs/c220ab9dc815fb6ccff187b661a0fa483f8c16bcda368dd214a0f78633d6c92f/sample_rows/ml_customer_label.csv",
+      "path": "runs/1b4123b312da3d1aca70c2dc4f44cf68db248f3b43aad830e8519ca7bbab7fd3/sample_rows/ml_customer_label.csv",
       "row_count": 20,
       "columns": [
         "id",
@@ -226,7 +226,7 @@
       "sha256": "11802e34c683730445db0a2690a1d62c3059e2093e4f348bba318bdd89289e0b"
     },
     "feature_health_sample": {
-      "path": "runs/c220ab9dc815fb6ccff187b661a0fa483f8c16bcda368dd214a0f78633d6c92f/sample_rows/agg_feature_health_daily.csv",
+      "path": "runs/1b4123b312da3d1aca70c2dc4f44cf68db248f3b43aad830e8519ca7bbab7fd3/sample_rows/agg_feature_health_daily.csv",
       "row_count": 20,
       "columns": [
         "monitoring_date",
@@ -245,7 +245,7 @@
       "sha256": "8f181026aa6cb5f1ee890dee1a63b76ed9e0b6ba7ea20cefc268009aa40306f9"
     },
     "drift_alerts_sample": {
-      "path": "runs/c220ab9dc815fb6ccff187b661a0fa483f8c16bcda368dd214a0f78633d6c92f/sample_rows/feature_drift_alerts.csv",
+      "path": "runs/1b4123b312da3d1aca70c2dc4f44cf68db248f3b43aad830e8519ca7bbab7fd3/sample_rows/feature_drift_alerts.csv",
       "row_count": 0,
       "columns": [
         "alert_date",
@@ -258,7 +258,7 @@
       "sha256": "b656dccc0c86abdf5896e3db1788f04a0fb128e27f2218331f8cc49df188e76a"
     },
     "training_sample": {
-      "path": "runs/c220ab9dc815fb6ccff187b661a0fa483f8c16bcda368dd214a0f78633d6c92f/sample_rows/ml_customer_purchase_training.csv",
+      "path": "runs/1b4123b312da3d1aca70c2dc4f44cf68db248f3b43aad830e8519ca7bbab7fd3/sample_rows/ml_customer_purchase_training.csv",
       "row_count": 20,
       "columns": [
         "id",
@@ -275,16 +275,16 @@
         "f_stream_cart_to_purchase_ratio_60m",
         "created"
       ],
-      "size_bytes": 2131,
-      "sha256": "c43378e8fc869ea6b344ebfa3ccf383575cb3fa0f9545f4f68ca0a028f88a7db"
+      "size_bytes": 2871,
+      "sha256": "3c619014b0a56627bd891bf24e35b04136081f47d577e0bdca9699961cd0e378"
     },
     "evidence_image": {
-      "path": "runs/c220ab9dc815fb6ccff187b661a0fa483f8c16bcda368dd214a0f78633d6c92f/section03_config_and_training_join.png",
+      "path": "runs/1b4123b312da3d1aca70c2dc4f44cf68db248f3b43aad830e8519ca7bbab7fd3/section03_config_and_training_join.png",
       "size_bytes": 116387,
       "sha256": "ba02e5341f6af700530b97dca707f5e4e25f7cbaf44b6df8d50d7fd9821003ad"
     },
     "quality_report": {
-      "path": "runs/c220ab9dc815fb6ccff187b661a0fa483f8c16bcda368dd214a0f78633d6c92f/section03_report.md",
+      "path": "runs/1b4123b312da3d1aca70c2dc4f44cf68db248f3b43aad830e8519ca7bbab7fd3/section03_report.md",
       "size_bytes": 2063,
       "sha256": "ebdbba5708bbfc8c24006b67204e65a460644bf8539fc4f0ceaf2d90587bd487"
     }

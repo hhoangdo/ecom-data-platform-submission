@@ -11,7 +11,7 @@
 ## Locked sources and execution policy
 
 - Read `C:\Users\oou1hc\.codex\RTK.md`; every shell command begins with `rtk`.
-- Section 03 source is `tmp/edai2-plan/03_data_generator_improvement.md`, SHA-256 `ece171c3d400c3b16fc668cd28e3587faebe1f596dd6c0c4498ff055e3fc027f`.
+- Section 03 source is `tmp/edai2-plan/03_data_generator_improvement.md`, SHA-256 `3c906ae30ac0fee606e96608a7b5759cd7439ae048c4c12a84511fce5cc33ae6`.
 - EDAI2 source is `tmp/edai2-plan/04.2_llm_design.md`, SHA-256 `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`.
 - Rubric source is `tmp/rubic-check/Coursework Tracking (Public).xlsx`, SHA-256 `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - Work on the current branch in one serial session. Do not create a worktree or branch and do not stage, commit, push, or open a PR.
@@ -128,3 +128,10 @@ All exact models/YAML/singular tests exist; the wrapper derives windows from con
 | Rubric disposition | **Complete supporting implementation evidence for `Sheet3!E34` only.** Topic 07 remains sole primary owner and the satisfied rubric subtotal remains zero until strict promotion and successor-owned runtime proof. Local output is not GKE evidence. |
 | Stop conditions | None triggered. Required predecessor status and identity were valid; all three locked SHA-256 values matched; disk headroom was ample; no pre-existing staged/index change appeared; focused tests, dbt build/tests, relation invariants, sanitization, whitespace, branch, and index gates passed; the empirical PSI result matched the predecessor without a tuning retry. |
 | Successor handoff | **Topic 04 may proceed.** Use `scale=medium`, seed `42`, `drift_start_ts=2026-04-11T08:23:00Z`, `feature_cutoff_ts=2026-04-24T23:59:00Z`, `label_end_ts=2026-05-01T23:59:00Z`, `baseline_date=2026-04-10`, warning `0.10`, alert `0.15`, epsilon `0.000001`, bins `10`; wrapper selector `+ml_customer_purchase_training +feature_drift_alerts`; dbt result `88/88` successful/pass; label/training `11,996` rows with `4,395` positives; health `22` rows with peak PSI `0.120526925411`; alerts `0`. Consume the evidence hashes above, retain `runtime pending`/zero-credit semantics, and perform Spark parity in Topic 04 rather than treating local DuckDB as Spark, GKE, or final rubric proof. |
+### Follow-up rebaseline — 2026-08-04
+
+The training join/sample CSV contract was tightened to fixed `%.12f` serialization so Topic 04 can retain twelve-decimal numeric normalization without relaxing tolerance. The amended Section 03 source SHA-256 is `3c906ae30ac0fee606e96608a7b5759cd7439ae048c4c12a84511fce5cc33ae6`.
+
+The medium seed-42 regeneration command `rtk uv run python scripts/generate/run_generator.py --scale medium --mode full --seed 42` exceeded the shell wrapper's 300-second limit (`124`), but its task-owned child completed and atomically published candidate bundle `1b4123b312da3d1aca70c2dc4f44cf68db248f3b43aad830e8519ca7bbab7fd3`. The candidate manifest SHA-256 is `4af7f8a84da020877bea580f6fc74a9011d371ac2a84a56f7053e83f76246ba1`; `rtk uv run python scripts/generate/verify_section03_manifest.py --manifest evidence/03_data_generator_improvement/section03_candidate_manifest.json --allow-runtime-pending` exited `0` with `section03 manifest: PASS (runtime pending)`. The prior `c220ab9dc815fb6ccff187b661a0fa483f8c16bcda368dd214a0f78633d6c92f` bundle remains present.
+
+The candidate retains scale `medium`, seed `42`, the locked Section 03 windows, 11,996 one-to-one training rows, and the existing config SHA-256 `5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97`. Topic 04 must consume the new candidate identity; no strict runtime or rubric credit is claimed by this follow-up alone.

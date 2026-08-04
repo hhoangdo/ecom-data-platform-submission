@@ -795,6 +795,49 @@ package "Gold Physical Tables - Constrained Snowflake + Serving" as Gold {
     created : TIMESTAMP
   }
 
+  class "ml_customer_label" as ml_customer_label <<table>> {
+    id : VARCHAR <<PK>> <<FK>> <<NK>>
+    label : INTEGER
+  }
+
+  class "agg_feature_health_daily" as agg_feature_health_daily <<table>> {
+    monitoring_date : DATE <<PK>>
+    feature_name : VARCHAR <<PK>>
+    window_days : INTEGER
+    baseline_date : DATE
+    customer_count : BIGINT
+    mean_value : DOUBLE
+    stddev_value : DOUBLE
+    psi_vs_baseline : DOUBLE
+    drift_status : VARCHAR
+    warning_flag : BOOLEAN
+    alert_flag : BOOLEAN
+  }
+
+  class "feature_drift_alerts" as feature_drift_alerts <<table>> {
+    alert_date : DATE <<PK>>
+    feature_name : VARCHAR <<PK>>
+    psi_value : DOUBLE
+    threshold : DOUBLE
+    action : VARCHAR
+  }
+
+  class "ml_customer_purchase_training" as ml_customer_purchase_training <<table>> {
+    id : VARCHAR <<PK>> <<FK>> <<NK>>
+    event_timestamp : TIMESTAMP
+    label : INTEGER
+    f_customer_total_orders_90d : BIGINT
+    f_customer_paid_revenue_90d : DOUBLE
+    f_customer_avg_order_value_90d : DOUBLE
+    f_customer_distinct_categories_90d : BIGINT
+    f_stream_views_60m : HUGEINT
+    f_stream_add_to_cart_60m : HUGEINT
+    f_stream_checkout_started_60m : HUGEINT
+    f_stream_order_placed_60m : HUGEINT
+    f_stream_cart_to_purchase_ratio_60m : DOUBLE
+    created : TIMESTAMP
+  }
+
   class "obt_order_performance" as obt_order_performance <<table>> {
     order_id : VARCHAR <<PK>> <<FK>> <<NK>>
     order_timestamp : TIMESTAMP
@@ -892,5 +935,8 @@ dim_customer ||--o{ obt_order_performance : customer_id->customer_id
 dim_customer ||--o{ feat_customer_90d : customer_id->customer_id
 dim_customer ||--o{ feat_stream_60m : customer_id->customer_id
 dim_customer ||--o{ feat_customer_unified : customer_id->customer_id
+dim_customer ||--o{ ml_customer_label : customer_id->id
+ml_customer_label ||--o{ ml_customer_purchase_training : id->id
+agg_feature_health_daily ||--o{ feature_drift_alerts : monitoring_date->alert_date; feature_name->feature_name
 
 @enduml

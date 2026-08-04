@@ -838,6 +838,7 @@ available_events as (
   from stg_commerce_events events
   cross join parameters p
   where events.customer_id is not null
+    and events.event_timestamp > p.feature_cutoff_ts - interval 60 minutes
     and events.event_timestamp <= p.feature_cutoff_ts
     and events.created_ts <= p.feature_cutoff_ts
 )

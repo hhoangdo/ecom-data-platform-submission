@@ -132,14 +132,14 @@ def test_all_zone_model_inventory_and_metadata_match_schema_design_source() -> N
     assert {zone: len(names) for zone, names in model_names.items()} == {
         "bronze": 16,
         "silver": 14,
-        "gold": 22,
+        "gold": 26,
     }
     metadata = evidence.validate_schema_design_model_coverage(repo_root)
     source_path = repo_root / "architecture" / "diagrams" / "schema_design.puml"
     assert metadata == {
         "schema_design_source": "architecture/diagrams/schema_design.puml",
         "schema_design_sha256": hashlib.sha256(source_path.read_bytes()).hexdigest(),
-        "schema_design_model_counts": {"bronze": 16, "silver": 14, "gold": 22},
+        "schema_design_model_counts": {"bronze": 16, "silver": 14, "gold": 26},
     }
 
 
@@ -156,6 +156,21 @@ def test_schema_design_render_metadata_records_fallback(tmp_path: Path) -> None:
     assert metadata["schema_design_render_mode"] == "fallback_png"
     assert "offline" in metadata["schema_design_render_error"]
     assert (tmp_path / "schema_design.png").is_file()
+
+
+def test_section02_dbt_commands_bind_config_derived_section03_vars() -> None:
+    evidence = load_evidence_module()
+    repo_root = Path(__file__).resolve().parents[2]
+
+    commands = evidence.build_section02_dbt_commands(repo_root)
+
+    assert len(commands) == 2
+    for command in commands:
+        assert "--vars" in command
+        variables = json.loads(command[command.index("--vars") + 1])
+        assert variables["feature_cutoff_ts"] == "2026-04-24T23:59:00Z"
+        assert variables["psi_epsilon"] == 1e-6
+        assert variables["psi_quantile_bins"] == 10
 
 
 def test_section02_deliverable_references_evidence_artifacts() -> None:
@@ -180,7 +195,7 @@ def test_generated_section02_evidence_records_quarantine_and_render_mode() -> No
     assert manifest["schema_design_render_mode"] in {"plantuml_server", "fallback_png"}
     assert manifest["schema_design_source"] == "architecture/diagrams/schema_design.puml"
     assert len(manifest["schema_design_sha256"]) == 64
-    assert manifest["schema_design_model_counts"] == {"bronze": 16, "silver": 14, "gold": 22}
+    assert manifest["schema_design_model_counts"] == {"bronze": 16, "silver": 14, "gold": 26}
     assert indexed_counts[("bronze", "raw_bad_events")] > 0
     assert indexed_counts[("bronze", "raw_bad_snapshots")] > 0
 

@@ -39,7 +39,7 @@ bronze,raw_kafka_catalog_events,VIEW,event_timestamp,TIMESTAMP,5
 bronze,raw_kafka_catalog_events,VIEW,created_ts,TIMESTAMP,6
 bronze,raw_kafka_catalog_events,VIEW,producer,VARCHAR,7
 bronze,raw_kafka_catalog_events,VIEW,correlation_ids,"STRUCT(promotion_id VARCHAR, seller_id VARCHAR, snapshot_id VARCHAR, product_id VARCHAR)",8
-bronze,raw_kafka_catalog_events,VIEW,payload,"STRUCT(promotion_name VARCHAR, funding_type VARCHAR, funding_detail STRUCT(platform_share DOUBLE, seller_share DOUBLE), category VARCHAR, discount_rate DOUBLE, stock_on_hand BIGINT, threshold DOUBLE, reserved_stock BIGINT, product_name VARCHAR, primary_category VARCHAR, primary_subcategory VARCHAR, brand VARCHAR, base_price DOUBLE, category_attributes STRUCT(pack_size VARCHAR, shelf_life_days BIGINT, subcategory VARCHAR, variant VARCHAR, energy_rating VARCHAR, spec_tier VARCHAR, warranty_months BIGINT, material VARCHAR, size_family VARCHAR, style VARCHAR, assembly_required BOOLEAN, room_type VARCHAR), promotion_end_ts TIMESTAMP, changed_fields VARCHAR[], fulfillment_channel VARCHAR, old_price DOUBLE, new_price DOUBLE)",9
+bronze,raw_kafka_catalog_events,VIEW,payload,"STRUCT(promotion_name VARCHAR, funding_type VARCHAR, funding_detail MAP(VARCHAR, JSON), category VARCHAR, discount_rate DOUBLE, stock_on_hand BIGINT, threshold DOUBLE, reserved_stock BIGINT, product_name VARCHAR, primary_category VARCHAR, primary_subcategory VARCHAR, brand VARCHAR, base_price DOUBLE, category_attributes MAP(VARCHAR, JSON), promotion_end_ts TIMESTAMP)",9
 bronze,raw_kafka_catalog_events,VIEW,ingest_ts,TIMESTAMP WITH TIME ZONE,10
 bronze,raw_kafka_commerce_events,VIEW,event_id,VARCHAR,1
 bronze,raw_kafka_commerce_events,VIEW,event_type,VARCHAR,2
@@ -49,7 +49,7 @@ bronze,raw_kafka_commerce_events,VIEW,event_timestamp,TIMESTAMP,5
 bronze,raw_kafka_commerce_events,VIEW,created_ts,TIMESTAMP,6
 bronze,raw_kafka_commerce_events,VIEW,producer,VARCHAR,7
 bronze,raw_kafka_commerce_events,VIEW,correlation_ids,"STRUCT(session_id VARCHAR, anonymous_id VARCHAR, customer_id VARCHAR, product_id VARCHAR, order_id VARCHAR, payment_id VARCHAR)",8
-bronze,raw_kafka_commerce_events,VIEW,payload,"STRUCT(query_family VARCHAR, result_count BIGINT, device_type VARCHAR, ""source"" VARCHAR, surface VARCHAR, product_id VARCHAR, order_id VARCHAR, primary_category VARCHAR, order_status VARCHAR, order_net_amount DOUBLE, cart_action VARCHAR, checkout_step VARCHAR, order_source VARCHAR, payment_method VARCHAR, amount DOUBLE, failure_reason VARCHAR, abandonment_stage VARCHAR, failure_surface VARCHAR, coupon_code VARCHAR, promotion_id VARCHAR, cancel_reason VARCHAR)",9
+bronze,raw_kafka_commerce_events,VIEW,payload,"STRUCT(device_type VARCHAR, ""source"" VARCHAR, surface VARCHAR, product_id VARCHAR, order_id VARCHAR, primary_category VARCHAR, order_status VARCHAR, order_net_amount DOUBLE, query_family VARCHAR, result_count BIGINT, cart_action VARCHAR, checkout_step VARCHAR, order_source VARCHAR, coupon_code VARCHAR, promotion_id VARCHAR, payment_method VARCHAR, amount DOUBLE, failure_reason VARCHAR, abandonment_stage VARCHAR, failure_surface VARCHAR, cancel_reason VARCHAR)",9
 bronze,raw_kafka_commerce_events,VIEW,ingest_ts,TIMESTAMP WITH TIME ZONE,10
 bronze,raw_kafka_fulfillment_events,VIEW,event_id,VARCHAR,1
 bronze,raw_kafka_fulfillment_events,VIEW,event_type,VARCHAR,2
@@ -169,6 +169,17 @@ bronze,raw_shipments,VIEW,handoff_ts,TIMESTAMP,8
 bronze,raw_shipments,VIEW,estimated_delivery_ts,TIMESTAMP,9
 bronze,raw_shipments,VIEW,created_ts,TIMESTAMP,10
 bronze,raw_shipments,VIEW,ingest_ts,TIMESTAMP WITH TIME ZONE,11
+gold,agg_feature_health_daily,BASE TABLE,monitoring_date,DATE,1
+gold,agg_feature_health_daily,BASE TABLE,feature_name,VARCHAR,2
+gold,agg_feature_health_daily,BASE TABLE,window_days,INTEGER,3
+gold,agg_feature_health_daily,BASE TABLE,baseline_date,DATE,4
+gold,agg_feature_health_daily,BASE TABLE,customer_count,BIGINT,5
+gold,agg_feature_health_daily,BASE TABLE,mean_value,DOUBLE,6
+gold,agg_feature_health_daily,BASE TABLE,stddev_value,DOUBLE,7
+gold,agg_feature_health_daily,BASE TABLE,psi_vs_baseline,DOUBLE,8
+gold,agg_feature_health_daily,BASE TABLE,drift_status,VARCHAR,9
+gold,agg_feature_health_daily,BASE TABLE,warning_flag,BOOLEAN,10
+gold,agg_feature_health_daily,BASE TABLE,alert_flag,BOOLEAN,11
 gold,agg_hourly_reconciled_kpi,BASE TABLE,metric_hour,TIMESTAMP,1
 gold,agg_hourly_reconciled_kpi,BASE TABLE,order_count,BIGINT,2
 gold,agg_hourly_reconciled_kpi,BASE TABLE,paid_order_count,HUGEINT,3
@@ -415,6 +426,26 @@ gold,feat_stream_60m,BASE TABLE,f_stream_checkout_started_60m,HUGEINT,5
 gold,feat_stream_60m,BASE TABLE,f_stream_order_placed_60m,HUGEINT,6
 gold,feat_stream_60m,BASE TABLE,f_stream_cart_to_purchase_ratio_60m,DOUBLE,7
 gold,feat_stream_60m,BASE TABLE,created,TIMESTAMP,8
+gold,feature_drift_alerts,BASE TABLE,alert_date,DATE,1
+gold,feature_drift_alerts,BASE TABLE,feature_name,VARCHAR,2
+gold,feature_drift_alerts,BASE TABLE,psi_value,DOUBLE,3
+gold,feature_drift_alerts,BASE TABLE,threshold,DOUBLE,4
+gold,feature_drift_alerts,BASE TABLE,action,VARCHAR,5
+gold,ml_customer_label,BASE TABLE,id,VARCHAR,1
+gold,ml_customer_label,BASE TABLE,label,INTEGER,2
+gold,ml_customer_purchase_training,BASE TABLE,id,VARCHAR,1
+gold,ml_customer_purchase_training,BASE TABLE,event_timestamp,TIMESTAMP,2
+gold,ml_customer_purchase_training,BASE TABLE,label,INTEGER,3
+gold,ml_customer_purchase_training,BASE TABLE,f_customer_total_orders_90d,BIGINT,4
+gold,ml_customer_purchase_training,BASE TABLE,f_customer_paid_revenue_90d,DOUBLE,5
+gold,ml_customer_purchase_training,BASE TABLE,f_customer_avg_order_value_90d,DOUBLE,6
+gold,ml_customer_purchase_training,BASE TABLE,f_customer_distinct_categories_90d,BIGINT,7
+gold,ml_customer_purchase_training,BASE TABLE,f_stream_views_60m,HUGEINT,8
+gold,ml_customer_purchase_training,BASE TABLE,f_stream_add_to_cart_60m,HUGEINT,9
+gold,ml_customer_purchase_training,BASE TABLE,f_stream_checkout_started_60m,HUGEINT,10
+gold,ml_customer_purchase_training,BASE TABLE,f_stream_order_placed_60m,HUGEINT,11
+gold,ml_customer_purchase_training,BASE TABLE,f_stream_cart_to_purchase_ratio_60m,DOUBLE,12
+gold,ml_customer_purchase_training,BASE TABLE,created,TIMESTAMP,13
 gold,obt_order_performance,BASE TABLE,order_id,VARCHAR,1
 gold,obt_order_performance,BASE TABLE,order_timestamp,TIMESTAMP,2
 gold,obt_order_performance,BASE TABLE,customer_id,VARCHAR,3
@@ -461,7 +492,7 @@ silver,stg_catalog_events,VIEW,promotion_id,VARCHAR,11
 silver,stg_catalog_events,VIEW,category,VARCHAR,12
 silver,stg_catalog_events,VIEW,stock_on_hand,DOUBLE,13
 silver,stg_catalog_events,VIEW,discount_rate,DOUBLE,14
-silver,stg_catalog_events,VIEW,payload,"STRUCT(promotion_name VARCHAR, funding_type VARCHAR, funding_detail STRUCT(platform_share DOUBLE, seller_share DOUBLE), category VARCHAR, discount_rate DOUBLE, stock_on_hand BIGINT, threshold DOUBLE, reserved_stock BIGINT, product_name VARCHAR, primary_category VARCHAR, primary_subcategory VARCHAR, brand VARCHAR, base_price DOUBLE, category_attributes STRUCT(pack_size VARCHAR, shelf_life_days BIGINT, subcategory VARCHAR, variant VARCHAR, energy_rating VARCHAR, spec_tier VARCHAR, warranty_months BIGINT, material VARCHAR, size_family VARCHAR, style VARCHAR, assembly_required BOOLEAN, room_type VARCHAR), promotion_end_ts TIMESTAMP, changed_fields VARCHAR[], fulfillment_channel VARCHAR, old_price DOUBLE, new_price DOUBLE)",15
+silver,stg_catalog_events,VIEW,payload,"STRUCT(promotion_name VARCHAR, funding_type VARCHAR, funding_detail MAP(VARCHAR, JSON), category VARCHAR, discount_rate DOUBLE, stock_on_hand BIGINT, threshold DOUBLE, reserved_stock BIGINT, product_name VARCHAR, primary_category VARCHAR, primary_subcategory VARCHAR, brand VARCHAR, base_price DOUBLE, category_attributes MAP(VARCHAR, JSON), promotion_end_ts TIMESTAMP)",15
 silver,stg_catalog_events,VIEW,ingest_ts,TIMESTAMP WITH TIME ZONE,16
 silver,stg_commerce_events,VIEW,event_id,VARCHAR,1
 silver,stg_commerce_events,VIEW,event_type,VARCHAR,2
@@ -484,8 +515,8 @@ silver,stg_commerce_events,VIEW,order_net_amount,DOUBLE,18
 silver,stg_commerce_events,VIEW,payment_method,VARCHAR,19
 silver,stg_commerce_events,VIEW,payment_amount,DOUBLE,20
 silver,stg_commerce_events,VIEW,failure_reason,VARCHAR,21
-silver,stg_commerce_events,VIEW,payload,"STRUCT(query_family VARCHAR, result_count BIGINT, device_type VARCHAR, ""source"" VARCHAR, surface VARCHAR, product_id VARCHAR, order_id VARCHAR, primary_category VARCHAR, order_status VARCHAR, order_net_amount DOUBLE, cart_action VARCHAR, checkout_step VARCHAR, order_source VARCHAR, payment_method VARCHAR, amount DOUBLE, failure_reason VARCHAR, abandonment_stage VARCHAR, failure_surface VARCHAR, coupon_code VARCHAR, promotion_id VARCHAR, cancel_reason VARCHAR)",22
-silver,stg_commerce_events,VIEW,ingest_ts,TIMESTAMP WITH TIME ZONE,23
+silver,stg_commerce_events,VIEW,payload,"STRUCT(device_type VARCHAR, ""source"" VARCHAR, surface VARCHAR, product_id VARCHAR, order_id VARCHAR, primary_category VARCHAR, order_status VARCHAR, order_net_amount DOUBLE, query_family VARCHAR, result_count BIGINT, cart_action VARCHAR, checkout_step VARCHAR, order_source VARCHAR, coupon_code VARCHAR, promotion_id VARCHAR, payment_method VARCHAR, amount DOUBLE, failure_reason VARCHAR, abandonment_stage VARCHAR, failure_surface VARCHAR, cancel_reason VARCHAR)",22
+silver,stg_commerce_events,VIEW,ingest_ts,TIMESTAMP,23
 silver,stg_customers,VIEW,customer_id,VARCHAR,1
 silver,stg_customers,VIEW,anonymous_id,VARCHAR,2
 silver,stg_customers,VIEW,signup_ts,TIMESTAMP,3

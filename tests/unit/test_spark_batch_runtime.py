@@ -213,7 +213,17 @@ def test_build_section03_commands_bind_config_scale_and_manifest() -> None:
         "infra/analytics/dbt",
         "--profiles-dir",
         "infra/analytics/dbt",
+        "--all-gold",
     ]
+
+
+def test_spark_stream_query_enforces_the_cutoff_safe_sixty_minute_window() -> None:
+    query_map = dict(ordered_feature_queries(_section03_parameters()))
+    stream_query = query_map["feat_stream_60m"]
+
+    assert "events.event_timestamp > p.feature_cutoff_ts - interval 60 minutes" in stream_query
+    assert "events.event_timestamp <= p.feature_cutoff_ts" in stream_query
+    assert "events.created_ts <= p.feature_cutoff_ts" in stream_query
 
 
 def test_run_command_uses_utf8_with_replacement(monkeypatch) -> None:

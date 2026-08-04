@@ -23,6 +23,7 @@ from vina_bim_shop.generators.drift import (
     summarize_drift_rates,
 )
 from vina_bim_shop.generators.drift_evidence import (
+    _write_csv,
     build_feature_drift_alerts,
     build_feature_health_daily,
 )
@@ -1022,6 +1023,20 @@ def test_feature_label_join_is_exact_and_one_to_one() -> None:
     assert training[["id", "label"]].equals(labels)
     with pytest.raises(ValueError):
         build_feature_label_join(labels, features.iloc[[0]])
+
+
+def test_training_csv_serialization_uses_fixed_twelve_decimal_places(tmp_path: Path) -> None:
+    output = tmp_path / "training.csv"
+    _write_csv(output, pd.DataFrame({"value": [1.2345678901234]}), fixed_decimal=True)
+
+    assert output.read_text(encoding="utf-8").splitlines()[1] == "1.234567890123"
+
+
+def test_health_csv_serialization_remains_fixed_twelve_decimal_places(tmp_path: Path) -> None:
+    output = tmp_path / "health.csv"
+    _write_csv(output, pd.DataFrame({"value": [1.2345678901234]}), health=True)
+
+    assert output.read_text(encoding="utf-8").splitlines()[1] == "1.234567890123"
 
 
 @pytest.mark.parametrize(

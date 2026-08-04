@@ -1,28 +1,28 @@
 {
-  "generated_at": "2026-07-11T08:55:33.313584+00:00",
+  "generated_at": "2026-08-04T10:51:58.956554+00:00",
   "commands": [
     {
-      "command": "dbt build --project-dir infra/analytics/dbt --profiles-dir infra/analytics/dbt",
+      "command": "dbt build --project-dir infra/analytics/dbt --profiles-dir infra/analytics/dbt --vars {\"baseline_date\":\"2026-04-10\",\"drift_start_ts\":\"2026-04-11T08:23:00Z\",\"feature_cutoff_ts\":\"2026-04-24T23:59:00Z\",\"label_end_ts\":\"2026-05-01T23:59:00Z\",\"psi_alert\":0.15,\"psi_epsilon\":1e-06,\"psi_quantile_bins\":10,\"psi_warning\":0.1}",
       "return_code": 0,
-      "elapsed_seconds": 48.441
+      "elapsed_seconds": 78.887
     },
     {
-      "command": "dbt docs generate --project-dir infra/analytics/dbt --profiles-dir infra/analytics/dbt",
+      "command": "dbt docs generate --project-dir infra/analytics/dbt --profiles-dir infra/analytics/dbt --vars {\"baseline_date\":\"2026-04-10\",\"drift_start_ts\":\"2026-04-11T08:23:00Z\",\"feature_cutoff_ts\":\"2026-04-24T23:59:00Z\",\"label_end_ts\":\"2026-05-01T23:59:00Z\",\"psi_alert\":0.15,\"psi_epsilon\":1e-06,\"psi_quantile_bins\":10,\"psi_warning\":0.1}",
       "return_code": 0,
-      "elapsed_seconds": 7.952
+      "elapsed_seconds": 10.321
     }
   ],
-  "dbt_model_count": 52,
-  "dbt_test_count": 66,
-  "catalog_model_count": 52,
-  "schema_inventory_row_count": 634,
-  "table_row_count": 52,
+  "dbt_model_count": 56,
+  "dbt_test_count": 90,
+  "catalog_model_count": 56,
+  "schema_inventory_row_count": 665,
+  "table_row_count": 56,
   "schema_design_source": "architecture/diagrams/schema_design.puml",
-  "schema_design_sha256": "fce33138edf07539c560a4c10cd0f01f560fc61353510ea88c7e02445b88861d",
+  "schema_design_sha256": "db3402bf5b15b35baeee775d7c82124c7ad54ba1c3173fcff11f604fc2312706",
   "schema_design_model_counts": {
     "bronze": 16,
     "silver": 14,
-    "gold": 22
+    "gold": 26
   },
   "schema_design_render_mode": "plantuml_server",
   "artifacts": [

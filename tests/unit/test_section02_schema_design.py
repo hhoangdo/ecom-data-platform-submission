@@ -58,6 +58,10 @@ def test_gold_layer_erd_dbml_focuses_on_gold_tables_and_dbml_relationships() -> 
         "feat_customer_90d",
         "feat_customer_unified",
         "feat_stream_60m",
+        "ml_customer_label",
+        "agg_feature_health_daily",
+        "feature_drift_alerts",
+        "ml_customer_purchase_training",
         "obt_order_performance",
     ]
     for table_name in expected_gold_tables:

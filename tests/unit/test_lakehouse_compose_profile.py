@@ -107,3 +107,15 @@ def test_batch_profile_can_activate_required_lakehouse_dependencies() -> None:
 
     for service_name in ["minio", "minio-init", "lakehouse-postgres", "hive-metastore", "trino", "trino-worker"]:
         assert "batch" in services[service_name]["profiles"]
+
+
+def test_minio_init_clears_inherited_proxies_for_internal_minio_alias() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    script = (repo_root / "infra" / "lakehouse" / "minio" / "create-buckets.sh").read_text(encoding="utf-8")
+
+    unset = "unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy"
+    assert unset in script
+    assert script.index(unset) < script.index("mc alias set ALIAS http://minio:9000")
+    assert "minio" in script
+    assert "localhost" in script
+    assert "127.0.0.1" in script
