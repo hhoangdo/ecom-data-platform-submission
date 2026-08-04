@@ -303,6 +303,9 @@ def build_point_in_time_customer_features(
         )
         selected = commerce_events.loc[stream_mask].copy()
         selected["customer_id"] = selected["customer_id"].astype("string")
+        selected["event_hour"] = event_times.loc[selected.index].dt.floor("h")
+        latest_hour = selected.groupby("customer_id")["event_hour"].transform("max")
+        selected = selected.loc[selected["event_hour"].eq(latest_hour)]
         counts = selected.groupby(["customer_id", "event_type"]).size().unstack(fill_value=0)
         for event_type, feature_name in stream_columns.items():
             if event_type in counts:

@@ -984,6 +984,51 @@ def test_point_in_time_features_exclude_future_and_keep_inactive_customers() -> 
     assert (features["created"] == window.feature_cutoff_ts).all()
 
 
+def test_point_in_time_stream_features_use_latest_cutoff_safe_hour_per_customer() -> None:
+    window = DriftWindow(
+        start_ts=pd.Timestamp("2026-01-01T00:00:00Z"),
+        end_ts=pd.Timestamp("2026-01-15T23:59:00Z"),
+        drift_start_ts=pd.Timestamp("2026-01-10T12:00:00Z"),
+        feature_cutoff_ts=pd.Timestamp("2026-01-08T23:59:00Z"),
+        label_end_ts=pd.Timestamp("2026-01-15T23:59:00Z"),
+        baseline_date=date(2026, 1, 7),
+    )
+    customers = pd.DataFrame(
+        {"customer_id": ["C1"], "created_ts": ["2026-01-01T00:00:00Z"]}
+    )
+    commerce_events = pd.DataFrame(
+        {
+            "customer_id": ["C1", "C1", "C1", "C1"],
+            "event_type": ["add_to_cart", "order_placed", "add_to_cart", "order_placed"],
+            "event_timestamp": [
+                "2026-01-08T22:59:57Z",
+                "2026-01-08T23:11:57Z",
+                "2026-01-08T22:59:00Z",
+                "2026-01-08T23:12:00Z",
+            ],
+            "created_ts": [
+                "2026-01-08T22:59:58Z",
+                "2026-01-08T23:11:58Z",
+                "2026-01-08T22:59:01Z",
+                "2026-01-09T00:00:01Z",
+            ],
+        }
+    )
+
+    features = build_point_in_time_customer_features(
+        customers,
+        pd.DataFrame(),
+        pd.DataFrame(),
+        commerce_events,
+        window=window,
+    )
+
+    active = features.set_index("id").loc["C1"]
+    assert active["f_stream_add_to_cart_60m"] == 0
+    assert active["f_stream_order_placed_60m"] == 1
+    assert active["f_stream_cart_to_purchase_ratio_60m"] == 0.0
+
+
 def test_feature_label_join_is_exact_and_one_to_one() -> None:
     labels = pd.DataFrame({"id": pd.Series(["C1", "C2"], dtype="string"), "label": pd.Series([1, 0], dtype="int8")})
     features = pd.DataFrame(

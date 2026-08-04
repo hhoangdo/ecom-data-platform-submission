@@ -115,10 +115,15 @@ def test_wrapper_supports_explicit_all_gold_selection() -> None:
 
 def test_stream_model_enforces_the_cutoff_safe_sixty_minute_window() -> None:
     model = (DBT_ROOT / "models" / "gold" / "feat_stream_60m.sql").read_text(encoding="utf-8")
+    unified = (DBT_ROOT / "models" / "gold" / "feat_customer_unified.sql").read_text(encoding="utf-8")
 
     assert "events.event_timestamp > p.feature_cutoff_ts - interval '60 minutes'" in model
     assert "events.event_timestamp <= p.feature_cutoff_ts" in model
     assert "events.created_ts <= p.feature_cutoff_ts" in model
+    assert "date_trunc('hour', event_timestamp) as event_timestamp" in model
+    assert "group by 1, 2" in model
+    assert "partition by customer_id" in unified
+    assert "order by event_timestamp desc, created desc" in unified
 
 
 def test_wrapper_builds_parent_inclusive_command_and_propagates_status(

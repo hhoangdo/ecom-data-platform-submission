@@ -748,10 +748,14 @@ def test_spark_feature_queries_expose_created_output_contract() -> None:
     assert "created_ts <=" in queries["feat_customer_90d"]
 
     assert "max(created_ts) as created" in queries["feat_stream_60m"]
+    assert "date_trunc('hour', event_timestamp) as event_timestamp" in queries["feat_stream_60m"]
+    assert "group by customer_id, date_trunc('hour', event_timestamp)" in queries["feat_stream_60m"]
     assert "event_timestamp <=" in queries["feat_stream_60m"]
     assert "created_ts <=" in queries["feat_stream_60m"]
 
     assert "cast(p.feature_cutoff_ts as timestamp) as created" in queries["feat_customer_unified"]
+    assert "partition by customer_id" in queries["feat_customer_unified"]
+    assert "order by event_timestamp desc, created desc" in queries["feat_customer_unified"]
     assert "greatest(c.created, coalesce(s.created, c.created))" not in queries["feat_customer_unified"]
 
 
