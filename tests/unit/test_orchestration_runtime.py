@@ -1,8 +1,13 @@
 import importlib
 import importlib.util
+import hashlib
 import json
+import sys
+import types
 from pathlib import Path
+from types import SimpleNamespace
 
+import pytest
 from compose_model import load_compose_model
 from vina_bim_shop.orchestration import datahub_ingestion, hourly_batch
 from vina_bim_shop.orchestration.specs import REQUIRED_DAG_IDS, dag_specs_by_id
@@ -357,3 +362,497 @@ def test_coursework_spark_stages_run_from_the_compose_project_root(monkeypatch, 
     )
 
     assert observed_working_directories == [pipeline.REPO_ROOT, pipeline.REPO_ROOT]
+
+
+def test_dp3_contracts_are_exactly_seven_tables_in_dependency_order() -> None:
+    pipeline = importlib.import_module("vina_bim_shop.orchestration.mini_coursework_pipeline")
+
+    assert pipeline.FEATURE_TABLES == (
+        "feat_customer_90d",
+        "feat_stream_60m",
+        "feat_customer_unified",
+        "ml_customer_label",
+        "agg_feature_health_daily",
+        "feature_drift_alerts",
+        "ml_customer_purchase_training",
+    )
+    assert tuple(pipeline.DP3_TABLE_CONTRACTS) == pipeline.FEATURE_TABLES
+    assert pipeline.DP3_TABLE_CONTRACTS["ml_customer_label"]["columns"] == ["id", "label"]
+    assert pipeline.DP3_TABLE_CONTRACTS["feature_drift_alerts"]["allow_empty"] is True
+    assert pipeline.DP3_TABLE_CONTRACTS["ml_customer_purchase_training"]["columns"][-1] == "created"
+
+
+def test_settings_from_airflow_binds_strict_section03_conf_without_variable_fallback() -> None:
+    pipeline = importlib.import_module("vina_bim_shop.orchestration.mini_coursework_pipeline")
+    connections = {
+        "vbs_minio": SimpleNamespace(
+            host="minio", port=9000, login="user", password="password", extra_dejson={"region": "us-east-1"}
+        ),
+        "vbs_trino": SimpleNamespace(host="trino", port=8080, login="analyst"),
+        "vbs_kafka": SimpleNamespace(host="kafka", port=29092),
+        "datahub_rest_default": SimpleNamespace(host="http://datahub-gms:8080", port=None),
+    }
+    variable_calls: list[str] = []
+
+    def get_variable(key: str, **_kwargs: object) -> object:
+        variable_calls.append(key)
+        return {
+            "vbs_raw_root": "/workspace/data/raw",
+            "vbs_bronze_bucket": "bronze",
+            "vbs_spark_evidence_root": "/workspace/evidence/08_airflow_gx/coursework_pipeline",
+        }[key]
+
+    settings = pipeline.settings_from_airflow(
+        get_connection=lambda key: connections[key],
+        get_variable=get_variable,
+        dag_run_conf={
+            "generator_config_path": "configs/generator/base.yaml",
+            "generator_scale": "medium",
+            "section03_candidate_manifest_sha256": "a" * 64,
+        },
+    )
+
+    assert settings.strict_section03 is True
+    assert settings.generator_config_path == "configs/generator/base.yaml"
+    assert settings.generator_scale == "medium"
+    assert settings.section03_candidate_manifest_sha256 == "a" * 64
+    assert "vbs_feature_tables" not in variable_calls
+
+
+def test_validate_offline_features_emits_table_specific_contract_facts(monkeypatch, tmp_path) -> None:
+    pipeline = importlib.import_module("vina_bim_shop.orchestration.mini_coursework_pipeline")
+    expected_columns = {
+        "feat_customer_90d": [
+            "customer_id", "event_timestamp", "f_customer_total_orders_90d", "f_customer_paid_revenue_90d",
+            "f_customer_avg_order_value_90d", "f_customer_distinct_categories_90d", "created",
+        ],
+        "feat_stream_60m": [
+            "customer_id", "event_timestamp", "f_stream_views_60m", "f_stream_add_to_cart_60m",
+            "f_stream_checkout_started_60m", "f_stream_order_placed_60m",
+            "f_stream_cart_to_purchase_ratio_60m", "created",
+        ],
+        "feat_customer_unified": [
+            "customer_id", "event_timestamp", "f_customer_total_orders_90d", "f_customer_paid_revenue_90d",
+            "f_customer_avg_order_value_90d", "f_customer_distinct_categories_90d", "f_stream_views_60m",
+            "f_stream_add_to_cart_60m", "f_stream_checkout_started_60m", "f_stream_order_placed_60m",
+            "f_stream_cart_to_purchase_ratio_60m", "created",
+        ],
+        "ml_customer_label": ["id", "label"],
+        "agg_feature_health_daily": [
+            "monitoring_date", "feature_name", "window_days", "baseline_date", "customer_count",
+            "mean_value", "stddev_value", "psi_vs_baseline", "drift_status", "warning_flag", "alert_flag",
+        ],
+        "feature_drift_alerts": ["alert_date", "feature_name", "psi_value", "threshold", "action"],
+        "ml_customer_purchase_training": [
+            "id", "event_timestamp", "label", "f_customer_total_orders_90d", "f_customer_paid_revenue_90d",
+            "f_customer_avg_order_value_90d", "f_customer_distinct_categories_90d", "f_stream_views_60m",
+            "f_stream_add_to_cart_60m", "f_stream_checkout_started_60m", "f_stream_order_placed_60m",
+            "f_stream_cart_to_purchase_ratio_60m", "created",
+        ],
+    }
+
+    def fake_query(query: str, **_kwargs: object) -> dict[str, object]:
+        if query.startswith("describe iceberg.gold."):
+            table_name = query.rsplit(".", 1)[-1]
+            return {"rows": [[column] for column in expected_columns[table_name]]}
+        if "from iceberg.gold." in query:
+            table_name = query.split("from iceberg.gold.", 1)[1].split()[0]
+            metric_rows = {
+                "feat_customer_90d": [1, 1, 0, 0, "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z"],
+                "feat_stream_60m": [1, 1, 0, 0, "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z"],
+                "feat_customer_unified": [1, 1, 0, 0, "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z"],
+                "ml_customer_label": [1, 1, 0, 0, 0, 1],
+                "agg_feature_health_daily": [1, 1, 0, 0, 0, 0, 0, 0, 0],
+                "feature_drift_alerts": [0, 0, 0, 0, 0, 0, 0],
+                "ml_customer_purchase_training": [1, 1, 0, 0, 0, 0, 0, "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z"],
+            }
+            return {"rows": [metric_rows[table_name]]}
+        raise AssertionError(f"unexpected query: {query}")
+
+    class PassingReport:
+        success = True
+        blocks_dag = False
+
+        def to_dict(self) -> dict[str, object]:
+            return {"success": True}
+
+    monkeypatch.setattr(pipeline, "execute_trino_query", fake_query)
+    monkeypatch.setattr(pipeline, "_validate_pandas_dataframe", lambda **_kwargs: PassingReport())
+    monkeypatch.setattr(pipeline, "_render_run_docs", lambda _root: None)
+    fake_ge = types.ModuleType("great_expectations")
+    fake_ge.expectations = types.SimpleNamespace(
+        ExpectColumnValuesToBeInSet=lambda **kwargs: kwargs,
+    )
+    monkeypatch.setitem(sys.modules, "great_expectations", fake_ge)
+
+    result = pipeline.validate_offline_features(
+        run_id="manual__section03",
+        start_ts="2026-04-26T00:00:00+00:00",
+        end_ts="2026-04-26T01:00:00+00:00",
+        settings=pipeline.CourseworkPipelineSettings.for_tests(),
+        run_root=tmp_path / "run",
+    )
+
+    rows = result["feature_results"]
+    assert [row["table_name"] for row in rows] == list(expected_columns)
+    assert all(row["columns"] == expected_columns[row["table_name"]] for row in rows)
+    assert all(row["contract_success"] is True for row in rows)
+
+
+def test_dp3_metric_queries_enforce_exact_alert_threshold_and_training_cutoff() -> None:
+    pipeline = importlib.import_module("vina_bim_shop.orchestration.mini_coursework_pipeline")
+
+    _alert_metrics, alert_query = pipeline._dp3_metric_query(
+        "feature_drift_alerts", "2026-04-25T23:59:59Z", "2026-04-18"
+    )
+    _training_metrics, training_query = pipeline._dp3_metric_query(
+        "ml_customer_purchase_training", "2026-04-25T23:59:59Z", "2026-04-18"
+    )
+    _feature_metrics, feature_query = pipeline._dp3_metric_query(
+        "feat_customer_90d", "2026-04-25T23:59:59Z", "2026-04-18"
+    )
+    _health_metrics, health_query = pipeline._dp3_metric_query(
+        "agg_feature_health_daily", "2026-04-25T23:59:59Z", "2026-04-18"
+    )
+
+    assert "threshold is null or threshold <> 0.15" in alert_query
+    assert "alert_date is null or feature_name is null" in alert_query
+    assert "monitoring_date is null or feature_name is null" in health_query
+    assert "window_days is null or window_days <> 7" in health_query
+    assert "baseline_date is null or cast(baseline_date as varchar) <>" in health_query
+    assert "t.event_timestamp is null or t.event_timestamp <>" in training_query
+    assert "t.created is null or t.created <>" in training_query
+    assert "t.label is null or t.label <> l.label" in training_query
+    assert "min(event_timestamp) as event_timestamp_min" in feature_query
+    assert "min(t.event_timestamp) as event_timestamp_min" in training_query
+    assert "min(psi_value) as psi_min" in alert_query
+
+
+def test_validate_offline_features_requires_matching_dp3_compute_metadata(tmp_path) -> None:
+    pipeline = importlib.import_module("vina_bim_shop.orchestration.mini_coursework_pipeline")
+    settings = pipeline.CourseworkPipelineSettings.for_tests()
+    expected_parameters = {
+        "drift_start_ts": "2026-04-11T08:23:00Z",
+        "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+        "label_end_ts": "2026-05-01T23:59:00Z",
+        "baseline_date": "2026-04-10",
+    }
+    strict_context = {
+        "manifest_sha256": "a" * 64,
+        "config_sha256": "b" * 64,
+        "parameters": expected_parameters,
+    }
+    run_root = tmp_path / "run"
+    run_root.mkdir()
+    (run_root / "dp3_compute.json").write_text(
+        json.dumps(
+            {
+                "state": "success",
+                "strict_section03": True,
+                "generator_config_path": settings.generator_config_path,
+                "generator_config_sha256": strict_context["config_sha256"],
+                "generator_scale": settings.generator_scale,
+                "section03_candidate_manifest_sha256": strict_context["manifest_sha256"],
+                "feature_tables": list(pipeline.FEATURE_TABLES),
+                "feature_cutoff_ts": "2026-04-23T23:59:00Z",
+                "section03_parameters": {
+                    **expected_parameters,
+                    "feature_cutoff_ts": "2026-04-23T23:59:00Z",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="compute"):
+        pipeline._load_section03_compute_metadata(
+            run_root=run_root,
+            settings=settings,
+            strict_context=strict_context,
+        )
+
+
+def _load_section03_wrapper():
+    path = Path(__file__).resolve().parents[2] / "scripts" / "orchestration" / "run_section03_dp3.py"
+    assert path.is_file(), "Expected the strict Section 03 Airflow wrapper script."
+    spec = importlib.util.spec_from_file_location("run_section03_dp3", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_section03_wrapper_posts_exact_conf_and_exports_hash_bound_artifacts(monkeypatch, tmp_path) -> None:
+    module = _load_section03_wrapper()
+    repo_root = Path(__file__).resolve().parents[2]
+    config_path = repo_root / "configs" / "generator" / "base.yaml"
+    config_sha256 = hashlib.sha256(config_path.read_bytes()).hexdigest()
+    candidate = tmp_path / "section03_candidate_manifest.json"
+    candidate.write_text(
+        json.dumps(
+            {
+                "source_config_path": "configs/generator/base.yaml",
+                "source_config_sha256": config_sha256,
+                "scale": "medium",
+                "windows": {
+                    "drift_start_ts": "2026-04-11T08:23:00Z",
+                    "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+                    "label_end_ts": "2026-05-01T23:59:00Z",
+                    "baseline_date": "2026-04-10",
+                },
+                "runtime_evidence": {"status": "pending"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    candidate_sha256 = hashlib.sha256(candidate.read_bytes()).hexdigest()
+    runs_root = tmp_path / "coursework_pipeline"
+    run_root = runs_root / "run-1"
+    (run_root / "quality").mkdir(parents=True)
+    for artifact in (
+        "dp1_ingest.json",
+        "dp1_validate.json",
+        "dp2_transform.json",
+        "dp2_validate.json",
+    ):
+        (run_root / artifact).write_text(json.dumps({"state": "success"}), encoding="utf-8")
+    seven_tables = [
+        "feat_customer_90d", "feat_stream_60m", "feat_customer_unified",
+        "ml_customer_label", "agg_feature_health_daily", "feature_drift_alerts",
+        "ml_customer_purchase_training",
+    ]
+    (run_root / "dp3_compute.json").write_text(
+        json.dumps(
+            {
+                "state": "success",
+                "strict_section03": True,
+                "generator_config_path": "configs/generator/base.yaml",
+                "generator_config_sha256": config_sha256,
+                "generator_scale": "medium",
+                "section03_candidate_manifest_sha256": candidate_sha256,
+                "feature_tables": seven_tables,
+                "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+                "section03_parameters": {
+                    "drift_start_ts": "2026-04-11T08:23:00Z",
+                    "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+                    "label_end_ts": "2026-05-01T23:59:00Z",
+                    "baseline_date": "2026-04-10",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    (run_root / "dp3_validate.json").write_text(
+        json.dumps(
+            {
+                "state": "success",
+                "strict_section03": True,
+                "contract_success": True,
+                "generator_config_path": "configs/generator/base.yaml",
+                "generator_config_sha256": config_sha256,
+                "generator_scale": "medium",
+                "section03_candidate_manifest_sha256": candidate_sha256,
+                "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+                "feature_results": [{"table_name": table, "contract_success": True} for table in seven_tables],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (run_root / "quality" / "coursework_feature_contract.json").write_text(
+        json.dumps({"success": True}), encoding="utf-8"
+    )
+    class Response:
+        def __init__(self, payload: dict[str, object]) -> None:
+            self.payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return self.payload
+
+    class Session:
+        def __init__(self) -> None:
+            self.posts: list[dict[str, object]] = []
+
+        def post(self, _url: str, *, json: dict[str, object], **_kwargs: object) -> Response:
+            self.posts.append(json)
+            return Response({"dag_run_id": "run-1", "state": "queued"})
+
+        def get(self, url: str, **_kwargs: object) -> Response:
+            if url.endswith("/taskInstances"):
+                return Response(
+                    {
+                        "task_instances": [
+                            {"task_id": task_id, "state": "success"}
+                            for task_id in module.TASK_IDS
+                        ]
+                    }
+                )
+            return Response({"dag_run_id": "run-1", "state": "success"})
+
+    session = Session()
+    monkeypatch.setattr(module, "COURSEWORK_RUNS_ROOT", runs_root)
+    monkeypatch.setattr(module, "_new_run_id", lambda: "run-1")
+
+    result = module.run_section03_dp3(
+        candidate_manifest=candidate,
+        airflow_url="http://localhost:8082",
+        output_root=tmp_path / "output",
+        username="airflow",
+        password="secret-value",
+        session=session,
+        sleep=lambda _seconds: None,
+        poll_interval_seconds=0,
+    )
+
+    assert session.posts[0]["conf"] == {
+        "generator_config_path": "configs/generator/base.yaml",
+        "generator_scale": "medium",
+        "section03_candidate_manifest_sha256": candidate_sha256,
+    }
+    assert result["status"] == "success"
+    output_text = (tmp_path / "output" / "run_manifest.json").read_text(encoding="utf-8")
+    assert "secret-value" not in output_text
+    task_state_path = tmp_path / "output" / "airflow_task_instances.json"
+    assert task_state_path.is_file()
+    output_manifest = json.loads(output_text)
+    assert {
+        "path": "airflow_task_instances.json",
+        "sha256": hashlib.sha256(task_state_path.read_bytes()).hexdigest(),
+    } in output_manifest["artifacts"]
+
+
+def test_section03_wrapper_fails_closed_when_runtime_artifacts_are_stale(monkeypatch, tmp_path) -> None:
+    module = _load_section03_wrapper()
+    config_path = Path(__file__).resolve().parents[2] / "configs" / "generator" / "base.yaml"
+    candidate = tmp_path / "section03_candidate_manifest.json"
+    candidate.write_text(
+        json.dumps(
+            {
+                "source_config_path": "configs/generator/base.yaml",
+                "source_config_sha256": hashlib.sha256(config_path.read_bytes()).hexdigest(),
+                "scale": "medium",
+                "windows": {
+                    "drift_start_ts": "2026-04-11T08:23:00Z",
+                    "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+                    "label_end_ts": "2026-05-01T23:59:00Z",
+                    "baseline_date": "2026-04-10",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    class Response:
+        def __init__(self, payload: dict[str, object]) -> None:
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return self._payload
+
+    class Session:
+        def post(self, _url: str, **_kwargs: object) -> Response:
+            return Response({"dag_run_id": "run-1", "state": "success"})
+
+        def get(self, url: str, **_kwargs: object) -> Response:
+            if url.endswith("/taskInstances"):
+                return Response(
+                    {
+                        "task_instances": [
+                            {"task_id": task_id, "state": "success"}
+                            for task_id in module.TASK_IDS
+                        ]
+                    }
+                )
+            return Response({"dag_run_id": "run-1", "state": "success"})
+
+    monkeypatch.setattr(module, "COURSEWORK_RUNS_ROOT", tmp_path / "missing-runs")
+    monkeypatch.setattr(module, "_new_run_id", lambda: "run-1")
+
+    with pytest.raises(RuntimeError, match="artifact"):
+        module.run_section03_dp3(
+            candidate_manifest=candidate,
+            airflow_url="http://localhost:8082",
+            output_root=tmp_path / "output",
+            username="airflow",
+            password="secret-value",
+            session=Session(),
+            timeout_seconds=0,
+            sleep=lambda _seconds: None,
+            poll_interval_seconds=0,
+        )
+
+
+def test_section03_wrapper_rejects_stale_cutoff_and_false_table_contract(tmp_path) -> None:
+    module = _load_section03_wrapper()
+    config_path = Path(__file__).resolve().parents[2] / "configs" / "generator" / "base.yaml"
+    run_root = tmp_path / "run"
+    (run_root / "quality").mkdir(parents=True)
+    (run_root / "spark_features").mkdir()
+    for relative in module.REQUIRED_ARTIFACTS:
+        artifact_path = run_root / relative
+        artifact_path.parent.mkdir(parents=True, exist_ok=True)
+        artifact_path.write_text(json.dumps({"state": "success"}), encoding="utf-8")
+
+    feature_tables = list(module.FEATURE_TABLES)
+    expected_parameters = {
+        "drift_start_ts": "2026-04-11T08:23:00Z",
+        "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+        "label_end_ts": "2026-05-01T23:59:00Z",
+        "baseline_date": "2026-04-10",
+    }
+    compute = {
+        "state": "success",
+        "strict_section03": True,
+        "generator_config_path": "configs/generator/base.yaml",
+        "generator_config_sha256": hashlib.sha256(config_path.read_bytes()).hexdigest(),
+        "generator_scale": "medium",
+        "section03_candidate_manifest_sha256": "a" * 64,
+        "feature_tables": feature_tables,
+        "feature_cutoff_ts": "2026-04-23T23:59:00Z",
+        "section03_parameters": {**expected_parameters, "feature_cutoff_ts": "2026-04-23T23:59:00Z"},
+    }
+    validate = {
+        "state": "success",
+        "strict_section03": True,
+        "contract_success": True,
+        "generator_config_path": "configs/generator/base.yaml",
+        "generator_config_sha256": compute["generator_config_sha256"],
+        "generator_scale": "medium",
+        "section03_candidate_manifest_sha256": "a" * 64,
+        "feature_cutoff_ts": expected_parameters["feature_cutoff_ts"],
+        "feature_results": [{"table_name": table, "contract_success": True} for table in feature_tables],
+    }
+    (run_root / "dp3_compute.json").write_text(json.dumps(compute), encoding="utf-8")
+    (run_root / "dp3_validate.json").write_text(json.dumps(validate), encoding="utf-8")
+    (run_root / "quality" / "coursework_feature_contract.json").write_text(
+        json.dumps({"success": True}), encoding="utf-8"
+    )
+
+    with pytest.raises(RuntimeError, match="cutoff"):
+        module._validate_artifacts(
+            run_root=run_root,
+            candidate_sha256="a" * 64,
+            scale="medium",
+            config_path="configs/generator/base.yaml",
+            expected_section03_parameters=expected_parameters,
+        )
+
+    compute["feature_cutoff_ts"] = expected_parameters["feature_cutoff_ts"]
+    compute["section03_parameters"] = expected_parameters
+    (run_root / "dp3_compute.json").write_text(json.dumps(compute), encoding="utf-8")
+    validate["feature_results"][0]["contract_success"] = False
+    (run_root / "dp3_validate.json").write_text(json.dumps(validate), encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="contract"):
+        module._validate_artifacts(
+            run_root=run_root,
+            candidate_sha256="a" * 64,
+            scale="medium",
+            config_path="configs/generator/base.yaml",
+            expected_section03_parameters=expected_parameters,
+        )

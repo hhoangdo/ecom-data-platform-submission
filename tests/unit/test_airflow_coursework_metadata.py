@@ -79,5 +79,9 @@ def test_seed_upserts_the_required_connections_and_variables_without_secret_outp
         "feat_customer_90d",
         "feat_stream_60m",
         "feat_customer_unified",
+        "ml_customer_label",
+        "agg_feature_health_daily",
+        "feature_drift_alerts",
+        "ml_customer_purchase_training",
     ]
     assert "secret-value" not in "\n".join(messages)

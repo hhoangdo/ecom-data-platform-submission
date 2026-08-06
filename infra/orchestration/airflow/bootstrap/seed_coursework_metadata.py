@@ -7,7 +7,15 @@ from typing import Any, Callable
 from urllib.parse import urlparse
 
 
-FEATURE_TABLES = ["feat_customer_90d", "feat_stream_60m", "feat_customer_unified"]
+FEATURE_TABLES = [
+    "feat_customer_90d",
+    "feat_stream_60m",
+    "feat_customer_unified",
+    "ml_customer_label",
+    "agg_feature_health_daily",
+    "feature_drift_alerts",
+    "ml_customer_purchase_training",
+]
 
 
 def _endpoint(value: str) -> tuple[str, int | None]:

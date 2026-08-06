@@ -173,3 +173,12 @@ def test_mini_coursework_pipeline_declares_six_ordered_rubric_tasks() -> None:
         "ingest_raw_to_bronze >> validate_bronze >> transform_bronze_to_silver_gold "
         ">> validate_silver_gold >> compute_offline_features >> validate_offline_features"
     ) in source
+
+
+def test_mini_coursework_pipeline_forwards_exact_section03_conf() -> None:
+    source = _read_dag("mini_coursework_pipeline.py")
+
+    assert 'context["dag_run"].conf' in source
+    assert 'if context["dag_run"].conf else None' in source
+    assert "dag_run_conf=dag_run_conf" in source
+    assert "vbs_feature_tables" not in source

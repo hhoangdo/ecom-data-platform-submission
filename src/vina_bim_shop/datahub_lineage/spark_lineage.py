@@ -34,9 +34,13 @@ GOLD_UPSTREAM_MAP: dict[str, list[str]] = {
         "stg_payments",
         "stg_commerce_events",
     ],
-    "feat_customer_90d": ["fact_order"],
+    "feat_customer_90d": ["dim_customer", "fact_order", "fact_payment_attempt"],
     "feat_stream_60m": ["stg_commerce_events"],
     "feat_customer_unified": ["feat_customer_90d", "feat_stream_60m"],
+    "ml_customer_label": ["dim_customer", "fact_payment_attempt"],
+    "agg_feature_health_daily": ["dim_customer", "fact_order"],
+    "feature_drift_alerts": ["agg_feature_health_daily"],
+    "ml_customer_purchase_training": ["ml_customer_label", "feat_customer_unified"],
 }
 
 MEDALLION_TAGS: dict[str, str] = {

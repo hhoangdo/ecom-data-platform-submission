@@ -153,19 +153,18 @@ def test_minio_container_metadata_seed_exists() -> None:
     assert any(item["entityUrn"].startswith("urn:li:dataset:(urn:li:dataPlatform:s3,bronze") for item in payload)
 
 
-def test_datahub_lineage_package_exports_correctly():
-    import importlib
+def test_datahub_lineage_package_exports_are_lazy_and_sdk_independent() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    package_file = repo_root / "src" / "vina_bim_shop" / "datahub_lineage" / "__init__.py"
+    source = package_file.read_text(encoding="utf-8")
 
-    try:
-        importlib.import_module("datahub")
-    except ImportError:
-        pytest.skip("acryl-datahub not installed in local venv (Docker-only dependency)")
-
-    from vina_bim_shop.datahub_lineage import DataHubLineageEmitter, emit_spark_batch_lineage, emit_flink_streaming_lineage
-
-    assert DataHubLineageEmitter is not None
-    assert emit_spark_batch_lineage is not None
-    assert emit_flink_streaming_lineage is not None
+    assert '"DataHubLineageEmitter"' in source
+    assert '"emit_spark_batch_lineage"' in source
+    assert '"emit_flink_streaming_lineage"' in source
+    assert "def __getattr__(name: str):" in source
+    assert "from vina_bim_shop.datahub_lineage.emitter import DataHubLineageEmitter" in source
+    assert "from vina_bim_shop.datahub_lineage.spark_lineage import emit_spark_batch_lineage" in source
+    assert "from vina_bim_shop.datahub_lineage.flink_lineage import emit_flink_streaming_lineage" in source
 
 
 def test_datahub_airflow_plugin_config_declares_correct_cluster() -> None:

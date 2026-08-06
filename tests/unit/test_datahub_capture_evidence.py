@@ -151,7 +151,181 @@ def test_coursework_assertion_verification_accepts_every_dp1_and_dp3_output() ->
         "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.feat_customer_90d,PROD)",
         "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.feat_stream_60m,PROD)",
         "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.feat_customer_unified,PROD)",
+        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.ml_customer_label,PROD)",
+        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.agg_feature_health_daily,PROD)",
+        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.feature_drift_alerts,PROD)",
+        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.ml_customer_purchase_training,PROD)",
     }
+
+
+def test_section03_capture_emits_and_reads_back_exact_graph_without_secrets(monkeypatch, tmp_path: Path) -> None:
+    module = _load_script_module()
+    entities = module.coursework_pipeline_entities()
+    jobs = {str(job["id"]): job for job in entities["data_jobs"]}
+    schemas = {
+        module.ice_urn(table_name): module.COURSEWORK_SCHEMA_TARGETS[module.ice_urn(table_name)]
+        for table_name in module.FEATURE_TABLES
+    }
+    assertion_datasets = {
+        "coursework_dp3_ml_customer_label_unique": module.ice_urn("ml_customer_label"),
+        "coursework_dp3_ml_customer_label_binary": module.ice_urn("ml_customer_label"),
+        "coursework_dp3_ml_customer_purchase_training_point_in_time": module.ice_urn("ml_customer_purchase_training"),
+        "coursework_dp3_agg_feature_health_daily_psi_finite": module.ice_urn("agg_feature_health_daily"),
+        "coursework_dp3_feature_drift_alerts_alert_threshold": module.ice_urn("feature_drift_alerts"),
+    }
+    lineage_parents = {
+        module.ice_urn("feat_customer_90d"): [
+            module.ice_urn("dim_customer"),
+            module.ice_urn("fact_order"),
+            module.ice_urn("fact_payment_attempt"),
+        ],
+        module.ice_urn("feat_stream_60m"): [module.ice_urn("stg_commerce_events")],
+        module.ice_urn("feat_customer_unified"): [
+            module.ice_urn("feat_customer_90d"),
+            module.ice_urn("feat_stream_60m"),
+        ],
+        module.ice_urn("ml_customer_label"): [
+            module.ice_urn("dim_customer"),
+            module.ice_urn("fact_payment_attempt"),
+        ],
+        module.ice_urn("agg_feature_health_daily"): [
+            module.ice_urn("dim_customer"),
+            module.ice_urn("fact_order"),
+        ],
+        module.ice_urn("feature_drift_alerts"): [module.ice_urn("agg_feature_health_daily")],
+        module.ice_urn("ml_customer_purchase_training"): [
+            module.ice_urn("ml_customer_label"),
+            module.ice_urn("feat_customer_unified"),
+        ],
+    }
+    index_ready = {"value": False}
+
+    def fake_graphql(query: str, variables: dict[str, object]) -> dict[str, object]:
+        urn = str(variables.get("urn", ""))
+        if "dataFlow(urn" in query:
+            return {"data": {"dataFlow": {"urn": module.COURSEWORK_DATAFLOW_URN}}}
+        if "dataJob(urn" in query:
+            job = next(job for job in jobs.values() if job["urn"] == urn)
+            return {
+                "data": {
+                    "dataJob": {
+                        "urn": urn,
+                        "dataFlow": {"urn": module.COURSEWORK_DATAFLOW_URN},
+                        "inputOutput": {
+                            "inputDatasets": [{"urn": value} for value in job["inputs"]],
+                            "outputDatasets": [{"urn": value} for value in job["outputs"]],
+                        },
+                    }
+                }
+            }
+        if "upstreamLineage" in query:
+            return {
+                "data": {
+                    "dataset": {
+                        "urn": urn,
+                        "upstreamLineage": {
+                            "upstreams": [{"dataset": {"urn": parent}} for parent in lineage_parents[urn]]
+                        },
+                    }
+                }
+            }
+        if "schemaMetadata" in query:
+            return {
+                "data": {
+                    "dataset": {
+                        "urn": urn,
+                        "schemaMetadata": {
+                            "fields": [{"fieldPath": field, "nativeDataType": "string"} for field in schemas[urn]]
+                        },
+                    }
+                }
+            }
+        if "assertion(urn" in query:
+            assertion_id = urn.rsplit(":", 1)[-1]
+            return {
+                "data": {
+                    "assertion": {
+                        "urn": urn,
+                        "info": {"datasetAssertion": {"datasetUrn": assertion_datasets[assertion_id]}},
+                        "runEvents": {
+                            "runEvents": [{"asserteeUrn": assertion_datasets[assertion_id], "result": {"type": "SUCCESS"}}]
+                        },
+                    }
+                }
+            }
+        if "search(input" in query:
+            search_input = variables["input"]
+            assert isinstance(search_input, dict)
+            search_type = search_input["type"]
+            query_text = str(search_input["query"])
+            if not index_ready["value"]:
+                found = []
+            elif search_type == "DATA_FLOW":
+                found = [module.COURSEWORK_DATAFLOW_URN]
+            elif search_type == "DATA_JOB":
+                found = [job["urn"] for job in jobs.values() if str(job["id"]) == query_text]
+            elif search_type == "DATASET":
+                found = [dataset_urn for dataset_urn in schemas if query_text in dataset_urn]
+            else:
+                found = [f"urn:li:assertion:{assertion_id}" for assertion_id in assertion_datasets if query_text in assertion_id]
+            return {"data": {"search": {"total": len(found), "searchResults": [{"entity": {"urn": value}} for value in found]}}}
+        raise AssertionError(query)
+
+    monkeypatch.setattr(module, "emit_coursework_pipeline", lambda **_kwargs: {"status": "success", "password": "secret-value"})
+    monkeypatch.setattr(module, "emit_spark_batch_lineage", lambda **_kwargs: {"status": "success", "token": "secret-token"})
+    monkeypatch.setattr(module, "emit_coursework_assertions_to_datahub", lambda **_kwargs: {"status": "success", "secret": "secret-value"})
+    monkeypatch.setattr(module, "_graphql", fake_graphql)
+
+    result = module.capture_section03_evidence(
+        output_root=tmp_path,
+        gms_url="http://localhost:8087",
+        airflow_capture=tmp_path / "airflow",
+        section03_manifest=tmp_path / "section03_candidate_manifest.json",
+        index_timeout_seconds=1,
+        index_poll_interval_seconds=0,
+        sleep=lambda _seconds: index_ready.update(value=True),
+    )
+
+    assert result["status"] == "success"
+    assert result["indexed_search"]["status"] == "success"
+    assert set(result["datasets"]) == set(schemas)
+    assert set(result["assertions"]) == set(assertion_datasets)
+    assert set(result["edges"]) == set(lineage_parents)
+    assert all(edge["status"] == "success" for edge in result["edges"].values())
+    assert result["emitted"]["spark_lineage"]["status"] == "success"
+    serialized = (tmp_path / "lineage.json").read_text(encoding="utf-8")
+    assert "secret-value" not in serialized
+    assert "secret-token" not in serialized
+    assert (tmp_path / "run_manifest.json").is_file()
+
+
+def test_section03_capture_fails_when_indexed_dataset_search_is_missing(monkeypatch, tmp_path: Path) -> None:
+    module = _load_script_module()
+
+    monkeypatch.setattr(module, "emit_coursework_pipeline", lambda **_kwargs: {"status": "success"})
+    monkeypatch.setattr(module, "emit_spark_batch_lineage", lambda **_kwargs: {"status": "success"})
+    monkeypatch.setattr(module, "emit_coursework_assertions_to_datahub", lambda **_kwargs: {"status": "success"})
+
+    def missing_search(query: str, variables: dict[str, object]) -> dict[str, object]:
+        if "search(input" in query:
+            return {"data": {"search": {"total": 0, "searchResults": []}}}
+        if "dataFlow(urn" in query:
+            return {"data": {"dataFlow": {"urn": module.COURSEWORK_DATAFLOW_URN}}}
+        return {"data": {}}
+
+    monkeypatch.setattr(module, "_graphql", missing_search)
+
+    result = module.capture_section03_evidence(
+        output_root=tmp_path,
+        gms_url="http://localhost:8087",
+        index_timeout_seconds=0,
+        index_poll_interval_seconds=0,
+        sleep=lambda _seconds: None,
+    )
+
+    assert result["status"] == "failed"
+    assert result["indexed_search"]["status"] == "failed"
+    assert (tmp_path / "run_manifest.json").is_file()
 
 
 def test_capture_evidence_fails_closed_when_coursework_job_search_is_missing(monkeypatch, tmp_path: Path) -> None:

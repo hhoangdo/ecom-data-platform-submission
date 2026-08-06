@@ -59,6 +59,10 @@ FEATURE_TABLES = (
     "feat_customer_90d",
     "feat_stream_60m",
     "feat_customer_unified",
+    "ml_customer_label",
+    "agg_feature_health_daily",
+    "feature_drift_alerts",
+    "ml_customer_purchase_training",
 )
 
 
@@ -89,6 +93,92 @@ def datajob_urn(dag_id: str, task_id: str = "") -> str:
 
 COURSEWORK_DATAFLOW_URN = dataflow_urn()
 
+# These schemas are emitted onto the canonical lineage outputs, never onto
+# evidence-only duplicate URNs. They are the exact DP1/DP2/DP3 display and
+# read-back contract used by the strict Section 03 capture.
+COURSEWORK_SCHEMA_TARGETS: dict[str, list[str]] = {
+    s3_urn("bronze.batch"): ["path"],
+    s3_urn("bronze.events"): ["path"],
+    ice_urn("fact_order"): ["order_id", "official_paid_revenue"],
+    ice_urn("feat_customer_90d"): [
+        "customer_id",
+        "event_timestamp",
+        "f_customer_total_orders_90d",
+        "f_customer_paid_revenue_90d",
+        "f_customer_avg_order_value_90d",
+        "f_customer_distinct_categories_90d",
+        "created",
+    ],
+    ice_urn("feat_stream_60m"): [
+        "customer_id",
+        "event_timestamp",
+        "f_stream_views_60m",
+        "f_stream_add_to_cart_60m",
+        "f_stream_checkout_started_60m",
+        "f_stream_order_placed_60m",
+        "f_stream_cart_to_purchase_ratio_60m",
+        "created",
+    ],
+    ice_urn("feat_customer_unified"): [
+        "customer_id",
+        "event_timestamp",
+        "f_customer_total_orders_90d",
+        "f_customer_paid_revenue_90d",
+        "f_customer_avg_order_value_90d",
+        "f_customer_distinct_categories_90d",
+        "f_stream_views_60m",
+        "f_stream_add_to_cart_60m",
+        "f_stream_checkout_started_60m",
+        "f_stream_order_placed_60m",
+        "f_stream_cart_to_purchase_ratio_60m",
+        "created",
+    ],
+    ice_urn("ml_customer_label"): ["id", "label"],
+    ice_urn("agg_feature_health_daily"): [
+        "monitoring_date",
+        "feature_name",
+        "window_days",
+        "baseline_date",
+        "customer_count",
+        "mean_value",
+        "stddev_value",
+        "psi_vs_baseline",
+        "drift_status",
+        "warning_flag",
+        "alert_flag",
+    ],
+    ice_urn("feature_drift_alerts"): [
+        "alert_date",
+        "feature_name",
+        "psi_value",
+        "threshold",
+        "action",
+    ],
+    ice_urn("ml_customer_purchase_training"): [
+        "id",
+        "event_timestamp",
+        "label",
+        "f_customer_total_orders_90d",
+        "f_customer_paid_revenue_90d",
+        "f_customer_avg_order_value_90d",
+        "f_customer_distinct_categories_90d",
+        "f_stream_views_60m",
+        "f_stream_add_to_cart_60m",
+        "f_stream_checkout_started_60m",
+        "f_stream_order_placed_60m",
+        "f_stream_cart_to_purchase_ratio_60m",
+        "created",
+    ],
+}
+
+DP3_ASSERTION_IDS = (
+    "coursework_dp3_ml_customer_label_unique",
+    "coursework_dp3_ml_customer_label_binary",
+    "coursework_dp3_ml_customer_purchase_training_point_in_time",
+    "coursework_dp3_agg_feature_health_daily_psi_finite",
+    "coursework_dp3_feature_drift_alerts_alert_threshold",
+)
+
 ASSERTION_TARGETS: dict[str, dict[str, Any]] = {
     "dp1_raw_to_bronze": {
         "representative_output": s3_urn("bronze.batch"),
@@ -108,25 +198,11 @@ ASSERTION_TARGETS: dict[str, dict[str, Any]] = {
         "assertions": ["coursework_dp2_fact_order_rows_min_1"],
     },
     "dp3_offline_features": {
-        "representative_output": ice_urn("feat_customer_unified"),
-        "required_schema_fields": ["event_timestamp", "created"],
+        "representative_output": ice_urn("ml_customer_purchase_training"),
+        "required_schema_fields": COURSEWORK_SCHEMA_TARGETS[ice_urn("ml_customer_purchase_training")],
         "forbidden_schema_fields": ["created_ts"],
-        "assertions": [
-            f"coursework_dp3_{table}_{check}"
-            for table in FEATURE_TABLES
-            for check in ("row_count_min_1", "has_event_timestamp", "has_created", "has_created_ts_false")
-        ],
+        "assertions": list(DP3_ASSERTION_IDS),
     },
-}
-
-# These schemas are emitted onto the canonical lineage outputs, never onto
-# evidence-only duplicate URNs. They are the minimal displayable contract
-# fields checked by the Topic 09 evidence gate.
-COURSEWORK_SCHEMA_TARGETS: dict[str, list[str]] = {
-    s3_urn("bronze.batch"): ["path"],
-    s3_urn("bronze.events"): ["path"],
-    ice_urn("fact_order"): ["order_id", "official_paid_revenue"],
-    **{ice_urn(table): ["event_timestamp", "created"] for table in FEATURE_TABLES},
 }
 
 
@@ -144,7 +220,12 @@ def coursework_pipeline_entities(env: str = ENVIRONMENT) -> dict[str, object]:
         )
     ]
     dp2_outputs = [*(ice_urn(table, env=env) for table in SILVER_TABLES), *(ice_urn(table, env=env) for table in CORE_GOLD_TABLES)]
-    dp3_inputs = [ice_urn("fact_order", env=env), ice_urn("stg_commerce_events", env=env)]
+    dp3_inputs = [
+        ice_urn("dim_customer", env=env),
+        ice_urn("fact_order", env=env),
+        ice_urn("fact_payment_attempt", env=env),
+        ice_urn("stg_commerce_events", env=env),
+    ]
     dp3_outputs = [ice_urn(table, env=env) for table in FEATURE_TABLES]
     return {
         "data_flow": {
@@ -177,7 +258,7 @@ def coursework_pipeline_entities(env: str = ENVIRONMENT) -> dict[str, object]:
                 "id": "dp3_offline_features",
                 "urn": datajob_urn(DATAFLOW_ID, "dp3_offline_features"),
                 "name": "DP3: Offline Features",
-                "description": "Compute and validate the three offline feature tables.",
+                "description": "Feast-ready offline point-in-time export; not a Feast runtime.",
                 "inputs": dp3_inputs,
                 "outputs": dp3_outputs,
                 "tags": ["gold", "official", "quality_gate"],
@@ -294,18 +375,29 @@ def coursework_assertion_specs(run_root: Path) -> list[dict[str, object]]:
             "source_report": "coursework_core_gold_contract.json",
         }
     )
-    for table_name in FEATURE_TABLES:
-        for check in ("row_count_min_1", "has_event_timestamp", "has_created", "has_created_ts_false"):
-            specs.append(
-                {
-                    "job_id": "dp3_offline_features",
-                    "assertion_id": f"coursework_dp3_{table_name}_{check}",
-                    "dataset_urn": ice_urn(table_name),
-                    "assertion_type": check,
-                    "column": "",
-                    "success": True,
-                    "run_id": run_ids["dp3_offline_features"],
-                    "source_report": "coursework_feature_contract.json",
-                }
-            )
+    dp3_assertion_specs = (
+        ("coursework_dp3_ml_customer_label_unique", "ml_customer_label", "expect_column_values_to_be_unique", "id"),
+        ("coursework_dp3_ml_customer_label_binary", "ml_customer_label", "expect_column_values_to_be_in_set", "label"),
+        (
+            "coursework_dp3_ml_customer_purchase_training_point_in_time",
+            "ml_customer_purchase_training",
+            "point_in_time_safe",
+            "event_timestamp,created",
+        ),
+        ("coursework_dp3_agg_feature_health_daily_psi_finite", "agg_feature_health_daily", "finite_non_negative_psi", "psi_vs_baseline"),
+        ("coursework_dp3_feature_drift_alerts_alert_threshold", "feature_drift_alerts", "alert_threshold_at_least_0_15", "psi_value,threshold"),
+    )
+    for assertion_id, table_name, assertion_type, column in dp3_assertion_specs:
+        specs.append(
+            {
+                "job_id": "dp3_offline_features",
+                "assertion_id": assertion_id,
+                "dataset_urn": ice_urn(table_name),
+                "assertion_type": assertion_type,
+                "column": column,
+                "success": True,
+                "run_id": run_ids["dp3_offline_features"],
+                "source_report": "coursework_feature_contract.json",
+            }
+        )
     return specs

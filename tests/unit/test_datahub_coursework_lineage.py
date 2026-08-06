@@ -66,14 +66,24 @@ def test_coursework_pipeline_entities_are_exact_and_idempotent() -> None:
 
     dp3 = _job(first, "dp3_offline_features")
     assert dp3["inputs"] == [
+        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.dim_customer,PROD)",
         "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.fact_order,PROD)",
+        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.fact_payment_attempt,PROD)",
         "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.stg_commerce_events,PROD)",
     ]
     assert dp3["outputs"] == [
-        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.feat_customer_90d,PROD)",
-        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.feat_stream_60m,PROD)",
-        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.feat_customer_unified,PROD)",
+        f"urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.{table},PROD)"
+        for table in (
+            "feat_customer_90d",
+            "feat_stream_60m",
+            "feat_customer_unified",
+            "ml_customer_label",
+            "agg_feature_health_daily",
+            "feature_drift_alerts",
+            "ml_customer_purchase_training",
+        )
     ]
+    assert dp3["description"] == "Feast-ready offline point-in-time export; not a Feast runtime."
 
     for job in first["data_jobs"]:
         assert job["inputs"]
@@ -98,13 +108,31 @@ def test_coursework_assertion_targets_are_stable_and_linked_to_representative_ou
         "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.fact_order,PROD)"
     )
     assert assertion_targets["dp3_offline_features"]["representative_output"] == (
-        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.feat_customer_unified,PROD)"
+        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.ml_customer_purchase_training,PROD)"
     )
     assert assertion_targets["dp3_offline_features"]["required_schema_fields"] == [
+        "id",
         "event_timestamp",
+        "label",
+        "f_customer_total_orders_90d",
+        "f_customer_paid_revenue_90d",
+        "f_customer_avg_order_value_90d",
+        "f_customer_distinct_categories_90d",
+        "f_stream_views_60m",
+        "f_stream_add_to_cart_60m",
+        "f_stream_checkout_started_60m",
+        "f_stream_order_placed_60m",
+        "f_stream_cart_to_purchase_ratio_60m",
         "created",
     ]
     assert assertion_targets["dp3_offline_features"]["forbidden_schema_fields"] == ["created_ts"]
+    assert assertion_targets["dp3_offline_features"]["assertions"] == [
+        "coursework_dp3_ml_customer_label_unique",
+        "coursework_dp3_ml_customer_label_binary",
+        "coursework_dp3_ml_customer_purchase_training_point_in_time",
+        "coursework_dp3_agg_feature_health_daily_psi_finite",
+        "coursework_dp3_feature_drift_alerts_alert_threshold",
+    ]
     assert module.COURSEWORK_SCHEMA_TARGETS == {
         "urn:li:dataset:(urn:li:dataPlatform:s3,bronze.batch,PROD)": ["path"],
         "urn:li:dataset:(urn:li:dataPlatform:s3,bronze.events,PROD)": ["path"],
@@ -113,15 +141,75 @@ def test_coursework_assertion_targets_are_stable_and_linked_to_representative_ou
             "official_paid_revenue",
         ],
         "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.feat_customer_90d,PROD)": [
+            "customer_id",
             "event_timestamp",
+            "f_customer_total_orders_90d",
+            "f_customer_paid_revenue_90d",
+            "f_customer_avg_order_value_90d",
+            "f_customer_distinct_categories_90d",
             "created",
         ],
         "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.feat_stream_60m,PROD)": [
+            "customer_id",
             "event_timestamp",
+            "f_stream_views_60m",
+            "f_stream_add_to_cart_60m",
+            "f_stream_checkout_started_60m",
+            "f_stream_order_placed_60m",
+            "f_stream_cart_to_purchase_ratio_60m",
             "created",
         ],
         "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.feat_customer_unified,PROD)": [
+            "customer_id",
             "event_timestamp",
+            "f_customer_total_orders_90d",
+            "f_customer_paid_revenue_90d",
+            "f_customer_avg_order_value_90d",
+            "f_customer_distinct_categories_90d",
+            "f_stream_views_60m",
+            "f_stream_add_to_cart_60m",
+            "f_stream_checkout_started_60m",
+            "f_stream_order_placed_60m",
+            "f_stream_cart_to_purchase_ratio_60m",
+            "created",
+        ],
+        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.ml_customer_label,PROD)": [
+            "id",
+            "label",
+        ],
+        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.agg_feature_health_daily,PROD)": [
+            "monitoring_date",
+            "feature_name",
+            "window_days",
+            "baseline_date",
+            "customer_count",
+            "mean_value",
+            "stddev_value",
+            "psi_vs_baseline",
+            "drift_status",
+            "warning_flag",
+            "alert_flag",
+        ],
+        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.feature_drift_alerts,PROD)": [
+            "alert_date",
+            "feature_name",
+            "psi_value",
+            "threshold",
+            "action",
+        ],
+        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.ml_customer_purchase_training,PROD)": [
+            "id",
+            "event_timestamp",
+            "label",
+            "f_customer_total_orders_90d",
+            "f_customer_paid_revenue_90d",
+            "f_customer_avg_order_value_90d",
+            "f_customer_distinct_categories_90d",
+            "f_stream_views_60m",
+            "f_stream_add_to_cart_60m",
+            "f_stream_checkout_started_60m",
+            "f_stream_order_placed_60m",
+            "f_stream_cart_to_purchase_ratio_60m",
             "created",
         ],
     }
@@ -175,9 +263,13 @@ def test_feature_dataset_lineage_matches_the_dp3_sql_dependencies() -> None:
         / "spark_lineage.py"
     ).read_text(encoding="utf-8")
 
-    assert '"feat_customer_90d": ["fact_order"]' in source
+    assert '"feat_customer_90d": ["dim_customer", "fact_order", "fact_payment_attempt"]' in source
     assert '"feat_stream_60m": ["stg_commerce_events"]' in source
     assert '"feat_customer_unified": ["feat_customer_90d", "feat_stream_60m"]' in source
+    assert '"ml_customer_label": ["dim_customer", "fact_payment_attempt"]' in source
+    assert '"agg_feature_health_daily": ["dim_customer", "fact_order"]' in source
+    assert '"feature_drift_alerts": ["agg_feature_health_daily"]' in source
+    assert '"ml_customer_purchase_training": ["ml_customer_label", "feat_customer_unified"]' in source
 
 
 def test_datahub_1_6_ownership_uses_attribute_lookup_not_enum_subscription() -> None:
@@ -210,7 +302,7 @@ def test_coursework_assertion_specs_link_passing_contracts_to_dp_outputs(tmp_pat
 
     specs = _module().coursework_assertion_specs(tmp_path)
 
-    assert len(specs) == 17
+    assert len(specs) == 10
     assert {spec["dataset_urn"] for spec in specs if spec["job_id"] == "dp1_raw_to_bronze"} == {
         "urn:li:dataset:(urn:li:dataPlatform:s3,bronze.batch,PROD)",
         "urn:li:dataset:(urn:li:dataPlatform:s3,bronze.events,PROD)",
@@ -219,9 +311,17 @@ def test_coursework_assertion_specs_link_passing_contracts_to_dp_outputs(tmp_pat
         "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.fact_order,PROD)"
     }
     assert {spec["dataset_urn"] for spec in specs if spec["job_id"] == "dp3_offline_features"} == {
-        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.feat_customer_90d,PROD)",
-        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.feat_stream_60m,PROD)",
-        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.feat_customer_unified,PROD)",
+        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.ml_customer_label,PROD)",
+        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.agg_feature_health_daily,PROD)",
+        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.feature_drift_alerts,PROD)",
+        "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.ml_customer_purchase_training,PROD)",
+    }
+    assert {spec["assertion_id"] for spec in specs if spec["job_id"] == "dp3_offline_features"} == {
+        "coursework_dp3_ml_customer_label_unique",
+        "coursework_dp3_ml_customer_label_binary",
+        "coursework_dp3_ml_customer_purchase_training_point_in_time",
+        "coursework_dp3_agg_feature_health_daily_psi_finite",
+        "coursework_dp3_feature_drift_alerts_alert_threshold",
     }
     assert all(spec["success"] is True for spec in specs)
     assert all(spec["run_id"] == "manual__2026-07-12T00:00:00+00:00" for spec in specs)

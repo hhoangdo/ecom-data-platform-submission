@@ -3,6 +3,10 @@ from __future__ import annotations
 import json
 import hashlib
 import re
+import sys
+import time
+from collections.abc import Callable
+from argparse import ArgumentParser
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -11,10 +15,12 @@ from PIL import Image
 
 from vina_bim_shop.datahub_lineage.coursework_pipelines import (
     ASSERTION_TARGETS,
+    COURSEWORK_SCHEMA_TARGETS,
     COURSEWORK_DATAFLOW_URN,
     DATAFLOW_ID,
     datajob_urn,
     coursework_pipeline_entities,
+    emit_coursework_pipeline,
     FEATURE_TABLES,
     ice_urn,
     s3_urn,
@@ -120,6 +126,21 @@ query GetDatasetSchema($urn: String!) {
 }
 """.strip()
 
+GRAPHQL_DATASET_LINEAGE_QUERY = """
+query GetDatasetLineage($urn: String!) {
+  dataset(urn: $urn) {
+    urn
+    upstreamLineage {
+      upstreams {
+        dataset {
+          urn
+        }
+      }
+    }
+  }
+}
+""".strip()
+
 GRAPHQL_ASSERTION_QUERY = """
 query GetAssertion($urn: String!) {
   assertion(urn: $urn) {
@@ -215,6 +236,21 @@ def _utc_now() -> str:
 def _write_json(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+
+_SENSITIVE_KEY_PARTS = ("password", "secret", "token", "authorization", "cookie", "api_key")
+
+
+def _sanitize(value: object, *, key: str = "") -> object:
+    if any(part in key.lower() for part in _SENSITIVE_KEY_PARTS):
+        return "[REDACTED]"
+    if isinstance(value, dict):
+        return {str(item_key): _sanitize(item_value, key=str(item_key)) for item_key, item_value in value.items()}
+    if isinstance(value, list):
+        return [_sanitize(item) for item in value]
+    if isinstance(value, tuple):
+        return [_sanitize(item) for item in value]
+    return value
 
 
 def validate_coursework_screenshot_manifest(root: Path = COURSEWORK_PIPELINE_EVIDENCE_ROOT) -> dict:
@@ -409,7 +445,9 @@ def capture_search_evidence() -> dict:
 
 def _indexed_entity_search(entity_type: str, expected_urn: str) -> dict:
     try:
-        query = expected_urn.rsplit(",", 1)[-1].rstrip(")") if entity_type == "DATASET" else expected_urn.rsplit(",", 1)[-1].rstrip(")")
+        query = expected_urn.rsplit(",", 1)[-1].rstrip(")")
+        if entity_type == "DATASET":
+            query = expected_urn.split(",", 2)[1]
         if entity_type == "DATA_FLOW":
             query = DATAFLOW_ID
         elif entity_type == "DATA_JOB":
@@ -480,6 +518,37 @@ def _capture_dataset_schema(dataset_urn: str) -> dict:
         return {"status": "failed", "urn": dataset_urn, "fields": [], "error": str(exc)}
 
 
+def _capture_dataset_lineage(dataset_urn: str, expected_parents: list[str]) -> dict:
+    try:
+        payload = _graphql(GRAPHQL_DATASET_LINEAGE_QUERY, {"urn": dataset_urn})
+        if payload.get("errors"):
+            raise RuntimeError(str(payload["errors"]))
+        dataset = payload.get("data", {}).get("dataset") or {}
+        actual_parents = [
+            str(item.get("dataset", {}).get("urn"))
+            for item in ((dataset.get("upstreamLineage") or {}).get("upstreams") or [])
+            if item.get("dataset", {}).get("urn")
+        ]
+        expected_set = set(expected_parents)
+        actual_set = set(actual_parents)
+        success = bool(dataset) and len(actual_parents) == len(actual_set) and actual_set == expected_set
+        return {
+            "status": "success" if success else "failed",
+            "urn": dataset_urn,
+            "expected_parents": expected_parents,
+            "actual_parents": actual_parents,
+            "error": None if success else "dataset upstream lineage differs from the contract",
+        }
+    except Exception as exc:
+        return {
+            "status": "failed",
+            "urn": dataset_urn,
+            "expected_parents": expected_parents,
+            "actual_parents": [],
+            "error": str(exc),
+        }
+
+
 def _capture_assertion(assertion_id: str) -> dict:
     assertion_urn = f"urn:li:assertion:{assertion_id}"
     try:
@@ -538,14 +607,21 @@ def capture_coursework_pipeline_evidence() -> dict:
         if job_id == "dp3_offline_features":
             schema_urns = [ice_urn(table_name) for table_name in FEATURE_TABLES]
         schemas = {urn: _capture_dataset_schema(urn) for urn in schema_urns}
-        required = set(target["required_schema_fields"])
-        forbidden = set(target["forbidden_schema_fields"])
-        schema_ok = all(
-            schema["status"] == "success"
-            and required.issubset({field.get("fieldPath") for field in schema.get("fields", [])})
-            and not forbidden.intersection({field.get("fieldPath") for field in schema.get("fields", [])})
-            for schema in schemas.values()
-        )
+        if job_id == "dp3_offline_features":
+            schema_ok = all(
+                schema["status"] == "success"
+                and [field.get("fieldPath") for field in schema.get("fields", [])] == COURSEWORK_SCHEMA_TARGETS[urn]
+                for urn, schema in schemas.items()
+            )
+        else:
+            required = set(target["required_schema_fields"])
+            forbidden = set(target["forbidden_schema_fields"])
+            schema_ok = all(
+                schema["status"] == "success"
+                and required.issubset({field.get("fieldPath") for field in schema.get("fields", [])})
+                and not forbidden.intersection({field.get("fieldPath") for field in schema.get("fields", [])})
+                for schema in schemas.values()
+            )
         assertions = {assertion_id: _capture_assertion(assertion_id) for assertion_id in target["assertions"]}
         expected_assertion_datasets = _expected_assertion_datasets(job_id, target)
         assertion_ok = all(assertion["status"] == "success" and assertion.get("assertee_urn") in expected_assertion_datasets for assertion in assertions.values())
@@ -564,6 +640,233 @@ def capture_coursework_pipeline_evidence() -> dict:
     for job_id, verification in verifications.items():
         _write_json(COURSEWORK_PIPELINE_EVIDENCE_ROOT / f"{job_id.replace('_raw_to_bronze', '').replace('_bronze_to_silver_gold', '').replace('_offline_features', '')}_verification.json", verification)
     return payload
+
+
+SECTION03_ASSERTION_DATASETS = {
+    "coursework_dp3_ml_customer_label_unique": ice_urn("ml_customer_label"),
+    "coursework_dp3_ml_customer_label_binary": ice_urn("ml_customer_label"),
+    "coursework_dp3_ml_customer_purchase_training_point_in_time": ice_urn("ml_customer_purchase_training"),
+    "coursework_dp3_agg_feature_health_daily_psi_finite": ice_urn("agg_feature_health_daily"),
+    "coursework_dp3_feature_drift_alerts_alert_threshold": ice_urn("feature_drift_alerts"),
+}
+
+SECTION03_DIRECT_PARENTS = {
+    ice_urn("feat_customer_90d"): [
+        ice_urn("dim_customer"),
+        ice_urn("fact_order"),
+        ice_urn("fact_payment_attempt"),
+    ],
+    ice_urn("feat_stream_60m"): [ice_urn("stg_commerce_events")],
+    ice_urn("feat_customer_unified"): [
+        ice_urn("feat_customer_90d"),
+        ice_urn("feat_stream_60m"),
+    ],
+    ice_urn("ml_customer_label"): [ice_urn("dim_customer"), ice_urn("fact_payment_attempt")],
+    ice_urn("agg_feature_health_daily"): [ice_urn("dim_customer"), ice_urn("fact_order")],
+    ice_urn("feature_drift_alerts"): [ice_urn("agg_feature_health_daily")],
+    ice_urn("ml_customer_purchase_training"): [
+        ice_urn("ml_customer_label"),
+        ice_urn("feat_customer_unified"),
+    ],
+}
+
+
+def emit_spark_batch_lineage(gms_url: str) -> dict:
+    """Load the SDK-dependent lineage emitter only for live strict capture."""
+    from vina_bim_shop.datahub_lineage.spark_lineage import emit_spark_batch_lineage as emit
+
+    return emit(gms_url)
+
+
+def emit_coursework_assertions_to_datahub(gms_url: str) -> dict:
+    """Load the SDK-dependent schema/assertion emitter only for live strict capture."""
+    from vina_bim_shop.datahub_lineage.gx_assertions import emit_coursework_assertions_to_datahub as emit
+
+    return emit(gms_url)
+
+
+def _section03_indexed_search(data_jobs: list[dict[str, object]], datasets: dict[str, dict], assertions: dict[str, dict]) -> dict:
+    indexed_search = {
+        "dataflow": _indexed_entity_search("DATA_FLOW", COURSEWORK_DATAFLOW_URN),
+        "datajobs": {
+            str(job["id"]): _indexed_entity_search("DATA_JOB", str(job["urn"]))
+            for job in data_jobs
+        },
+        "datasets": {
+            dataset_urn: _indexed_entity_search("DATASET", dataset_urn)
+            for dataset_urn in datasets
+        },
+        "assertions": {
+            assertion_id: _indexed_entity_search("ASSERTION", f"urn:li:assertion:{assertion_id}")
+            for assertion_id in assertions
+        },
+    }
+    indexed_values = [
+        indexed_search["dataflow"],
+        *indexed_search["datajobs"].values(),
+        *indexed_search["datasets"].values(),
+        *indexed_search["assertions"].values(),
+    ]
+    indexed_search["status"] = "success" if all(item["status"] == "success" for item in indexed_values) else "failed"
+    indexed_search["error"] = None if indexed_search["status"] == "success" else "one or more Section 03 entities are absent from indexed search"
+    return indexed_search
+
+
+def _wait_for_section03_index(
+    *,
+    data_jobs: list[dict[str, object]],
+    datasets: dict[str, dict],
+    assertions: dict[str, dict],
+    timeout_seconds: float,
+    poll_interval_seconds: float,
+    sleep: Callable[[float], None],
+) -> dict:
+    deadline = time.monotonic() + timeout_seconds
+    attempts = 0
+    while True:
+        attempts += 1
+        indexed_search = _section03_indexed_search(data_jobs, datasets, assertions)
+        if indexed_search["status"] == "success" or time.monotonic() >= deadline:
+            indexed_search["attempts"] = attempts
+            return indexed_search
+        sleep(poll_interval_seconds)
+
+
+def capture_section03_evidence(
+    *,
+    output_root: Path,
+    gms_url: str = GMS_URL,
+    frontend_url: str | None = None,
+    airflow_capture: Path | None = None,
+    section03_manifest: Path | None = None,
+    index_timeout_seconds: float = 60,
+    index_poll_interval_seconds: float = 2,
+    sleep: Callable[[float], None] = time.sleep,
+) -> dict:
+    """Emit and strictly read back the local Section 03 DataHub contract.
+
+    The function deliberately requires both direct GMS responses and indexed
+    search hits. It writes only sanitized JSON so it can be handed to the
+    later runtime-promotion topic without becoming credential evidence.
+    """
+    global GMS_URL, COURSEWORK_PIPELINE_EVIDENCE_ROOT
+    output_root = Path(output_root)
+    previous_gms_url = GMS_URL
+    previous_evidence_root = COURSEWORK_PIPELINE_EVIDENCE_ROOT
+    GMS_URL = gms_url
+    COURSEWORK_PIPELINE_EVIDENCE_ROOT = output_root
+    try:
+        emitted = {
+            "coursework_pipeline": emit_coursework_pipeline(gms_url=gms_url),
+            "spark_lineage": emit_spark_batch_lineage(gms_url=gms_url),
+            "coursework_assertions": emit_coursework_assertions_to_datahub(gms_url=gms_url),
+        }
+        entities = coursework_pipeline_entities()
+        data_flow = entities["data_flow"]
+        data_jobs = entities["data_jobs"]
+        assert isinstance(data_flow, dict) and isinstance(data_jobs, list)
+
+        try:
+            flow_payload = _graphql(GRAPHQL_DATAFLOW_QUERY, {"urn": COURSEWORK_DATAFLOW_URN})
+            if flow_payload.get("errors"):
+                raise RuntimeError(str(flow_payload["errors"]))
+            flow = flow_payload.get("data", {}).get("dataFlow")
+            dataflow = {
+                "status": "success" if flow and flow.get("urn") == COURSEWORK_DATAFLOW_URN else "failed",
+                "expected_urn": COURSEWORK_DATAFLOW_URN,
+                "dataflow": flow,
+            }
+        except Exception as exc:
+            dataflow = {"status": "failed", "expected_urn": COURSEWORK_DATAFLOW_URN, "error": str(exc)}
+
+        jobs = {str(job["id"]): _capture_coursework_job(job) for job in data_jobs}
+        datasets = {
+            ice_urn(table_name): _capture_dataset_schema(ice_urn(table_name))
+            for table_name in FEATURE_TABLES
+        }
+        edges = {
+            dataset_urn: _capture_dataset_lineage(dataset_urn, expected_parents)
+            for dataset_urn, expected_parents in SECTION03_DIRECT_PARENTS.items()
+        }
+        assertions = {
+            assertion_id: _capture_assertion(assertion_id)
+            for assertion_id in SECTION03_ASSERTION_DATASETS
+        }
+
+        for dataset_urn, schema in datasets.items():
+            schema["status"] = "success" if (
+                schema["status"] == "success"
+                and [field.get("fieldPath") for field in schema.get("fields", [])] == COURSEWORK_SCHEMA_TARGETS[dataset_urn]
+            ) else "failed"
+        for assertion_id, assertion in assertions.items():
+            expected_dataset = SECTION03_ASSERTION_DATASETS[assertion_id]
+            assertion["status"] = "success" if (
+                assertion["status"] == "success" and assertion.get("assertee_urn") == expected_dataset
+            ) else "failed"
+
+        indexed_search = _wait_for_section03_index(
+            data_jobs=data_jobs,
+            datasets=datasets,
+            assertions=assertions,
+            timeout_seconds=index_timeout_seconds,
+            poll_interval_seconds=index_poll_interval_seconds,
+            sleep=sleep,
+        )
+
+        direct_values = [dataflow, *jobs.values(), *datasets.values(), *edges.values(), *assertions.values()]
+        direct_status = all(item["status"] == "success" for item in direct_values)
+        emission_status = all(
+            isinstance(payload, dict)
+            and (
+                payload.get("status") == "success"
+                if "status" in payload
+                else bool(payload) and all(value == "success" for value in payload.values())
+            )
+            for payload in emitted.values()
+        )
+        status = "success" if emission_status and direct_status and indexed_search["status"] == "success" else "failed"
+        result = {
+            "status": status,
+            "mode": "section03",
+            "gms_url": gms_url,
+            "frontend_url": frontend_url,
+            "runtime_inputs": {
+                "airflow_capture": str(airflow_capture) if airflow_capture else None,
+                "section03_manifest": str(section03_manifest) if section03_manifest else None,
+            },
+            "emitted": _sanitize(emitted),
+            "dataflow": dataflow,
+            "datajobs": jobs,
+            "datasets": datasets,
+            "edges": edges,
+            "assertions": assertions,
+            "indexed_search": indexed_search,
+        }
+    except Exception as exc:
+        result = {
+            "status": "failed",
+            "mode": "section03",
+            "gms_url": gms_url,
+            "error": str(exc),
+            "indexed_search": {"status": "failed", "error": "strict capture did not complete"},
+        }
+    finally:
+        GMS_URL = previous_gms_url
+        COURSEWORK_PIPELINE_EVIDENCE_ROOT = previous_evidence_root
+
+    sanitized = _sanitize(result)
+    _write_json(output_root / "lineage.json", sanitized)
+    _write_json(
+        output_root / "run_manifest.json",
+        {
+            "status": result["status"],
+            "mode": "section03",
+            "lineage": "lineage.json",
+            "sanitized": True,
+            "error": result.get("error"),
+        },
+    )
+    return result
 
 
 def capture_dataset_evidence() -> dict:
@@ -693,12 +996,37 @@ def capture_evidence() -> dict:
     return manifest
 
 
-def main() -> None:
-    manifest = capture_evidence()
+def main(argv: list[str] | None = None) -> None:
+    if argv is None:
+        manifest = capture_evidence()
+        print(json.dumps(manifest, indent=2))
+        if manifest["status"] == "failed":
+            raise SystemExit(1)
+        return
+
+    parser = ArgumentParser(description="Capture DataHub evidence")
+    parser.add_argument("--section03", action="store_true")
+    parser.add_argument("--gms-url", default=GMS_URL)
+    parser.add_argument("--frontend-url")
+    parser.add_argument("--airflow-capture", type=Path)
+    parser.add_argument("--section03-manifest", type=Path)
+    parser.add_argument("--output", type=Path, default=REPO_ROOT / "tmp" / "section03-runtime" / "datahub")
+    parser.add_argument("--strict", action="store_true")
+    args = parser.parse_args(argv)
+    if not args.section03:
+        manifest = capture_evidence()
+    else:
+        manifest = capture_section03_evidence(
+            output_root=args.output,
+            gms_url=args.gms_url,
+            frontend_url=args.frontend_url,
+            airflow_capture=args.airflow_capture,
+            section03_manifest=args.section03_manifest,
+        )
     print(json.dumps(manifest, indent=2))
     if manifest["status"] == "failed":
         raise SystemExit(1)
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

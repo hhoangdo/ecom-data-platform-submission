@@ -21,9 +21,11 @@ from vina_bim_shop.orchestration.mini_coursework_pipeline import (
 
 
 def _run(*, stage_function, **context):
+    dag_run_conf = dict(context["dag_run"].conf) if context["dag_run"].conf else None
     settings = settings_from_airflow(
         get_connection=BaseHook.get_connection,
         get_variable=Variable.get,
+        dag_run_conf=dag_run_conf,
     )
     return stage_function(
         run_id=context["run_id"],
