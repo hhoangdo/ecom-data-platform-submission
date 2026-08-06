@@ -125,6 +125,14 @@ services:
     ports:
       - "8080:8080"
     environment:
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      ALL_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+      all_proxy: ""
+      NO_PROXY: "minio,hive-metastore,trino,trino-worker,localhost,127.0.0.1,::1"
+      no_proxy: "minio,hive-metastore,trino,trino-worker,localhost,127.0.0.1,::1"
       VBS_MINIO_ROOT_USER: "${VBS_MINIO_ROOT_USER:-vina_minio}"
       VBS_MINIO_ROOT_PASSWORD: "${VBS_MINIO_ROOT_PASSWORD:-vina_minio_password}"
     volumes:
@@ -147,6 +155,14 @@ services:
       trino:
         condition: service_healthy
     environment:
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      ALL_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+      all_proxy: ""
+      NO_PROXY: "minio,hive-metastore,trino,trino-worker,localhost,127.0.0.1,::1"
+      no_proxy: "minio,hive-metastore,trino,trino-worker,localhost,127.0.0.1,::1"
       VBS_MINIO_ROOT_USER: "${VBS_MINIO_ROOT_USER:-vina_minio}"
       VBS_MINIO_ROOT_PASSWORD: "${VBS_MINIO_ROOT_PASSWORD:-vina_minio_password}"
     volumes:

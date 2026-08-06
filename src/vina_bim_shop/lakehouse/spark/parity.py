@@ -77,6 +77,19 @@ def _normalise_scalar(value: Any) -> Any:
         return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     if isinstance(value, date):
         return value.isoformat()
+    if isinstance(value, str):
+        timestamp = value.strip()
+        if timestamp.endswith(" UTC"):
+            timestamp = timestamp[:-4] + "+00:00"
+        elif timestamp.endswith("Z"):
+            timestamp = timestamp[:-1] + "+00:00"
+        else:
+            return value
+        try:
+            parsed = datetime.fromisoformat(timestamp)
+        except ValueError:
+            return value
+        return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     return value
 
 

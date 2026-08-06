@@ -81,6 +81,36 @@ def test_root_compose_declares_batch_services_and_ui_ports() -> None:
     assert "spark-master" in services["spark-history-server"]["depends_on"]
 
 
+def test_spark_services_bypass_inherited_proxy_for_internal_runtime() -> None:
+    compose = load_compose_model(_repo_root())
+    internal_no_proxy = {
+        "minio",
+        "hive-metastore",
+        "spark-master",
+        "spark-worker",
+        "spark-history-server",
+        "localhost",
+        "127.0.0.1",
+        "::1",
+    }
+
+    for service_name in ("spark-master", "spark-worker", "spark-history-server"):
+        environment = compose["services"][service_name]["environment"]
+
+        for key in (
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "ALL_PROXY",
+            "http_proxy",
+            "https_proxy",
+            "all_proxy",
+        ):
+            assert environment[key] == ""
+
+        assert internal_no_proxy <= set(environment["NO_PROXY"].split(","))
+        assert environment["no_proxy"] == environment["NO_PROXY"]
+
+
 def test_env_example_documents_spark_batch_urls() -> None:
     env_example = (_repo_root() / ".env.example").read_text(encoding="utf-8")
 
@@ -720,6 +750,29 @@ def test_keyed_full_row_comparison_requires_exact_keys_and_tolerates_only_rounde
     assert mismatch["mismatch_count"] >= 1
     assert mismatch["missing_key_count"] == 1
     assert mismatch["extra_key_count"] == 1
+
+
+def test_keyed_training_comparison_normalises_trino_utc_timestamp_strings() -> None:
+    result = compare_keyed_rows(
+        table_name="ml_customer_purchase_training",
+        expected_rows=[
+            {
+                "id": "c-001",
+                "event_timestamp": "2026-04-24T23:59:00Z",
+                "created": "2026-04-24T23:59:00Z",
+            }
+        ],
+        actual_rows=[
+            {
+                "id": "c-001",
+                "event_timestamp": "2026-04-24 23:59:00.000 UTC",
+                "created": "2026-04-24 23:59:00.000 UTC",
+            }
+        ],
+    )
+
+    assert result["mismatch_count"] == 0
+    assert result["field_mismatch_count"] == 0
 
 
 def test_required_gold_table_inventory_matches_adr03_scope() -> None:

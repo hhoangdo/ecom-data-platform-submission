@@ -54,6 +54,36 @@ def test_lakehouse_service_dependencies_preserve_catalog_boundaries() -> None:
     assert hive_environment["IS_RESUME"] == "true"
 
 
+def test_trino_services_bypass_inherited_proxy_for_internal_lakehouse() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    compose = load_compose_model(repo_root)
+    internal_no_proxy = {
+        "minio",
+        "hive-metastore",
+        "trino",
+        "trino-worker",
+        "localhost",
+        "127.0.0.1",
+        "::1",
+    }
+
+    for service_name in ("trino", "trino-worker"):
+        environment = compose["services"][service_name]["environment"]
+
+        for key in (
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "ALL_PROXY",
+            "http_proxy",
+            "https_proxy",
+            "all_proxy",
+        ):
+            assert environment[key] == ""
+
+        assert internal_no_proxy <= set(environment["NO_PROXY"].split(","))
+        assert environment["no_proxy"] == environment["NO_PROXY"]
+
+
 def test_lakehouse_compose_declares_persistent_state_volumes() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     compose = load_compose_model(repo_root)
