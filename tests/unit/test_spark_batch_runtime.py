@@ -2,6 +2,7 @@ import importlib.util
 import csv
 import hashlib
 import json
+import subprocess
 import sys
 from types import SimpleNamespace
 from pathlib import Path
@@ -249,6 +250,28 @@ def test_run_command_uses_utf8_with_replacement(monkeypatch) -> None:
             "errors": "replace",
         },
     }
+
+
+def test_run_command_reemits_captured_output_before_reraising(monkeypatch, capsys) -> None:
+    error = subprocess.CalledProcessError(
+        17,
+        ["spark-submit"],
+        output="captured stdout\n",
+        stderr="captured stderr\n",
+    )
+
+    def fake_run(command, **kwargs):
+        raise error
+
+    monkeypatch.setattr("vina_bim_shop.lakehouse.spark.runner.subprocess.run", fake_run)
+
+    with pytest.raises(subprocess.CalledProcessError) as caught:
+        _run_command(["spark-submit"])
+
+    captured = capsys.readouterr()
+    assert caught.value is error
+    assert captured.out == "captured stdout\n"
+    assert captured.err == "captured stderr\n"
 
 
 def test_capture_evidence_writes_machine_verifiable_manifest(tmp_path: Path) -> None:

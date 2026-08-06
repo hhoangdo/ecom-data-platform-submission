@@ -24,7 +24,16 @@ CaptureEvidence = Callable[..., dict[str, Any]]
 
 
 def _run_command(command: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, check=True, text=True, capture_output=True, encoding="utf-8", errors="replace")
+    try:
+        return subprocess.run(command, check=True, text=True, capture_output=True, encoding="utf-8", errors="replace")
+    except subprocess.CalledProcessError as exc:
+        if exc.stdout is not None:
+            sys.stdout.write(exc.stdout)
+        if exc.stderr is not None:
+            sys.stderr.write(exc.stderr)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        raise
 
 
 def _container_workspace_path(path: str | Path) -> str:
