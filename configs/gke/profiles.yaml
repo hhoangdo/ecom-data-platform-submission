@@ -1,0 +1,20 @@
+schema_version: 1
+profiles:
+  suspended:
+    platform_nodes: 0
+    spot_nodes: 0
+    ingress_enabled: false
+    workload_replicas: 0
+  core:
+    platform_nodes: 1
+    spot_nodes: 0
+    ingress_enabled: false
+    workload_replicas: 1
+  rubric-evidence:
+    platform_nodes: 1
+    spot_nodes: 1
+    ingress_enabled: true
+    workload_replicas: 1
+retention:
+  telemetry_days: 7
+  evidence_ttl_hours: 6

@@ -1,0 +1,23 @@
+schema_version: 1
+strategy: RouteStrategy
+routes:
+  support: retrieval-specialist
+  drift: drift-specialist
+  abstain: safe-abstention
+experiments:
+  agent:
+    salt: agent_exp_v1
+    arms:
+      v1-primary: 90
+      v2-primary: 10
+  model:
+    salt: model_exp_v1
+    arms:
+      v1-primary: 90
+      v1-comparison: 10
+coordinator:
+  specialists:
+    - search_ecommerce_knowledge
+    - detect_customer_order_drift
+  direct_database_access: false
+  direct_model_access: false

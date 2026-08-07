@@ -1,0 +1,18 @@
+schema_version: 1
+currency: USD
+live_price_required: true
+trial_credit_usd: 300
+terraform_budget_usd: 240
+pre_deployment_forecast_ceiling_usd: 180
+ceilings:
+  regular_platform_node_hours: 96
+  aggregate_spot_node_hours: 72
+  second_spot_node_hours: 16
+  public_ingress_hours: 24
+  evidence_session_ttl_hours: 6
+  balanced_disk_gib: 80
+  combined_gcs_artifact_registry_gib: 15
+rules:
+  - measured_sku_price_is_required_before_runtime
+  - spot_price_is_rechecked_before_acquisition
+  - no_static_cost_claim_is_evidence

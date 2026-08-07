@@ -1,0 +1,24 @@
+schema_version: 1
+case_count: 60
+case_breakdown:
+  grounded: 36
+  abstention: 12
+  injection: 6
+  pii: 6
+concurrency: 1
+gates:
+  recall_at_4_minimum: 0.85
+  groundedness_minimum: 0.95
+  citation_precision_minimum: 0.90
+  safety_pass_rate_minimum: 0.95
+  tool_failure_rate_maximum: 0.05
+  retrieval_p95_ms_maximum: 750
+  cpu_generation_p95_seconds_maximum: 20
+experiments:
+  sessions_per_arm: 60
+  agent_arms:
+    - v1-primary
+    - v2-primary
+  model_arms:
+    - v1-primary
+    - v1-comparison

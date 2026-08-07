@@ -1,0 +1,11 @@
+schema_version: 1
+production_roots:
+  - src/vina_bim_shop/llm
+contract_roots:
+  - tests/contract/llm
+  - tests/unit/llm
+coverage:
+  statement_minimum_percent: 91
+  mutation_minimum_percent: 80
+  network_access: false
+  runtime_required: false
