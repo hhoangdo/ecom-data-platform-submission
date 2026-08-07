@@ -1,0 +1,95 @@
+{
+  "artifacts": [
+    {
+      "path": "dbt_parity_report.json",
+      "sha256": "c861adfe5ae4022225916e4b1f2564a6e96f1483777060ae13edc0fd757d3488",
+      "size_bytes": 15369
+    },
+    {
+      "path": "dbt_parity_report.md",
+      "sha256": "91e0c3c43d80dd9f4d8c9a03f4174f2f0e3346b43ea0a73f7a9ca74d1ec523f6",
+      "size_bytes": 3065
+    },
+    {
+      "path": "executive_mart_export_manifest.json",
+      "sha256": "9670dd6c2c17b6b5ea26d606b7c716a330c658786aef7cc6d794fe58de2513ee",
+      "size_bytes": 4630
+    },
+    {
+      "path": "executive_mart_export_report.md",
+      "sha256": "c7d633d3c70c80b374709e682e421646c1bf2c245a7c149e94fd1ffc729d1844",
+      "size_bytes": 2170
+    },
+    {
+      "path": "gx/validation_results.json",
+      "sha256": "63874e8c3e3bcf4e026e8e30f29bb751a26f9cab9cab3e31bf2e975bcc804961",
+      "size_bytes": 6527
+    },
+    {
+      "path": "pyspark_validation_report.json",
+      "sha256": "f7498a5d360999700b42f8934c8a82ebcff9f7011d9d2ea5ba1ce4d81f3d560d",
+      "size_bytes": 7014
+    },
+    {
+      "path": "run_batch_summary.json",
+      "sha256": "8cec43cb29c5ead50a4f37c024e1f452861620f4635fe992648c344742866886",
+      "size_bytes": 42657
+    },
+    {
+      "path": "spark_history_applications.json",
+      "sha256": "4667836af5fff62af41477b5c6907d62e8582f4a88814e217536acee03d0e8a4",
+      "size_bytes": 1071
+    },
+    {
+      "path": "spark_job_manifest.json",
+      "sha256": "34ca3097c7cf8c7e63b4cd90a1c2ebbe0ae0ee01fb13f106adb0492f39457294",
+      "size_bytes": 2999
+    },
+    {
+      "path": "spark_master_status.json",
+      "sha256": "61bf9b1ccce1735a5f36ccb45c0df3a08b4dc30e8cc97fd5c4c56c005b411c1f",
+      "size_bytes": 1617
+    },
+    {
+      "path": "spark_table_row_counts.json",
+      "sha256": "c7f19b17c031ac805c317a81bc5a45d47dc2c6b16fca07f9413f6d12ffb3306c",
+      "size_bytes": 1294
+    },
+    {
+      "path": "trino_gold_smoke_results.json",
+      "sha256": "58c8f82132f758bccd1c18200385a618233aadc88ed5546f692e7a1b6e1cfd73",
+      "size_bytes": 12476
+    },
+    {
+      "path": "version_matrix.json",
+      "sha256": "0216eb93785e9deb340b3582e6b8a077df91a5831d3aa713a9e0a41ee8f06728",
+      "size_bytes": 206
+    }
+  ],
+  "candidate_bundle_id": "0e889d1e57425e070a87f406e220f758d703326eac67ea1d5f9f58fa2916bb9d",
+  "candidate_manifest_sha256": "9b1fc0b5d9cea1186e173e263e04cd363f65f791110d02345a99dbbe99ae5475",
+  "captured_at": "2026-08-07T03:11:34.844676+00:00",
+  "conf": {
+    "candidate_bundle_id": "0e889d1e57425e070a87f406e220f758d703326eac67ea1d5f9f58fa2916bb9d",
+    "candidate_manifest_sha256": "9b1fc0b5d9cea1186e173e263e04cd363f65f791110d02345a99dbbe99ae5475",
+    "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+    "label_end_ts": "2026-05-01T23:59:00Z",
+    "random_seed": 42,
+    "run_id": "section03-medium-seed42-spark",
+    "scale": "medium",
+    "section": "03_data_generator_improvement",
+    "source_config_sha256": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97"
+  },
+  "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+  "label_end_ts": "2026-05-01T23:59:00Z",
+  "random_seed": 42,
+  "run_id": "section03-medium-seed42-spark",
+  "scale": "medium",
+  "section": "03_data_generator_improvement",
+  "service_urls": {
+    "spark_history_server": "http://localhost:18080",
+    "spark_master_ui": "http://localhost:8085"
+  },
+  "source_config_sha256": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97",
+  "status": "success"
+}

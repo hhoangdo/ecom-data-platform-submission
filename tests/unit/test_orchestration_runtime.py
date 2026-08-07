@@ -121,6 +121,20 @@ def test_prepare_spark_evidence_root_uses_root_exec_for_shared_workspace(monkeyp
     assert captured["cwd"] == hourly_batch.REPO_ROOT
 
 
+def test_section03_prepare_spark_evidence_root_uses_the_shared_bind_mount(monkeypatch, tmp_path) -> None:
+    pipeline = importlib.import_module("vina_bim_shop.orchestration.mini_coursework_pipeline")
+
+    def fail_if_docker_is_called(*_args, **_kwargs):
+        raise AssertionError("Section 03 Airflow runtime must not require the Docker socket")
+
+    monkeypatch.setattr(pipeline, "_run_command", fail_if_docker_is_called)
+    evidence_root = tmp_path / "runs" / "section03" / "spark_features"
+
+    pipeline._prepare_spark_evidence_root(evidence_root)
+
+    assert evidence_root.is_dir()
+
+
 def test_prepare_gx_docs_root_uses_root_exec_for_static_site_mount(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
@@ -458,9 +472,9 @@ def test_validate_offline_features_emits_table_specific_contract_facts(monkeypat
         if "from iceberg.gold." in query:
             table_name = query.split("from iceberg.gold.", 1)[1].split()[0]
             metric_rows = {
-                "feat_customer_90d": [1, 1, 0, 0, "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z"],
-                "feat_stream_60m": [1, 1, 0, 0, "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z"],
-                "feat_customer_unified": [1, 1, 0, 0, "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z"],
+                "feat_customer_90d": [1, 1, 0, 0, 0, "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z"],
+                "feat_stream_60m": [1, 1, 0, 0, 0, "2026-04-24T23:00:00Z", "2026-04-24T23:00:00Z", "2026-04-24T23:01:00Z", "2026-04-24T23:58:00Z"],
+                "feat_customer_unified": [1, 1, 0, 0, 0, "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z", "2026-04-24T23:59:00Z"],
                 "ml_customer_label": [1, 1, 0, 0, 0, 1],
                 "agg_feature_health_daily": [1, 1, 0, 0, 0, 0, 0, 0, 0],
                 "feature_drift_alerts": [0, 0, 0, 0, 0, 0, 0],
@@ -528,6 +542,20 @@ def test_dp3_metric_queries_enforce_exact_alert_threshold_and_training_cutoff() 
     assert "min(psi_value) as psi_min" in alert_query
 
 
+def test_dp3_stream_metric_query_allows_late_arrivals_but_enforces_cutoff_safety() -> None:
+    pipeline = importlib.import_module("vina_bim_shop.orchestration.mini_coursework_pipeline")
+
+    feature_metrics, feature_query = pipeline._dp3_metric_query(
+        "feat_stream_60m", "2026-04-24T23:59:00Z", "2026-04-10"
+    )
+
+    assert "created_cutoff_violation_count" in feature_metrics
+    assert "event_cutoff_violation_count" in feature_metrics
+    assert "created is null or created >" in feature_query
+    assert "event_timestamp is null or event_timestamp >" in feature_query
+    assert "created > event_timestamp" not in feature_query
+
+
 def test_validate_offline_features_requires_matching_dp3_compute_metadata(tmp_path) -> None:
     pipeline = importlib.import_module("vina_bim_shop.orchestration.mini_coursework_pipeline")
     settings = pipeline.CourseworkPipelineSettings.for_tests()
@@ -591,9 +619,11 @@ def test_section03_wrapper_posts_exact_conf_and_exports_hash_bound_artifacts(mon
     candidate.write_text(
         json.dumps(
             {
+                "bundle_id": "b" * 64,
                 "source_config_path": "configs/generator/base.yaml",
                 "source_config_sha256": config_sha256,
                 "scale": "medium",
+                "random_seed": 42,
                 "windows": {
                     "drift_start_ts": "2026-04-11T08:23:00Z",
                     "feature_cutoff_ts": "2026-04-24T23:59:00Z",
@@ -716,9 +746,12 @@ def test_section03_wrapper_posts_exact_conf_and_exports_hash_bound_artifacts(mon
     assert "secret-value" not in output_text
     task_state_path = tmp_path / "output" / "airflow_task_instances.json"
     assert task_state_path.is_file()
+    for relative in module.REQUIRED_ARTIFACTS:
+        assert (tmp_path / "output" / relative).read_bytes() == (run_root / relative).read_bytes()
     output_manifest = json.loads(output_text)
     assert {
         "path": "airflow_task_instances.json",
+        "size_bytes": task_state_path.stat().st_size,
         "sha256": hashlib.sha256(task_state_path.read_bytes()).hexdigest(),
     } in output_manifest["artifacts"]
 
@@ -730,9 +763,11 @@ def test_section03_wrapper_fails_closed_when_runtime_artifacts_are_stale(monkeyp
     candidate.write_text(
         json.dumps(
             {
+                "bundle_id": "b" * 64,
                 "source_config_path": "configs/generator/base.yaml",
                 "source_config_sha256": hashlib.sha256(config_path.read_bytes()).hexdigest(),
                 "scale": "medium",
+                "random_seed": 42,
                 "windows": {
                     "drift_start_ts": "2026-04-11T08:23:00Z",
                     "feature_cutoff_ts": "2026-04-24T23:59:00Z",

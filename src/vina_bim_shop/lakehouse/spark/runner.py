@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import os
 import subprocess
 import sys
 from collections.abc import Callable
@@ -11,7 +13,7 @@ from typing import Any
 
 from vina_bim_shop.generators.config import load_generator_config
 from vina_bim_shop.generators.drift import resolve_drift_window
-from vina_bim_shop.lakehouse.spark.evidence import capture_evidence
+from vina_bim_shop.lakehouse.spark.evidence import SECTION03_ARTIFACTS, capture_evidence
 from vina_bim_shop.lakehouse.spark.executive_mart import export_executive_mart
 from vina_bim_shop.lakehouse.spark.parity import run_parity_checks
 from vina_bim_shop.lakehouse.spark.sql import Section03SqlParameters
@@ -39,6 +41,33 @@ def _run_command(command: list[str]) -> subprocess.CompletedProcess[str]:
 def _container_workspace_path(path: str | Path) -> str:
     value = Path(path).as_posix()
     return value if Path(path).is_absolute() else f"/workspace/{value}"
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _section03_context(*, manifest_path: str | Path, generator_config: str | Path, generator_scale: str) -> dict[str, Any]:
+    path = Path(manifest_path)
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    if manifest.get("section") != "03_data_generator_improvement":
+        raise ValueError("Section 03 candidate manifest identity is invalid")
+    windows = manifest.get("windows")
+    if not isinstance(windows, dict):
+        raise ValueError("Section 03 candidate windows are missing")
+    if manifest.get("scale") != generator_scale:
+        raise ValueError("Section 03 candidate scale does not match the runtime")
+    return {
+        "section": "03_data_generator_improvement",
+        "run_id": f"section03-{generator_scale}-seed{manifest['random_seed']}-spark",
+        "candidate_bundle_id": manifest["bundle_id"],
+        "candidate_manifest_sha256": _sha256(path),
+        "source_config_sha256": manifest["source_config_sha256"],
+        "scale": manifest["scale"],
+        "random_seed": manifest["random_seed"],
+        "feature_cutoff_ts": windows["feature_cutoff_ts"],
+        "label_end_ts": windows["label_end_ts"],
+    }
 
 
 def _section03_runtime_context(
@@ -73,6 +102,85 @@ def build_spark_submit_command(
     generator_scale: str = "medium",
     section03_manifest: str | Path | None = None,
 ) -> list[str]:
+    submit_bin = os.getenv("VBS_SPARK_SUBMIT_BIN")
+    if submit_bin:
+        deploy_mode = os.getenv("VBS_SPARK_DEPLOY_MODE", "client")
+        driver_service_url = os.getenv("VBS_SPARK_DRIVER_SERVICE_URL")
+        command = [
+            "--master",
+            "spark://spark-master:7077",
+            "--deploy-mode",
+            deploy_mode,
+            "--conf",
+            "spark.eventLog.enabled=true",
+            "--conf",
+            "spark.eventLog.compress=true",
+            "--conf",
+            f"spark.eventLog.dir=s3a://{os.getenv('VBS_CHECKPOINTS_BUCKET', 'checkpoints')}/spark-events",
+            "--conf",
+            "spark.sql.session.timeZone=UTC",
+            "--conf",
+            "spark.sql.storeAssignmentPolicy=ANSI",
+            "--conf",
+            "spark.sql.shuffle.partitions=8",
+            "--conf",
+            "spark.driver.extraJavaOptions=-Duser.timezone=UTC",
+            "--conf",
+            "spark.executor.extraJavaOptions=-Duser.timezone=UTC",
+            "--conf",
+            "spark.executorEnv.PYTHONPATH=/workspace/src",
+        ]
+        driver_host = os.getenv("VBS_SPARK_DRIVER_HOST")
+        if not driver_service_url and deploy_mode == "client" and driver_host:
+            command.extend(
+                [
+                    "--conf",
+                    f"spark.driver.host={driver_host}",
+                    "--conf",
+                    "spark.driver.bindAddress=0.0.0.0",
+                ]
+            )
+        if deploy_mode == "cluster":
+            raise ValueError(
+                "Spark standalone cluster deploy mode does not support Python applications; "
+                "configure VBS_SPARK_DRIVER_SERVICE_URL."
+            )
+        command.extend(
+            [
+                "/workspace/scripts/spark/job.py",
+                *window.to_cli_args(),
+                "--evidence-root",
+                _container_workspace_path(evidence_root),
+                "--stage",
+                stage,
+                "--generator-config",
+                _container_workspace_path(generator_config),
+                "--generator-scale",
+                generator_scale,
+            ]
+        )
+        if section03_manifest is not None:
+            command.extend(
+                [
+                    "--section03-manifest",
+                    _container_workspace_path(section03_manifest),
+                ]
+            )
+        if driver_service_url:
+            if deploy_mode != "client":
+                raise ValueError("The Spark driver service requires standalone client deploy mode.")
+            return [
+                sys.executable,
+                "/workspace/scripts/spark/submit_remote.py",
+                "--service-url",
+                driver_service_url,
+                "--timeout-seconds",
+                os.getenv("VBS_SPARK_DRIVER_SERVICE_TIMEOUT_SECONDS", "2400"),
+                "--",
+                *command,
+            ]
+        return [submit_bin, *command]
+
     args = (
         " --evidence-root "
         + _container_workspace_path(evidence_root)
@@ -132,8 +240,8 @@ def persist_run_summary(*, evidence_root: str | Path, summary: dict[str, Any]) -
 
 def run_batch_pipeline(
     *,
-    start_ts: str,
-    end_ts: str,
+    start_ts: str | None,
+    end_ts: str | None,
     mode: str,
     evidence_root: str | Path = "evidence/05_spark_batch",
     generator_config: str | Path = "configs/generator/base.yaml",
@@ -154,12 +262,21 @@ def run_batch_pipeline(
             generator_config=generator_config,
             generator_scale=generator_scale,
         )
-        supplied_window = BatchWindow.from_args(start_ts=start_ts, end_ts=end_ts, mode=mode)
-        if supplied_window.start_ts != derived_window.start_ts:
-            raise ValueError("start_ts does not match the config-derived Section 03 window")
-        if supplied_window.end_ts != derived_window.end_ts:
-            raise ValueError("end_ts does not match the config-derived Section 03 window")
-    window = BatchWindow.from_args(start_ts=start_ts, end_ts=end_ts, mode=mode)
+        if mode != derived_window.mode:
+            raise ValueError("mode does not match the config-derived Section 03 window")
+        if start_ts is not None or end_ts is not None:
+            if start_ts is None or end_ts is None:
+                raise ValueError("Section 03 start_ts and end_ts must be supplied together")
+            supplied_window = BatchWindow.from_args(start_ts=start_ts, end_ts=end_ts, mode=mode)
+            if supplied_window.start_ts != derived_window.start_ts:
+                raise ValueError("start_ts does not match the config-derived Section 03 window")
+            if supplied_window.end_ts != derived_window.end_ts:
+                raise ValueError("end_ts does not match the config-derived Section 03 window")
+        window = derived_window
+    else:
+        if start_ts is None or end_ts is None:
+            raise ValueError("start_ts and end_ts are required outside Section 03")
+        window = BatchWindow.from_args(start_ts=start_ts, end_ts=end_ts, mode=mode)
     spark_submit = build_spark_submit_command(
         window,
         evidence_root=evidence_root,
@@ -187,8 +304,6 @@ def run_batch_pipeline(
         )
     trino_smoke = run_gold_smoke_queries(evidence_root=evidence_root)
     executive_mart = export_executive_mart(evidence_root=evidence_root)
-    evidence_manifest = capture_evidence_fn(evidence_root=evidence_root)
-
     summary = {
         "window": {
             "start_ts": window.start_ts.isoformat().replace("+00:00", "Z"),
@@ -209,9 +324,24 @@ def run_batch_pipeline(
             "table_count": executive_mart["table_count"],
             "total_row_count": executive_mart["total_row_count"],
         },
-        "evidence_artifact_count": len(evidence_manifest["artifacts"]),
     }
-    persist_run_summary(evidence_root=evidence_root, summary=summary)
+    if section03_manifest is None:
+        evidence_manifest = capture_evidence_fn(evidence_root=evidence_root)
+        summary["evidence_artifact_count"] = len(evidence_manifest["artifacts"])
+        persist_run_summary(evidence_root=evidence_root, summary=summary)
+    else:
+        optimization_count = int((Path(evidence_root) / "optimization" / "run_manifest.json").is_file())
+        expected_artifact_count = len(SECTION03_ARTIFACTS) + optimization_count
+        summary["evidence_artifact_count"] = expected_artifact_count
+        persist_run_summary(evidence_root=evidence_root, summary=summary)
+        evidence_manifest = capture_evidence_fn(
+            evidence_root=evidence_root,
+            section03_context=_section03_context(
+                manifest_path=section03_manifest,
+                generator_config=generator_config,
+                generator_scale=generator_scale,
+            ),
+        )
     return summary
 
 

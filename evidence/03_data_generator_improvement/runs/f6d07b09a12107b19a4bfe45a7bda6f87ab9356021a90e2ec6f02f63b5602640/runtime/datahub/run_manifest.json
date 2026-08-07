@@ -1,0 +1,34 @@
+{
+  "artifacts": [
+    {
+      "path": "lineage.json",
+      "sha256": "8674aaf59fdd94ff174dcd1c82b81a2644326a5a5eb3239bb48336d2bd9e08be",
+      "size_bytes": 49004
+    }
+  ],
+  "candidate_bundle_id": "0e889d1e57425e070a87f406e220f758d703326eac67ea1d5f9f58fa2916bb9d",
+  "candidate_manifest_sha256": "9b1fc0b5d9cea1186e173e263e04cd363f65f791110d02345a99dbbe99ae5475",
+  "conf": {
+    "candidate_bundle_id": "0e889d1e57425e070a87f406e220f758d703326eac67ea1d5f9f58fa2916bb9d",
+    "candidate_manifest_sha256": "9b1fc0b5d9cea1186e173e263e04cd363f65f791110d02345a99dbbe99ae5475",
+    "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+    "label_end_ts": "2026-05-01T23:59:00Z",
+    "random_seed": 42,
+    "run_id": "section03-medium-seed42",
+    "scale": "medium",
+    "section": "03_data_generator_improvement",
+    "source_config_sha256": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97"
+  },
+  "error": null,
+  "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+  "label_end_ts": "2026-05-01T23:59:00Z",
+  "lineage": "lineage.json",
+  "mode": "section03",
+  "random_seed": 42,
+  "run_id": "section03-medium-seed42",
+  "sanitized": true,
+  "scale": "medium",
+  "section": "03_data_generator_improvement",
+  "source_config_sha256": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97",
+  "status": "success"
+}

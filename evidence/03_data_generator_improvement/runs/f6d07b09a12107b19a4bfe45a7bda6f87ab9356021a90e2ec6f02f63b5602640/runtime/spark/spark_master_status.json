@@ -1,0 +1,67 @@
+{
+  "activeapps": [],
+  "activedrivers": [],
+  "aliveworkers": 1,
+  "completedapps": [
+    {
+      "cores": 2,
+      "duration": 3496,
+      "id": "app-20260807023702-0000",
+      "memoryperexecutor": 1024,
+      "memoryperslave": 1024,
+      "name": "vina-bim-shop-batch",
+      "resourcesperexecutor": [],
+      "resourcesperslave": [],
+      "starttime": 1786070222642,
+      "state": "FINISHED",
+      "submitdate": "Fri Aug 07 02:37:02 UTC 2026",
+      "user": "spark"
+    },
+    {
+      "cores": 2,
+      "duration": 123578,
+      "id": "app-20260807023948-0001",
+      "memoryperexecutor": 1024,
+      "memoryperslave": 1024,
+      "name": "vina-bim-shop-batch",
+      "resourcesperexecutor": [],
+      "resourcesperslave": [],
+      "starttime": 1786070388404,
+      "state": "FINISHED",
+      "submitdate": "Fri Aug 07 02:39:48 UTC 2026",
+      "user": "spark"
+    }
+  ],
+  "completeddrivers": [],
+  "cores": 2,
+  "coresused": 0,
+  "memory": 2048,
+  "memoryused": 0,
+  "resources": [
+    {}
+  ],
+  "resourcesused": [
+    {}
+  ],
+  "status": "ALIVE",
+  "url": "spark://spark-master:7077",
+  "workers": [
+    {
+      "cores": 2,
+      "coresfree": 2,
+      "coresused": 0,
+      "host": "172.22.0.9",
+      "id": "worker-20260807023645-172.22.0.9-43013",
+      "lastheartbeat": 1786072290703,
+      "memory": 2048,
+      "memoryfree": 2048,
+      "memoryused": 0,
+      "port": 43013,
+      "resources": {},
+      "resourcesfree": {},
+      "resourcesused": {},
+      "state": "ALIVE",
+      "webuiaddress": "http://172.22.0.9:8081"
+    }
+  ]
+}

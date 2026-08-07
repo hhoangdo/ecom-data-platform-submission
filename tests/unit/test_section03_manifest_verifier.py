@@ -100,6 +100,15 @@ def test_candidate_manifest_verifier_accepts_runtime_pending(
     assert verified["runtime_evidence"]["status"] == "pending"
 
 
+def test_strict_manifest_verifier_requires_the_final_runtime_contract(
+    candidate: tuple[ModuleType, Path],
+) -> None:
+    verifier, manifest_path = candidate
+
+    with pytest.raises(ValueError, match="final runtime evidence"):
+        verifier.verify_manifest(manifest_path, strict=True)
+
+
 @pytest.mark.parametrize(
     ("mutation", "message"),
     [

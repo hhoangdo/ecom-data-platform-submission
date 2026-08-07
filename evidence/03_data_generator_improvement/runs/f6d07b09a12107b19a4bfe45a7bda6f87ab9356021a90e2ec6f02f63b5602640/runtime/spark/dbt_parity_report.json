@@ -1,0 +1,537 @@
+{
+  "comparisons": [
+    {
+      "delta": 0,
+      "duckdb": 12000,
+      "name": "dim_customer.row_count",
+      "spark_trino": 12000,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 600,
+      "name": "dim_seller.row_count",
+      "spark_trino": 600,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 6000,
+      "name": "dim_product.row_count",
+      "spark_trino": 6000,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 20,
+      "name": "dim_category.row_count",
+      "spark_trino": 20,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 61,
+      "name": "dim_date.row_count",
+      "spark_trino": 61,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 5,
+      "name": "dim_payment_method.row_count",
+      "spark_trino": 5,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 2,
+      "name": "dim_order_status.row_count",
+      "spark_trino": 2,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 4,
+      "name": "dim_shipment_status.row_count",
+      "spark_trino": 4,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 5,
+      "name": "dim_shipping_method.row_count",
+      "spark_trino": 5,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 81,
+      "name": "dim_promotion.row_count",
+      "spark_trino": 81,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 7340,
+      "name": "bridge_product_category.row_count",
+      "spark_trino": 7340,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 45000,
+      "name": "fact_order.row_count",
+      "spark_trino": 45000,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 165193,
+      "name": "fact_order_item.row_count",
+      "spark_trino": 165193,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 45000,
+      "name": "fact_payment_attempt.row_count",
+      "spark_trino": 45000,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 45000,
+      "name": "fact_shipment.row_count",
+      "spark_trino": 45000,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 60000,
+      "name": "fact_inventory_snapshot.row_count",
+      "spark_trino": 60000,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 58401,
+      "name": "fact_promotion_application.row_count",
+      "spark_trino": 58401,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 45000,
+      "name": "obt_order_performance.row_count",
+      "spark_trino": 45000,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 1416,
+      "name": "agg_hourly_reconciled_kpi.row_count",
+      "spark_trino": 1416,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 11996,
+      "name": "feat_customer_90d.row_count",
+      "spark_trino": 11996,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 53,
+      "name": "feat_stream_60m.row_count",
+      "spark_trino": 53,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 11996,
+      "name": "feat_customer_unified.row_count",
+      "spark_trino": 11996,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 11996,
+      "name": "ml_customer_label.row_count",
+      "spark_trino": 11996,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 22,
+      "name": "agg_feature_health_daily.row_count",
+      "spark_trino": 22,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 0,
+      "name": "feature_drift_alerts.row_count",
+      "spark_trino": 0,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0,
+      "duckdb": 11996,
+      "name": "ml_customer_purchase_training.row_count",
+      "spark_trino": 11996,
+      "success": true,
+      "tolerance": 0
+    },
+    {
+      "delta": 0.0,
+      "duckdb": 146892037803.0,
+      "name": "fact_order.official_paid_revenue",
+      "spark_trino": 146892037803.0,
+      "success": true,
+      "tolerance": 0.01
+    },
+    {
+      "delta": 0.0,
+      "duckdb": 156003358000.0,
+      "name": "fact_order.gross_merchandise_value",
+      "spark_trino": 156003358000.0,
+      "success": true,
+      "tolerance": 0.01
+    },
+    {
+      "delta": 0.0,
+      "duckdb": 110524708660.09,
+      "name": "fact_order_item.estimated_cost",
+      "spark_trino": 110524708660.09,
+      "success": true,
+      "tolerance": 0.01
+    },
+    {
+      "delta": 0.0,
+      "duckdb": 36367329142.91,
+      "name": "fact_order_item.estimated_margin",
+      "spark_trino": 36367329142.91,
+      "success": true,
+      "tolerance": 0.01
+    },
+    {
+      "delta": 0.0,
+      "duckdb": 146892037803.0,
+      "name": "agg_hourly_reconciled_kpi.official_paid_revenue",
+      "spark_trino": 146892037803.0,
+      "success": true,
+      "tolerance": 0.01
+    },
+    {
+      "comparison": "dbt_vs_spark",
+      "extra_key_count": 0,
+      "field_mismatch_count": 0,
+      "mismatch_count": 0,
+      "missing_key_count": 0,
+      "name": "ml_customer_label.keyed_row_mismatch_count",
+      "success": true,
+      "table_name": "ml_customer_label"
+    },
+    {
+      "comparison": "dbt_vs_spark",
+      "extra_key_count": 0,
+      "field_mismatch_count": 0,
+      "mismatch_count": 0,
+      "missing_key_count": 0,
+      "name": "ml_customer_purchase_training.keyed_row_mismatch_count",
+      "success": true,
+      "table_name": "ml_customer_purchase_training"
+    },
+    {
+      "comparison": "dbt_vs_spark",
+      "extra_key_count": 0,
+      "field_mismatch_count": 0,
+      "mismatch_count": 0,
+      "missing_key_count": 0,
+      "name": "agg_feature_health_daily.keyed_row_mismatch_count",
+      "success": true,
+      "table_name": "agg_feature_health_daily"
+    },
+    {
+      "comparison": "dbt_vs_spark",
+      "extra_key_count": 0,
+      "field_mismatch_count": 0,
+      "mismatch_count": 0,
+      "missing_key_count": 0,
+      "name": "feature_drift_alerts.keyed_row_mismatch_count",
+      "success": true,
+      "table_name": "feature_drift_alerts"
+    },
+    {
+      "comparison": "generator_vs_dbt",
+      "extra_key_count": 0,
+      "field_mismatch_count": 0,
+      "mismatch_count": 0,
+      "missing_key_count": 0,
+      "name": "ml_customer_label.keyed_row_mismatch_count",
+      "success": true,
+      "table_name": "ml_customer_label"
+    },
+    {
+      "comparison": "generator_vs_dbt",
+      "extra_key_count": 0,
+      "field_mismatch_count": 0,
+      "mismatch_count": 0,
+      "missing_key_count": 0,
+      "name": "ml_customer_purchase_training.keyed_row_mismatch_count",
+      "success": true,
+      "table_name": "ml_customer_purchase_training"
+    },
+    {
+      "comparison": "generator_vs_dbt",
+      "extra_key_count": 0,
+      "field_mismatch_count": 0,
+      "mismatch_count": 0,
+      "missing_key_count": 0,
+      "name": "agg_feature_health_daily.keyed_row_mismatch_count",
+      "success": true,
+      "table_name": "agg_feature_health_daily"
+    },
+    {
+      "comparison": "generator_vs_dbt",
+      "extra_key_count": 0,
+      "field_mismatch_count": 0,
+      "mismatch_count": 0,
+      "missing_key_count": 0,
+      "name": "feature_drift_alerts.keyed_row_mismatch_count",
+      "success": true,
+      "table_name": "feature_drift_alerts"
+    },
+    {
+      "comparison": "generator_vs_spark",
+      "extra_key_count": 0,
+      "field_mismatch_count": 0,
+      "mismatch_count": 0,
+      "missing_key_count": 0,
+      "name": "ml_customer_label.keyed_row_mismatch_count",
+      "success": true,
+      "table_name": "ml_customer_label"
+    },
+    {
+      "comparison": "generator_vs_spark",
+      "extra_key_count": 0,
+      "field_mismatch_count": 0,
+      "mismatch_count": 0,
+      "missing_key_count": 0,
+      "name": "ml_customer_purchase_training.keyed_row_mismatch_count",
+      "success": true,
+      "table_name": "ml_customer_purchase_training"
+    },
+    {
+      "comparison": "generator_vs_spark",
+      "extra_key_count": 0,
+      "field_mismatch_count": 0,
+      "mismatch_count": 0,
+      "missing_key_count": 0,
+      "name": "agg_feature_health_daily.keyed_row_mismatch_count",
+      "success": true,
+      "table_name": "agg_feature_health_daily"
+    },
+    {
+      "comparison": "generator_vs_spark",
+      "extra_key_count": 0,
+      "field_mismatch_count": 0,
+      "mismatch_count": 0,
+      "missing_key_count": 0,
+      "name": "feature_drift_alerts.keyed_row_mismatch_count",
+      "success": true,
+      "table_name": "feature_drift_alerts"
+    }
+  ],
+  "dbt_command": [
+    "C:\\Users\\oou1hc\\Documents\\FSDS\\ecom-data-platform-submission\\.venv\\Scripts\\python.exe",
+    "scripts/analytics/run_section03_dbt.py",
+    "--config",
+    "configs/generator/base.yaml",
+    "--scale",
+    "medium",
+    "--project-dir",
+    "infra/analytics/dbt",
+    "--profiles-dir",
+    "infra/analytics/dbt",
+    "--all-gold"
+  ],
+  "generator_config": "configs/generator/base.yaml",
+  "generator_scale": "medium",
+  "keyed_comparisons": {
+    "dbt_vs_spark": [
+      {
+        "comparison": "dbt_vs_spark",
+        "extra_key_count": 0,
+        "field_mismatch_count": 0,
+        "mismatch_count": 0,
+        "missing_key_count": 0,
+        "name": "ml_customer_label.keyed_row_mismatch_count",
+        "success": true,
+        "table_name": "ml_customer_label"
+      },
+      {
+        "comparison": "dbt_vs_spark",
+        "extra_key_count": 0,
+        "field_mismatch_count": 0,
+        "mismatch_count": 0,
+        "missing_key_count": 0,
+        "name": "ml_customer_purchase_training.keyed_row_mismatch_count",
+        "success": true,
+        "table_name": "ml_customer_purchase_training"
+      },
+      {
+        "comparison": "dbt_vs_spark",
+        "extra_key_count": 0,
+        "field_mismatch_count": 0,
+        "mismatch_count": 0,
+        "missing_key_count": 0,
+        "name": "agg_feature_health_daily.keyed_row_mismatch_count",
+        "success": true,
+        "table_name": "agg_feature_health_daily"
+      },
+      {
+        "comparison": "dbt_vs_spark",
+        "extra_key_count": 0,
+        "field_mismatch_count": 0,
+        "mismatch_count": 0,
+        "missing_key_count": 0,
+        "name": "feature_drift_alerts.keyed_row_mismatch_count",
+        "success": true,
+        "table_name": "feature_drift_alerts"
+      }
+    ],
+    "generator_vs_dbt": [
+      {
+        "comparison": "generator_vs_dbt",
+        "extra_key_count": 0,
+        "field_mismatch_count": 0,
+        "mismatch_count": 0,
+        "missing_key_count": 0,
+        "name": "ml_customer_label.keyed_row_mismatch_count",
+        "success": true,
+        "table_name": "ml_customer_label"
+      },
+      {
+        "comparison": "generator_vs_dbt",
+        "extra_key_count": 0,
+        "field_mismatch_count": 0,
+        "mismatch_count": 0,
+        "missing_key_count": 0,
+        "name": "ml_customer_purchase_training.keyed_row_mismatch_count",
+        "success": true,
+        "table_name": "ml_customer_purchase_training"
+      },
+      {
+        "comparison": "generator_vs_dbt",
+        "extra_key_count": 0,
+        "field_mismatch_count": 0,
+        "mismatch_count": 0,
+        "missing_key_count": 0,
+        "name": "agg_feature_health_daily.keyed_row_mismatch_count",
+        "success": true,
+        "table_name": "agg_feature_health_daily"
+      },
+      {
+        "comparison": "generator_vs_dbt",
+        "extra_key_count": 0,
+        "field_mismatch_count": 0,
+        "mismatch_count": 0,
+        "missing_key_count": 0,
+        "name": "feature_drift_alerts.keyed_row_mismatch_count",
+        "success": true,
+        "table_name": "feature_drift_alerts"
+      }
+    ],
+    "generator_vs_spark": [
+      {
+        "comparison": "generator_vs_spark",
+        "extra_key_count": 0,
+        "field_mismatch_count": 0,
+        "mismatch_count": 0,
+        "missing_key_count": 0,
+        "name": "ml_customer_label.keyed_row_mismatch_count",
+        "success": true,
+        "table_name": "ml_customer_label"
+      },
+      {
+        "comparison": "generator_vs_spark",
+        "extra_key_count": 0,
+        "field_mismatch_count": 0,
+        "mismatch_count": 0,
+        "missing_key_count": 0,
+        "name": "ml_customer_purchase_training.keyed_row_mismatch_count",
+        "success": true,
+        "table_name": "ml_customer_purchase_training"
+      },
+      {
+        "comparison": "generator_vs_spark",
+        "extra_key_count": 0,
+        "field_mismatch_count": 0,
+        "mismatch_count": 0,
+        "missing_key_count": 0,
+        "name": "agg_feature_health_daily.keyed_row_mismatch_count",
+        "success": true,
+        "table_name": "agg_feature_health_daily"
+      },
+      {
+        "comparison": "generator_vs_spark",
+        "extra_key_count": 0,
+        "field_mismatch_count": 0,
+        "mismatch_count": 0,
+        "missing_key_count": 0,
+        "name": "feature_drift_alerts.keyed_row_mismatch_count",
+        "success": true,
+        "table_name": "feature_drift_alerts"
+      }
+    ]
+  },
+  "relation_errors": {
+    "duckdb": {},
+    "spark_trino": {}
+  },
+  "section03_manifest": {
+    "bundle_id": "0e889d1e57425e070a87f406e220f758d703326eac67ea1d5f9f58fa2916bb9d",
+    "manifest_path": "C:\\Users\\oou1hc\\Documents\\FSDS\\ecom-data-platform-submission\\evidence\\03_data_generator_improvement\\section03_candidate_manifest.json",
+    "manifest_sha256": "9b1fc0b5d9cea1186e173e263e04cd363f65f791110d02345a99dbbe99ae5475",
+    "source_config_path": "configs/generator/base.yaml",
+    "source_config_sha256": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97"
+  },
+  "spark_command": [
+    "docker",
+    "compose",
+    "exec",
+    "-T",
+    "spark-master",
+    "bash",
+    "-lc",
+    "cd /workspace && PYTHONPATH=/workspace/src spark-submit --master spark://spark-master:7077 --deploy-mode client --conf spark.eventLog.enabled=true --conf spark.eventLog.dir=s3a://checkpoints/spark-events scripts/spark/job.py --start-ts 2026-03-03T23:59:00Z --end-ts 2026-05-01T23:59:00Z --mode backfill --evidence-root /workspace/tmp/section03-runtime/spark --stage full --generator-config /workspace/configs/generator/base.yaml --generator-scale medium --section03-manifest /workspace/evidence/03_data_generator_improvement/section03_candidate_manifest.json"
+  ],
+  "success": true
+}

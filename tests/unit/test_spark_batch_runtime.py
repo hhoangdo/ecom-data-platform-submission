@@ -51,6 +51,27 @@ def _section03_parameters() -> Section03SqlParameters:
     )
 
 
+def _write_section03_test_manifest(tmp_path: Path) -> str:
+    manifest_path = tmp_path / "section03_manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "section": "03_data_generator_improvement",
+                "bundle_id": "a" * 64,
+                "source_config_sha256": "b" * 64,
+                "scale": "medium",
+                "random_seed": 42,
+                "windows": {
+                    "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+                    "label_end_ts": "2026-05-01T23:59:00Z",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    return str(manifest_path)
+
+
 def _load_script_module(script_relative_path: str, module_name: str):
     script_path = _repo_root() / script_relative_path
     assert script_path.is_file(), f"Expected script at {script_relative_path}."
@@ -79,6 +100,13 @@ def test_root_compose_declares_batch_services_and_ui_ports() -> None:
     assert "18080:18080" in services["spark-history-server"]["ports"]
     assert "spark-master" in services["spark-worker"]["depends_on"]
     assert "spark-master" in services["spark-history-server"]["depends_on"]
+
+    driver = services["spark-driver"]
+    assert driver["profiles"] == ["batch", "orchestration", "all"]
+    assert driver["command"] == ["driver"]
+    assert "./:/workspace:ro" in driver["volumes"]
+    assert "./evidence:/workspace/evidence" in driver["volumes"]
+    assert "./artifacts:/workspace/artifacts" in driver["volumes"]
 
 
 def test_spark_services_bypass_inherited_proxy_for_internal_runtime() -> None:
@@ -109,6 +137,12 @@ def test_spark_services_bypass_inherited_proxy_for_internal_runtime() -> None:
 
         assert internal_no_proxy <= set(environment["NO_PROXY"].split(","))
         assert environment["no_proxy"] == environment["NO_PROXY"]
+
+
+def test_spark_worker_exposes_writable_evidence_mount_for_cluster_drivers() -> None:
+    compose = load_compose_model(_repo_root())
+
+    assert "./evidence:/workspace/evidence" in compose["services"]["spark-worker"]["volumes"]
 
 
 def test_env_example_documents_spark_batch_urls() -> None:
@@ -209,6 +243,94 @@ def test_build_spark_submit_command_uses_containerized_workspace_paths() -> None
     assert "--end-ts 2026-06-01T01:00:00Z" in command_text
     assert "--mode hourly" in command_text
     assert "--evidence-root /workspace/evidence/05_spark_batch" in command_text
+
+
+def test_build_spark_submit_command_uses_socket_free_driver_service_when_configured(monkeypatch) -> None:
+    monkeypatch.setenv("VBS_SPARK_SUBMIT_BIN", "/opt/spark/bin/spark-submit")
+    monkeypatch.setenv("VBS_SPARK_DEPLOY_MODE", "client")
+    monkeypatch.setenv("VBS_SPARK_DRIVER_SERVICE_URL", "http://spark-driver:8090/run")
+    monkeypatch.setenv("VBS_SPARK_DRIVER_SERVICE_TIMEOUT_SECONDS", "2400")
+    monkeypatch.setenv("VBS_HIVE_METASTORE_INTERNAL_URI", "thrift://hive-metastore:9083")
+    monkeypatch.setenv("VBS_MINIO_INTERNAL_ENDPOINT", "http://minio:9000")
+    monkeypatch.setenv("VBS_MINIO_REGION", "us-east-1")
+    monkeypatch.setenv("VBS_MINIO_ROOT_USER", "vina_minio")
+    monkeypatch.setenv("VBS_MINIO_ROOT_PASSWORD", "vina_minio_password")
+
+    window = BatchWindow.from_args(
+        start_ts="2026-06-01T00:00:00Z",
+        end_ts="2026-06-01T01:00:00Z",
+        mode="hourly",
+    )
+
+    command = build_spark_submit_command(window, evidence_root="evidence/05_spark_batch")
+
+    assert command[:2] == [sys.executable, "/workspace/scripts/spark/submit_remote.py"]
+    assert "docker" not in command
+    assert command[command.index("--service-url") + 1] == "http://spark-driver:8090/run"
+    assert command[command.index("--timeout-seconds") + 1] == "2400"
+    assert "--master" in command
+    assert command[command.index("--master") + 1] == "spark://spark-master:7077"
+    assert command[command.index("--deploy-mode") + 1] == "client"
+    assert "spark.eventLog.dir=s3a://checkpoints/spark-events" in command
+    assert "spark.executorEnv.PYTHONPATH=/workspace/src" in command
+    assert all("vina_minio_password" not in argument for argument in command)
+    assert "/workspace/scripts/spark/job.py" in command
+    assert "--evidence-root" in command
+    assert "/workspace/evidence/05_spark_batch" in command
+
+
+def test_remote_submit_adapter_forwards_spark_args_and_result() -> None:
+    module = _load_script_module("scripts/spark/submit_remote.py", "submit_remote_runtime")
+    calls = []
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'{"returncode": 0, "stdout": "spark ok\\n", "stderr": ""}'
+
+    def fake_open(request, timeout):
+        calls.append((request, timeout))
+        return FakeResponse()
+
+    assert module.submit_remote(
+        service_url="http://spark-driver:8090/run",
+        timeout_seconds=30,
+        spark_args=["--master", "spark://spark-master:7077"],
+        open_url=fake_open,
+    ) == "FINISHED"
+    assert len(calls) == 1
+    assert calls[0][0].full_url == "http://spark-driver:8090/run"
+    assert json.loads(calls[0][0].data) == {"spark_args": ["--master", "spark://spark-master:7077"]}
+    assert calls[0][1] == 30
+
+
+def test_driver_service_builds_socket_free_client_command() -> None:
+    module = _load_script_module("scripts/spark/driver_service.py", "driver_service_runtime")
+
+    assert module.build_driver_command(
+        spark_submit_bin="/opt/spark/bin/spark-submit",
+        spark_args=["--master", "spark://spark-master:7077", "--deploy-mode", "client", "/workspace/job.py"],
+    ) == [
+        "/opt/spark/bin/spark-submit",
+        "--master",
+        "spark://spark-master:7077",
+        "--deploy-mode",
+        "client",
+        "--conf",
+        "spark.driver.host=spark-driver",
+        "--conf",
+        "spark.driver.bindAddress=0.0.0.0",
+        "--conf",
+        "spark.driver.port=39000",
+        "--conf",
+        "spark.blockManager.port=39001",
+        "/workspace/job.py",
+    ]
 
 
 def test_build_section03_commands_bind_config_scale_and_manifest() -> None:
@@ -1148,6 +1270,7 @@ def test_run_batch_pipeline_forwards_strict_section03_contract(monkeypatch, tmp_
 
     commands = []
     parity_calls = []
+    manifest = _write_section03_test_manifest(tmp_path)
 
     def fake_run_command(command):
         commands.append(command)
@@ -1177,21 +1300,21 @@ def test_run_batch_pipeline_forwards_strict_section03_contract(monkeypatch, tmp_
         mode="backfill",
         generator_config="configs/generator/base.yaml",
         generator_scale="medium",
-        section03_manifest="evidence/03_data_generator_improvement/section03_candidate_manifest.json",
+        section03_manifest=manifest,
         evidence_root=tmp_path,
         run_command=fake_run_command,
-        capture_evidence_fn=lambda *, evidence_root: {"artifacts": []},
+        capture_evidence_fn=lambda *, evidence_root, section03_context: {"artifacts": []},
     )
 
     assert len(commands) == 2
     assert "--generator-config /workspace/configs/generator/base.yaml" in commands[0][-1]
     assert "--generator-scale medium" in commands[0][-1]
-    assert "--section03-manifest /workspace/evidence/03_data_generator_improvement/section03_candidate_manifest.json" in commands[0][-1]
+    assert f"--section03-manifest {Path(manifest).as_posix()}" in commands[0][-1]
     assert commands[1][1:2] == ["scripts/analytics/run_section03_dbt.py"]
     assert parity_calls == [
         {
             "evidence_root": tmp_path,
-            "section03_manifest": "evidence/03_data_generator_improvement/section03_candidate_manifest.json",
+            "section03_manifest": manifest,
             "generator_config": "configs/generator/base.yaml",
             "generator_scale": "medium",
             "dbt_command": commands[1],
@@ -1199,3 +1322,96 @@ def test_run_batch_pipeline_forwards_strict_section03_contract(monkeypatch, tmp_
         }
     ]
     assert summary["generator_scale"] == "medium"
+
+
+def test_section03_runtime_derives_window_when_timestamps_are_omitted(monkeypatch, tmp_path: Path) -> None:
+    from vina_bim_shop.lakehouse.spark.runner import run_batch_pipeline
+
+    commands = []
+    manifest = _write_section03_test_manifest(tmp_path)
+
+    def fake_run_command(command):
+        commands.append(command)
+        return SimpleNamespace(stdout="ok")
+
+    monkeypatch.setattr(
+        "vina_bim_shop.lakehouse.spark.runner.run_parity_checks",
+        lambda **_kwargs: {"success": True},
+    )
+    monkeypatch.setattr(
+        "vina_bim_shop.lakehouse.spark.runner.run_gold_smoke_queries",
+        lambda **_kwargs: {"fact_order_count": {"rows": [[1]]}},
+    )
+    monkeypatch.setattr(
+        "vina_bim_shop.lakehouse.spark.runner.export_executive_mart",
+        lambda **_kwargs: {
+            "duckdb_path": "data/gold/vina_bim_shop_executive.duckdb",
+            "table_count": len(REQUIRED_GOLD_TABLES),
+            "total_row_count": 123,
+        },
+    )
+
+    run_batch_pipeline(
+        start_ts=None,
+        end_ts=None,
+        mode="backfill",
+        generator_config="configs/generator/base.yaml",
+        generator_scale="medium",
+        section03_manifest=manifest,
+        evidence_root=tmp_path,
+        run_command=fake_run_command,
+        capture_evidence_fn=lambda **_kwargs: {"artifacts": []},
+    )
+
+    assert "--start-ts 2026-03-03T23:59:00Z" in commands[0][-1]
+    assert "--end-ts 2026-05-01T23:59:00Z" in commands[0][-1]
+
+
+def test_section03_spark_capture_writes_recursive_identity_inventory(tmp_path: Path) -> None:
+    def fake_get_json(url: str):
+        if url.endswith("/json/"):
+            return {"status": "ALIVE", "workers": 1}
+        if url.endswith("/api/v1/applications"):
+            return [{"id": "app-001", "name": "vina-bim-shop-batch"}]
+        raise AssertionError(f"Unexpected URL: {url}")
+
+    required = {
+        "spark_job_manifest.json",
+        "spark_table_row_counts.json",
+        "pyspark_validation_report.json",
+        "dbt_parity_report.json",
+        "dbt_parity_report.md",
+        "trino_gold_smoke_results.json",
+        "executive_mart_export_manifest.json",
+        "executive_mart_export_report.md",
+        "gx/validation_results.json",
+        "run_batch_summary.json",
+    }
+    for relative in required:
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}", encoding="utf-8")
+
+    context = {
+        "section": "03_data_generator_improvement",
+        "run_id": "section03-medium-seed42-spark",
+        "candidate_bundle_id": "b" * 64,
+        "candidate_manifest_sha256": "a" * 64,
+        "source_config_sha256": "c" * 64,
+        "scale": "medium",
+        "random_seed": 42,
+        "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+        "label_end_ts": "2026-05-01T23:59:00Z",
+    }
+    manifest = capture_evidence(
+        evidence_root=tmp_path,
+        master_url="http://localhost:8085",
+        history_url="http://localhost:18080",
+        get_json=fake_get_json,
+        section03_context=context,
+    )
+
+    assert manifest["status"] == "success"
+    assert manifest["candidate_bundle_id"] == "b" * 64
+    assert manifest["artifacts"]
+    assert all(set(entry) == {"path", "size_bytes", "sha256"} for entry in manifest["artifacts"])

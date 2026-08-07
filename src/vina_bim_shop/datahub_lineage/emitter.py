@@ -52,6 +52,14 @@ def datajob_urn(dag_id: str, task_id: str = "") -> str:
     return f"urn:li:dataFlow:(airflow,{dag_id},vina-bim-shop-local)"
 
 
+def _schema_field_urns(dataset_urn: str, column: str) -> list[str]:
+    return [
+        f"urn:li:schemaField:({dataset_urn},{field_name.strip()})"
+        for field_name in column.split(",")
+        if field_name.strip()
+    ]
+
+
 class DataHubLineageEmitter:
     """Send DataHub metadata proposals through the configured GMS endpoint.
 
@@ -214,6 +222,7 @@ class DataHubLineageEmitter:
 
         now = timestamp_ms if timestamp_ms is not None else _now_ms()
         resolved_run_id = run_id or f"gx_run_{now}"
+        schema_field_urns = _schema_field_urns(dataset_urn, column)
 
         self._emitter.emit(
             MetadataChangeProposalWrapper(
@@ -222,8 +231,8 @@ class DataHubLineageEmitter:
                     type=AssertionTypeClass.DATASET,
                     datasetAssertion=DatasetAssertionInfoClass(
                         dataset=dataset_urn,
-                        scope=DatasetAssertionScopeClass.DATASET_COLUMN if column else DatasetAssertionScopeClass.DATASET_ROWS,
-                        fields=[f"urn:li:schemaField:({dataset_urn},{column})"] if column else [],
+                        scope=DatasetAssertionScopeClass.DATASET_COLUMN if schema_field_urns else DatasetAssertionScopeClass.DATASET_ROWS,
+                        fields=schema_field_urns,
                         operator=AssertionStdOperatorClass._NATIVE_,
                         nativeType=assertion_type,
                     ),

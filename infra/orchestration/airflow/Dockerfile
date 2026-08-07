@@ -1,6 +1,15 @@
+FROM vina-bim-shop/spark:4.0.0-iceberg-1.10.1 AS spark-runtime
+
 FROM apache/airflow:2.10.5-python3.12
 
+ENV SPARK_HOME=/opt/spark \
+    JAVA_HOME=/opt/java/openjdk \
+    PATH=/opt/spark/bin:/opt/spark/sbin:/opt/java/openjdk/bin:${PATH}
+
 USER root
+
+COPY --from=spark-runtime /opt/spark /opt/spark
+COPY --from=spark-runtime /opt/java/openjdk /opt/java/openjdk
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends docker.io docker-compose-plugin curl \

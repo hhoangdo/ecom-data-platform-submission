@@ -73,6 +73,9 @@ case "${ROLE}" in
   history)
     exec "${SPARK_HOME}/bin/spark-class" org.apache.spark.deploy.history.HistoryServer
     ;;
+  driver)
+    exec python3 /workspace/scripts/spark/driver_service.py --host 0.0.0.0 --port 8090
+    ;;
   *)
     echo "Unsupported Spark role: ${ROLE}" >&2
     exit 1

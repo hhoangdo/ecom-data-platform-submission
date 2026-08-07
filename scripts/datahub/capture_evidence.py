@@ -130,9 +130,9 @@ GRAPHQL_DATASET_LINEAGE_QUERY = """
 query GetDatasetLineage($urn: String!) {
   dataset(urn: $urn) {
     urn
-    upstreamLineage {
-      upstreams {
-        dataset {
+    lineage(input: {direction: UPSTREAM, start: 0, count: 100}) {
+      relationships {
+        entity {
           urn
         }
       }
@@ -236,6 +236,70 @@ def _utc_now() -> str:
 def _write_json(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def _load_section03_runtime_context(section03_manifest: Path, airflow_capture: Path) -> dict[str, object]:
+    manifest_path = Path(section03_manifest)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict) or manifest.get("section") != "03_data_generator_improvement":
+        raise ValueError("Section 03 candidate manifest identity is invalid")
+    source_config_path = Path(str(manifest.get("source_config_path", "")))
+    if source_config_path.is_absolute() or ".." in source_config_path.parts:
+        raise ValueError("Section 03 source config path is unsafe")
+    config_path = (REPO_ROOT / source_config_path).resolve()
+    if not config_path.is_file() or hashlib.sha256(config_path.read_bytes()).hexdigest() != manifest.get("source_config_sha256"):
+        raise ValueError("Section 03 source config hash is stale")
+    windows = manifest.get("windows")
+    if not isinstance(windows, dict):
+        raise ValueError("Section 03 candidate windows are missing")
+    airflow_manifest_path = Path(airflow_capture) / "run_manifest.json"
+    airflow_manifest = json.loads(airflow_manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(airflow_manifest, dict) or airflow_manifest.get("status") != "success":
+        raise ValueError("Airflow capture is not successful")
+    run_id = airflow_manifest.get("run_id") or airflow_manifest.get("dag_run_id")
+    if not isinstance(run_id, str) or not run_id:
+        raise ValueError("Airflow capture run identity is missing")
+    candidate_sha256 = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    context = {
+        "section": "03_data_generator_improvement",
+        "run_id": run_id,
+        "candidate_bundle_id": manifest["bundle_id"],
+        "candidate_manifest_sha256": candidate_sha256,
+        "source_config_sha256": manifest["source_config_sha256"],
+        "scale": manifest["scale"],
+        "random_seed": manifest["random_seed"],
+        "feature_cutoff_ts": windows["feature_cutoff_ts"],
+        "label_end_ts": windows["label_end_ts"],
+    }
+    for key in (
+        "candidate_bundle_id",
+        "candidate_manifest_sha256",
+        "source_config_sha256",
+        "scale",
+        "feature_cutoff_ts",
+        "label_end_ts",
+    ):
+        if key in airflow_manifest and airflow_manifest[key] != context[key]:
+            raise ValueError(f"Airflow capture {key} does not match the candidate")
+    return context
+
+
+def _section03_runtime_inventory(output_root: Path) -> list[dict[str, object]]:
+    actual = {
+        path.relative_to(output_root).as_posix()
+        for path in output_root.rglob("*")
+        if path.is_file() and not path.is_symlink() and path.name != "run_manifest.json"
+    }
+    if actual != {"lineage.json"}:
+        raise ValueError(f"Section 03 DataHub inventory is incomplete or unlisted: {sorted(actual)!r}")
+    path = output_root / "lineage.json"
+    return [
+        {
+            "path": "lineage.json",
+            "size_bytes": path.stat().st_size,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        }
+    ]
 
 
 _SENSITIVE_KEY_PARTS = ("password", "secret", "token", "authorization", "cookie", "api_key")
@@ -525,9 +589,9 @@ def _capture_dataset_lineage(dataset_urn: str, expected_parents: list[str]) -> d
             raise RuntimeError(str(payload["errors"]))
         dataset = payload.get("data", {}).get("dataset") or {}
         actual_parents = [
-            str(item.get("dataset", {}).get("urn"))
-            for item in ((dataset.get("upstreamLineage") or {}).get("upstreams") or [])
-            if item.get("dataset", {}).get("urn")
+            str(item.get("entity", {}).get("urn"))
+            for item in ((dataset.get("lineage") or {}).get("relationships") or [])
+            if str(item.get("entity", {}).get("urn", "")).startswith("urn:li:dataset:")
         ]
         expected_set = set(expected_parents)
         actual_set = set(actual_parents)
@@ -742,6 +806,7 @@ def capture_section03_evidence(
     index_timeout_seconds: float = 60,
     index_poll_interval_seconds: float = 2,
     sleep: Callable[[float], None] = time.sleep,
+    strict: bool = False,
 ) -> dict:
     """Emit and strictly read back the local Section 03 DataHub contract.
 
@@ -751,6 +816,11 @@ def capture_section03_evidence(
     """
     global GMS_URL, COURSEWORK_PIPELINE_EVIDENCE_ROOT
     output_root = Path(output_root)
+    runtime_context: dict[str, object] | None = None
+    if strict:
+        if section03_manifest is None or airflow_capture is None:
+            raise ValueError("strict Section 03 DataHub capture requires candidate and Airflow evidence")
+        runtime_context = _load_section03_runtime_context(section03_manifest, airflow_capture)
     previous_gms_url = GMS_URL
     previous_evidence_root = COURSEWORK_PIPELINE_EVIDENCE_ROOT
     GMS_URL = gms_url
@@ -856,16 +926,26 @@ def capture_section03_evidence(
 
     sanitized = _sanitize(result)
     _write_json(output_root / "lineage.json", sanitized)
-    _write_json(
-        output_root / "run_manifest.json",
-        {
+    if runtime_context is None:
+        run_manifest = {
             "status": result["status"],
             "mode": "section03",
             "lineage": "lineage.json",
             "sanitized": True,
             "error": result.get("error"),
-        },
-    )
+        }
+    else:
+        run_manifest = {
+            **runtime_context,
+            "status": result["status"],
+            "mode": "section03",
+            "lineage": "lineage.json",
+            "sanitized": True,
+            "error": result.get("error"),
+            "conf": dict(runtime_context),
+            "artifacts": _section03_runtime_inventory(output_root),
+        }
+    _write_json(output_root / "run_manifest.json", run_manifest)
     return result
 
 
@@ -1022,6 +1102,7 @@ def main(argv: list[str] | None = None) -> None:
             frontend_url=args.frontend_url,
             airflow_capture=args.airflow_capture,
             section03_manifest=args.section03_manifest,
+            strict=args.strict,
         )
     print(json.dumps(manifest, indent=2))
     if manifest["status"] == "failed":

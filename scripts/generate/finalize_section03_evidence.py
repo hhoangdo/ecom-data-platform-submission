@@ -271,7 +271,7 @@ def _validate_runtime_capture(
 
 def _verify_candidate_tree(evidence_root: Path, candidate: dict[str, Any]) -> None:
     bundle_id = candidate["bundle_id"]
-    bundle_root = evidence_root / "runs" / bundle_id
+    bundle_root = (evidence_root / "runs" / bundle_id).resolve(strict=True)
     files = _recursive_files(bundle_root, description="candidate bundle")
     expected = {
         _candidate_file(evidence_root, candidate, key).relative_to(bundle_root).as_posix()

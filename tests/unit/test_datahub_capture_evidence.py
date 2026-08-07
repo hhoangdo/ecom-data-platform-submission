@@ -3,10 +3,15 @@ from __future__ import annotations
 import importlib.util
 import json
 import hashlib
+import sys
+import types
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 from PIL import Image
+
+from compose_model import load_compose_model
 
 
 def _repo_root() -> Path:
@@ -16,6 +21,43 @@ def _repo_root() -> Path:
 def _load_script_module():
     script_path = _repo_root() / "scripts" / "datahub" / "capture_evidence.py"
     spec = importlib.util.spec_from_file_location("datahub_capture_evidence_script", script_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_gx_assertions_module(monkeypatch):
+    emitter_stub = types.ModuleType("vina_bim_shop.datahub_lineage.emitter")
+    emitter_stub.DataHubLineageEmitter = object
+    emitter_stub.ice_urn = lambda table_name: f"urn:li:dataset:{table_name}"
+    monkeypatch.setitem(sys.modules, "vina_bim_shop.datahub_lineage.emitter", emitter_stub)
+    path = _repo_root() / "src" / "vina_bim_shop" / "datahub_lineage" / "gx_assertions.py"
+    spec = importlib.util.spec_from_file_location("gx_assertions_for_test", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_emitter_module(monkeypatch):
+    emitter_mcp = types.ModuleType("datahub.emitter.mcp")
+    emitter_mcp.MetadataChangeProposalWrapper = object
+    emitter_rest = types.ModuleType("datahub.emitter.rest_emitter")
+    emitter_rest.DataHubRestEmitter = object
+    schema_classes = types.ModuleType("datahub.metadata.schema_classes")
+    schema_classes.__getattr__ = lambda name: type(name, (), {})
+    for name, module in {
+        "datahub": types.ModuleType("datahub"),
+        "datahub.emitter": types.ModuleType("datahub.emitter"),
+        "datahub.emitter.mcp": emitter_mcp,
+        "datahub.emitter.rest_emitter": emitter_rest,
+        "datahub.metadata": types.ModuleType("datahub.metadata"),
+        "datahub.metadata.schema_classes": schema_classes,
+    }.items():
+        monkeypatch.setitem(sys.modules, name, module)
+    path = _repo_root() / "src" / "vina_bim_shop" / "datahub_lineage" / "emitter.py"
+    spec = importlib.util.spec_from_file_location("datahub_emitter_for_test", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -140,6 +182,102 @@ def test_coursework_capture_queries_match_datahub_1_6_property_and_assertion_sha
     assert "latestRunEvent" not in module.GRAPHQL_ASSERTION_QUERY
 
 
+def test_section03_runtime_context_binds_candidate_and_airflow_capture(tmp_path: Path) -> None:
+    module = _load_script_module()
+    repo_root = _repo_root()
+    config_path = repo_root / "configs" / "generator" / "base.yaml"
+    candidate = tmp_path / "section03_candidate_manifest.json"
+    candidate.write_text(
+        json.dumps(
+            {
+                "section": "03_data_generator_improvement",
+                "bundle_id": "b" * 64,
+                "source_config_path": "configs/generator/base.yaml",
+                "source_config_sha256": hashlib.sha256(config_path.read_bytes()).hexdigest(),
+                "scale": "medium",
+                "random_seed": 42,
+                "windows": {
+                    "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+                    "label_end_ts": "2026-05-01T23:59:00Z",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    airflow = tmp_path / "airflow"
+    airflow.mkdir()
+    (airflow / "run_manifest.json").write_text(
+        json.dumps({"status": "success", "run_id": "section03-medium-seed42"}),
+        encoding="utf-8",
+    )
+
+    context = module._load_section03_runtime_context(candidate, airflow)
+
+    assert context == {
+        "section": "03_data_generator_improvement",
+        "run_id": "section03-medium-seed42",
+        "candidate_bundle_id": "b" * 64,
+        "candidate_manifest_sha256": hashlib.sha256(candidate.read_bytes()).hexdigest(),
+        "source_config_sha256": hashlib.sha256(config_path.read_bytes()).hexdigest(),
+        "scale": "medium",
+        "random_seed": 42,
+        "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+        "label_end_ts": "2026-05-01T23:59:00Z",
+    }
+
+
+def test_manual_section03_run_id_uses_locked_feature_cutoff_for_assertion_timestamp(
+    monkeypatch, tmp_path: Path
+) -> None:
+    module = _load_gx_assertions_module(monkeypatch)
+    (tmp_path / "dp3_validate.json").write_text(
+        json.dumps({"feature_cutoff_ts": "2026-04-24T23:59:00Z"}),
+        encoding="utf-8",
+    )
+
+    timestamp_ms = module._run_timestamp_ms("section03-medium-seed42", run_root=tmp_path)
+
+    assert timestamp_ms == int(
+        datetime(2026, 4, 24, 23, 59, tzinfo=timezone.utc).timestamp() * 1000
+    )
+
+
+def test_datahub_assertion_field_urns_split_multi_column_contracts(monkeypatch) -> None:
+    module = _load_emitter_module(monkeypatch)
+    dataset_urn = "urn:li:dataset:(urn:li:dataPlatform:iceberg,vina_bim_shop.ml_customer_purchase_training,PROD)"
+
+    assert module._schema_field_urns(dataset_urn, "event_timestamp,created") == [
+        f"urn:li:schemaField:({dataset_urn},event_timestamp)",
+        f"urn:li:schemaField:({dataset_urn},created)",
+    ]
+
+
+def test_datahub_services_bypass_inherited_proxy_for_internal_runtime() -> None:
+    compose = load_compose_model(_repo_root())
+    internal_no_proxy = {
+        "datahub-elasticsearch",
+        "datahub-gms",
+        "kafka",
+        "schema-registry",
+        "lakehouse-postgres",
+        "localhost",
+        "127.0.0.1",
+        "::1",
+    }
+    for service_name in (
+        "datahub-elasticsearch",
+        "datahub-system-update",
+        "datahub-gms",
+        "datahub-frontend",
+        "datahub-actions",
+    ):
+        environment = compose["services"][service_name]["environment"]
+        for key in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"):
+            assert environment[key] == ""
+        assert internal_no_proxy <= set(environment["NO_PROXY"].split(","))
+        assert environment["no_proxy"] == environment["NO_PROXY"]
+
+
 def test_coursework_assertion_verification_accepts_every_dp1_and_dp3_output() -> None:
     module = _load_script_module()
 
@@ -218,13 +356,16 @@ def test_section03_capture_emits_and_reads_back_exact_graph_without_secrets(monk
                     }
                 }
             }
-        if "upstreamLineage" in query:
+        if "lineage(input" in query:
             return {
                 "data": {
                     "dataset": {
                         "urn": urn,
-                        "upstreamLineage": {
-                            "upstreams": [{"dataset": {"urn": parent}} for parent in lineage_parents[urn]]
+                        "lineage": {
+                            "relationships": [
+                                {"entity": {"urn": "urn:li:dataJob:(example,producer)"}},
+                                *({"entity": {"urn": parent}} for parent in lineage_parents[urn]),
+                            ]
                         },
                     }
                 }

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import hashlib
-import shlex
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -368,14 +367,16 @@ def _dp3_metric_query(table_name: str, cutoff_ts: str, baseline_date: str) -> tu
         return (
             [
                 "row_count", "unique_key_count", "missing_required_count",
-                "created_after_event_count", "event_timestamp_min", "event_timestamp_max",
+                "event_cutoff_violation_count", "created_cutoff_violation_count",
+                "event_timestamp_min", "event_timestamp_max",
                 "created_min", "created_max",
             ],
             f"""
             select count(*) as row_count,
                    count(distinct row(customer_id, event_timestamp)) as unique_key_count,
                    coalesce(sum(case when customer_id is null or event_timestamp is null or created is null then 1 else 0 end), 0) as missing_required_count,
-                   coalesce(sum(case when created > event_timestamp then 1 else 0 end), 0) as created_after_event_count,
+                   coalesce(sum(case when event_timestamp is null or event_timestamp > {cutoff} then 1 else 0 end), 0) as event_cutoff_violation_count,
+                   coalesce(sum(case when created is null or created > {cutoff} then 1 else 0 end), 0) as created_cutoff_violation_count,
                    min(event_timestamp) as event_timestamp_min,
                    max(event_timestamp) as event_timestamp_max,
                    min(created) as created_min,
@@ -665,20 +666,8 @@ def validate_bronze(
 
 
 def _prepare_spark_evidence_root(run_root: Path) -> None:
-    _run_command(
-        [
-            "docker",
-            "compose",
-            "exec",
-            "-T",
-            "--user",
-            "root",
-            "spark-master",
-            "bash",
-            "-lc",
-            f"mkdir -p {shlex.quote(run_root.as_posix())} && chmod -R 0777 {shlex.quote(run_root.as_posix())}",
-        ],
-    )
+    run_root.mkdir(parents=True, exist_ok=True)
+    run_root.chmod(0o777)
 
 
 def _latest_spark_application_id() -> str | None:

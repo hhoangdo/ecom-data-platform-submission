@@ -1,0 +1,293 @@
+{
+  "artifact": "dp3_validate.json",
+  "contract_success": true,
+  "dag_id": "mini_coursework_pipeline",
+  "feature_cutoff_ts": "2026-04-24T23:59:00Z",
+  "feature_results": [
+    {
+      "columns": [
+        "customer_id",
+        "event_timestamp",
+        "f_customer_total_orders_90d",
+        "f_customer_paid_revenue_90d",
+        "f_customer_avg_order_value_90d",
+        "f_customer_distinct_categories_90d",
+        "created"
+      ],
+      "contract_success": true,
+      "key": [
+        "customer_id",
+        "event_timestamp"
+      ],
+      "metrics": {
+        "created_cutoff_violation_count": 0,
+        "created_max": "2026-04-24 23:59:00.000 UTC",
+        "created_min": "2026-04-24 23:59:00.000 UTC",
+        "event_cutoff_violation_count": 0,
+        "event_timestamp_max": "2026-04-24 23:59:00.000 UTC",
+        "event_timestamp_min": "2026-04-24 23:59:00.000 UTC",
+        "missing_required_count": 0,
+        "row_count": 11996,
+        "unique_key_count": 11996
+      },
+      "row_count": 11996,
+      "table_name": "feat_customer_90d",
+      "unique_key_count": 11996
+    },
+    {
+      "columns": [
+        "customer_id",
+        "event_timestamp",
+        "f_stream_views_60m",
+        "f_stream_add_to_cart_60m",
+        "f_stream_checkout_started_60m",
+        "f_stream_order_placed_60m",
+        "f_stream_cart_to_purchase_ratio_60m",
+        "created"
+      ],
+      "contract_success": true,
+      "key": [
+        "customer_id",
+        "event_timestamp"
+      ],
+      "metrics": {
+        "created_cutoff_violation_count": 0,
+        "created_max": "2026-04-24 23:58:47.000 UTC",
+        "created_min": "2026-04-24 22:59:57.000 UTC",
+        "event_cutoff_violation_count": 0,
+        "event_timestamp_max": "2026-04-24 23:00:00.000 UTC",
+        "event_timestamp_min": "2026-04-24 22:00:00.000 UTC",
+        "missing_required_count": 0,
+        "row_count": 53,
+        "unique_key_count": 53
+      },
+      "row_count": 53,
+      "table_name": "feat_stream_60m",
+      "unique_key_count": 53
+    },
+    {
+      "columns": [
+        "customer_id",
+        "event_timestamp",
+        "f_customer_total_orders_90d",
+        "f_customer_paid_revenue_90d",
+        "f_customer_avg_order_value_90d",
+        "f_customer_distinct_categories_90d",
+        "f_stream_views_60m",
+        "f_stream_add_to_cart_60m",
+        "f_stream_checkout_started_60m",
+        "f_stream_order_placed_60m",
+        "f_stream_cart_to_purchase_ratio_60m",
+        "created"
+      ],
+      "contract_success": true,
+      "key": [
+        "customer_id",
+        "event_timestamp"
+      ],
+      "metrics": {
+        "created_cutoff_violation_count": 0,
+        "created_max": "2026-04-24 23:59:00.000 UTC",
+        "created_min": "2026-04-24 23:59:00.000 UTC",
+        "event_cutoff_violation_count": 0,
+        "event_timestamp_max": "2026-04-24 23:59:00.000 UTC",
+        "event_timestamp_min": "2026-04-24 23:59:00.000 UTC",
+        "missing_required_count": 0,
+        "row_count": 11996,
+        "unique_key_count": 11996
+      },
+      "row_count": 11996,
+      "table_name": "feat_customer_unified",
+      "unique_key_count": 11996
+    },
+    {
+      "columns": [
+        "id",
+        "label"
+      ],
+      "contract_success": true,
+      "key": [
+        "id"
+      ],
+      "metrics": {
+        "label_max": 1,
+        "label_min": 0,
+        "nonbinary_label_count": 0,
+        "null_id_count": 0,
+        "row_count": 11996,
+        "unique_key_count": 11996
+      },
+      "row_count": 11996,
+      "table_name": "ml_customer_label",
+      "unique_key_count": 11996
+    },
+    {
+      "columns": [
+        "monitoring_date",
+        "feature_name",
+        "window_days",
+        "baseline_date",
+        "customer_count",
+        "mean_value",
+        "stddev_value",
+        "psi_vs_baseline",
+        "drift_status",
+        "warning_flag",
+        "alert_flag"
+      ],
+      "contract_success": true,
+      "key": [
+        "monitoring_date",
+        "feature_name"
+      ],
+      "metrics": {
+        "baseline_date_violation_count": 0,
+        "feature_name_violation_count": 0,
+        "key_null_count": 0,
+        "psi_min": 0.0,
+        "psi_negative_count": 0,
+        "psi_nonfinite_count": 0,
+        "row_count": 22,
+        "unique_key_count": 22,
+        "window_days_violation_count": 0
+      },
+      "row_count": 22,
+      "table_name": "agg_feature_health_daily",
+      "unique_key_count": 22
+    },
+    {
+      "columns": [
+        "alert_date",
+        "feature_name",
+        "psi_value",
+        "threshold",
+        "action"
+      ],
+      "contract_success": true,
+      "key": [
+        "alert_date",
+        "feature_name"
+      ],
+      "metrics": {
+        "key_null_count": 0,
+        "psi_below_threshold_count": 0,
+        "psi_min": null,
+        "psi_nonfinite_count": 0,
+        "row_count": 0,
+        "threshold_violation_count": 0,
+        "unique_key_count": 0
+      },
+      "row_count": 0,
+      "table_name": "feature_drift_alerts",
+      "unique_key_count": 0
+    },
+    {
+      "columns": [
+        "id",
+        "event_timestamp",
+        "label",
+        "f_customer_total_orders_90d",
+        "f_customer_paid_revenue_90d",
+        "f_customer_avg_order_value_90d",
+        "f_customer_distinct_categories_90d",
+        "f_stream_views_60m",
+        "f_stream_add_to_cart_60m",
+        "f_stream_checkout_started_60m",
+        "f_stream_order_placed_60m",
+        "f_stream_cart_to_purchase_ratio_60m",
+        "created"
+      ],
+      "contract_success": true,
+      "key": [
+        "id"
+      ],
+      "metrics": {
+        "created_after_event_count": 0,
+        "created_cutoff_violation_count": 0,
+        "created_max": "2026-04-24 23:59:00.000 UTC",
+        "created_min": "2026-04-24 23:59:00.000 UTC",
+        "event_cutoff_violation_count": 0,
+        "event_timestamp_max": "2026-04-24 23:59:00.000 UTC",
+        "event_timestamp_min": "2026-04-24 23:59:00.000 UTC",
+        "label_mismatch_count": 0,
+        "null_id_count": 0,
+        "row_count": 11996,
+        "unique_key_count": 11996
+      },
+      "row_count": 11996,
+      "table_name": "ml_customer_purchase_training",
+      "unique_key_count": 11996
+    }
+  ],
+  "gate": {
+    "artifacts": [
+      "quality/coursework_feature_contract.json"
+    ],
+    "blocks_dag": false,
+    "details": {
+      "results": [
+        {
+          "exception_info": {
+            "exception_message": null,
+            "exception_traceback": null,
+            "raised_exception": false
+          },
+          "expectation_config": {
+            "kwargs": {
+              "batch_id": "coursework_features-coursework_features_asset",
+              "column": "contract_success",
+              "value_set": [
+                true
+              ]
+            },
+            "meta": {},
+            "severity": "critical",
+            "type": "expect_column_values_to_be_in_set"
+          },
+          "meta": {},
+          "result": {
+            "element_count": 7,
+            "missing_count": 0,
+            "missing_percent": 0.0,
+            "partial_unexpected_counts": [],
+            "partial_unexpected_index_list": [],
+            "partial_unexpected_list": [],
+            "unexpected_count": 0,
+            "unexpected_percent": 0.0,
+            "unexpected_percent_nonmissing": 0.0,
+            "unexpected_percent_total": 0.0
+          },
+          "success": true
+        }
+      ]
+    },
+    "layer": "gold_trino",
+    "requires_quarantine": false,
+    "severity": "error",
+    "status": "success",
+    "success": true,
+    "suite_name": "coursework_feature_contract",
+    "summary": "1/1 expectations passed.",
+    "window": {
+      "end_ts": "2026-05-01T23:59:00Z",
+      "mode": "backfill",
+      "start_ts": "2026-03-03T23:59:00Z"
+    }
+  },
+  "generator_config_path": "configs/generator/base.yaml",
+  "generator_config_sha256": "5c5029fea77d93c3941d87d9a60f85cfe374f36899c3d3c1b028f3f5f3c3cd97",
+  "generator_scale": "medium",
+  "gx_report": "quality/coursework_feature_contract.json",
+  "run_id": "section03-medium-seed42",
+  "schema_version": 1,
+  "section03_candidate_manifest_sha256": "9b1fc0b5d9cea1186e173e263e04cd363f65f791110d02345a99dbbe99ae5475",
+  "stage": "dp3_validate",
+  "state": "success",
+  "strict_section03": true,
+  "task_id": "dp3_offline_features.validate_offline_features",
+  "window": {
+    "end_ts": "2026-05-01T23:59:00Z",
+    "mode": "backfill",
+    "start_ts": "2026-03-03T23:59:00Z"
+  }
+}

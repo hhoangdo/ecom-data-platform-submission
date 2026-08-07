@@ -88,16 +88,41 @@ def _load_section03_parameters(
 
 
 def build_spark_session() -> SparkSession:
-    spark = (
-        SparkSession.builder.appName("vina-bim-shop-batch")
-        .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
-        .config("spark.sql.catalog.iceberg", "org.apache.iceberg.spark.SparkCatalog")
-        .config("spark.sql.catalog.iceberg.type", "hive")
-        .config("spark.sql.catalog.iceberg.uri", "thrift://hive-metastore:9083")
-        .config("spark.sql.catalog.iceberg.writer.mode", "hash")
-        .config("spark.sql.catalog.iceberg.warehouse", "s3a://silver/warehouse")
-        .getOrCreate()
-    )
+    spark = SparkSession.builder.appName("vina-bim-shop-batch")
+    runtime_configuration = {
+        "spark.sql.extensions": "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
+        "spark.sql.catalog.iceberg": "org.apache.iceberg.spark.SparkCatalog",
+        "spark.sql.catalog.iceberg.type": "hive",
+        "spark.sql.catalog.iceberg.uri": os.getenv(
+            "VBS_HIVE_METASTORE_INTERNAL_URI", "thrift://hive-metastore:9083"
+        ),
+        "spark.sql.catalog.iceberg.writer.mode": "hash",
+        "spark.sql.catalog.iceberg.warehouse": (
+            f"s3a://{os.getenv('VBS_SILVER_BUCKET', 'silver')}/warehouse"
+        ),
+        "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem",
+        "spark.hadoop.fs.s3a.endpoint": os.getenv(
+            "VBS_MINIO_INTERNAL_ENDPOINT", "http://minio:9000"
+        ),
+        "spark.hadoop.fs.s3a.endpoint.region": os.getenv("VBS_MINIO_REGION", "us-east-1"),
+        "spark.hadoop.fs.s3a.access.key": os.getenv("VBS_MINIO_ROOT_USER", "vina_minio"),
+        "spark.hadoop.fs.s3a.secret.key": os.getenv(
+            "VBS_MINIO_ROOT_PASSWORD", "vina_minio_password"
+        ),
+        "spark.hadoop.fs.s3a.path.style.access": "true",
+        "spark.hadoop.fs.s3a.connection.ssl.enabled": "false",
+        "spark.hadoop.fs.s3a.aws.credentials.provider": (
+            "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
+        ),
+        "spark.eventLog.enabled": "true",
+        "spark.eventLog.compress": "true",
+        "spark.eventLog.dir": (
+            f"s3a://{os.getenv('VBS_CHECKPOINTS_BUCKET', 'checkpoints')}/spark-events"
+        ),
+    }
+    for key, value in runtime_configuration.items():
+        spark = spark.config(key, value)
+    spark = spark.getOrCreate()
     spark.sparkContext.setLogLevel("WARN")
     return spark
 

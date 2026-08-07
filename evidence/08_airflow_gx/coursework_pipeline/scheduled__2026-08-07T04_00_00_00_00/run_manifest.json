@@ -1,0 +1,23 @@
+{
+  "dag_id": "mini_coursework_pipeline",
+  "run_id": "scheduled__2026-08-07T04:00:00+00:00",
+  "schema_version": 1,
+  "stages": [
+    {
+      "artifact": "dp1_ingest.json",
+      "state": "success",
+      "task_id": "dp1_raw_to_bronze.ingest_raw_to_bronze"
+    },
+    {
+      "artifact": "dp1_validate.json",
+      "state": "success",
+      "task_id": "dp1_raw_to_bronze.validate_bronze"
+    }
+  ],
+  "updated_at": "2026-08-07T05:01:43.916451+00:00",
+  "window": {
+    "end_ts": "2026-08-07T05:00:00Z",
+    "mode": "hourly",
+    "start_ts": "2026-08-07T04:00:00Z"
+  }
+}

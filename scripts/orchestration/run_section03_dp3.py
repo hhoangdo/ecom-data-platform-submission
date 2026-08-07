@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -89,6 +90,10 @@ def _load_candidate(candidate_manifest: Path) -> tuple[dict[str, Any], str, str]
     scale = manifest.get("scale")
     if not isinstance(scale, str) or not scale:
         raise RuntimeError("Section 03 candidate scale is missing.")
+    if not isinstance(manifest.get("bundle_id"), str) or not manifest["bundle_id"]:
+        raise RuntimeError("Section 03 candidate bundle identity is missing.")
+    if not isinstance(manifest.get("random_seed"), int):
+        raise RuntimeError("Section 03 candidate random seed is missing.")
     windows = manifest.get("windows")
     if not isinstance(windows, dict) or any(not isinstance(windows.get(key), str) for key in SECTION03_PARAMETER_KEYS):
         raise RuntimeError("Section 03 candidate windows are missing or invalid.")
@@ -147,7 +152,7 @@ def _validate_artifacts(
     scale: str,
     config_path: str,
     expected_section03_parameters: dict[str, str],
-) -> list[dict[str, str]]:
+) -> list[dict[str, Any]]:
     missing = [relative for relative in REQUIRED_ARTIFACTS if not (run_root / relative).is_file()]
     if missing:
         raise RuntimeError(f"Section 03 runtime artifact inventory is stale or incomplete: {missing}")
@@ -190,7 +195,11 @@ def _validate_artifacts(
         raise RuntimeError("Section 03 coursework feature quality report is not successful.")
 
     return [
-        {"path": relative, "sha256": _sha256(run_root / relative)}
+        {
+            "path": relative,
+            "size_bytes": (run_root / relative).stat().st_size,
+            "sha256": _sha256(run_root / relative),
+        }
         for relative in REQUIRED_ARTIFACTS
     ]
 
@@ -201,6 +210,7 @@ def run_section03_dp3(
     dag_id: str = DAG_ID, timeout_seconds: float = 900, poll_interval_seconds: float = 5,
     sleep: Any = time.sleep, run_id: str | None = None,
     expected_config_path: str | None = None, expected_scale: str | None = None,
+    strict: bool = False,
 ) -> dict[str, Any]:
     output_root.mkdir(parents=True, exist_ok=True)
     run_id = run_id or _new_run_id()
@@ -210,6 +220,7 @@ def run_section03_dp3(
             raise RuntimeError("Section 03 CLI config does not match the candidate.")
         if expected_scale is not None and str(manifest["scale"]) != expected_scale:
             raise RuntimeError("Section 03 CLI scale does not match the candidate.")
+        windows = manifest["windows"]
         conf = {
             "generator_config_path": config_path,
             "generator_scale": str(manifest["scale"]),
@@ -249,16 +260,30 @@ def run_section03_dp3(
                 for key in SECTION03_PARAMETER_KEYS
             },
         )
+        for relative in REQUIRED_ARTIFACTS:
+            source = run_root / relative
+            destination = output_root / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
         artifacts.append(
             {
                 "path": "airflow_task_instances.json",
+                "size_bytes": task_state_path.stat().st_size,
                 "sha256": _sha256(task_state_path),
             }
         )
         result = {
             "status": "success",
+            "section": "03_data_generator_improvement",
             "dag_id": dag_id,
             "run_id": run_id,
+            "candidate_bundle_id": manifest["bundle_id"],
+            "candidate_manifest_sha256": candidate_sha256,
+            "source_config_sha256": manifest["source_config_sha256"],
+            "scale": manifest["scale"],
+            "random_seed": manifest["random_seed"],
+            "feature_cutoff_ts": windows["feature_cutoff_ts"],
+            "label_end_ts": windows["label_end_ts"],
             "conf": conf,
             "airflow_run": run_state,
             "task_instances": task_state,
@@ -306,6 +331,7 @@ def main() -> None:
         run_id=args.run_id,
         expected_config_path=args.config,
         expected_scale=args.scale,
+        strict=args.strict,
     )
     print(json.dumps(result, indent=2, sort_keys=True))
 

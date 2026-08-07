@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
@@ -110,17 +111,36 @@ def _artifact_path(root: Path, value: str, *, bundle_id: str) -> Path:
     return resolved
 
 
+def _validate_strict_manifest(path: Path, manifest: dict[str, Any]) -> None:
+    finalizer_path = Path(__file__).with_name("finalize_section03_evidence.py")
+    spec = importlib.util.spec_from_file_location("section03_finalizer_for_verification", finalizer_path)
+    if spec is None or spec.loader is None:
+        raise ValueError("strict finalizer validator is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    validator = getattr(module, "_validate_final_manifest", None)
+    if validator is None:
+        raise ValueError("strict finalizer validator is unavailable")
+    validator(path, manifest)
+
+
 def verify_manifest(
     manifest_path: str | Path,
     *,
     allow_runtime_pending: bool = False,
+    strict: bool = False,
 ) -> dict[str, Any]:
     path = Path(manifest_path)
+    if strict and allow_runtime_pending:
+        raise ValueError("strict verification cannot allow runtime pending")
     if allow_runtime_pending and path.name != "section03_candidate_manifest.json":
         raise ValueError("runtime pending is allowed only for the candidate manifest")
     manifest = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(manifest, dict):
         raise ValueError("manifest must be an object")
+    if strict:
+        _validate_strict_manifest(path, manifest)
+        return manifest
     _require_exact(set(manifest), TOP_LEVEL_KEYS, "top-level")
     if manifest["schema_version"] != 1 or manifest["section"] != "03_data_generator_improvement":
         raise ValueError("manifest identity is invalid")
@@ -285,7 +305,9 @@ def verify_manifest(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Verify a Section 03 evidence manifest.")
     parser.add_argument("--manifest", required=True)
-    parser.add_argument("--allow-runtime-pending", action="store_true")
+    runtime_mode = parser.add_mutually_exclusive_group()
+    runtime_mode.add_argument("--allow-runtime-pending", action="store_true")
+    runtime_mode.add_argument("--strict", action="store_true")
     return parser.parse_args()
 
 
@@ -294,6 +316,7 @@ def main() -> None:
     manifest = verify_manifest(
         args.manifest,
         allow_runtime_pending=args.allow_runtime_pending,
+        strict=args.strict,
     )
     suffix = " (runtime pending)" if manifest["runtime_evidence"]["status"] == "pending" else ""
     print(f"section03 manifest: PASS{suffix}")

@@ -37,7 +37,22 @@ def test_orchestration_services_reuse_shared_postgres_and_repo_workspace() -> No
         }
         assert "./infra/orchestration/airflow/dags:/opt/airflow/dags:ro" in service["volumes"]
         assert "./src:/workspace/src:ro" in service["volumes"]
-        assert "/var/run/docker.sock:/var/run/docker.sock" in service["volumes"]
+        assert "airflow_logs:/opt/airflow/logs" in service["volumes"]
+        assert "/var/run/docker.sock:/var/run/docker.sock" not in service["volumes"]
+
+    assert "airflow_logs" in compose["volumes"]
+
+
+def test_airflow_services_include_socket_free_spark_runtime() -> None:
+    compose = load_compose_model(_repo_root())
+    for service_name in ["airflow-webserver", "airflow-scheduler", "airflow-init"]:
+        environment = compose["services"][service_name]["environment"]
+        assert environment["VBS_SPARK_SUBMIT_BIN"] == "/opt/spark/bin/spark-submit"
+        assert environment["VBS_SPARK_DEPLOY_MODE"] == "client"
+        assert environment["VBS_SPARK_DRIVER_SERVICE_URL"] == "http://spark-driver:8090/run"
+        assert environment["VBS_SPARK_DRIVER_SERVICE_TIMEOUT_SECONDS"] == "2400"
+        assert environment["SPARK_HOME"] == "/opt/spark"
+        assert environment["JAVA_HOME"] == "/opt/java/openjdk"
 
 
 def test_env_example_documents_orchestration_urls_and_credentials() -> None:
@@ -52,6 +67,33 @@ def test_env_example_documents_orchestration_urls_and_credentials() -> None:
         assert expected_line in env_example
 
 
+def test_airflow_services_bypass_inherited_proxy_for_internal_runtime() -> None:
+    compose = load_compose_model(_repo_root())
+    internal_hosts = {
+        "minio",
+        "trino",
+        "kafka",
+        "datahub-gms",
+        "spark-master",
+        "spark-history-server",
+        "lakehouse-postgres",
+        "localhost",
+        "127.0.0.1",
+        "::1",
+    }
+
+    for service_name in ["airflow-webserver", "airflow-scheduler", "airflow-init"]:
+        environment = compose["services"][service_name]["environment"]
+        assert environment["HTTP_PROXY"] == ""
+        assert environment["HTTPS_PROXY"] == ""
+        assert environment["ALL_PROXY"] == ""
+        assert environment["http_proxy"] == ""
+        assert environment["https_proxy"] == ""
+        assert environment["all_proxy"] == ""
+        assert set(environment["NO_PROXY"].split(",")) >= internal_hosts
+        assert set(environment["no_proxy"].split(",")) >= internal_hosts
+
+
 def test_airflow_runtime_assets_exist() -> None:
     repo_root = _repo_root()
     assert (repo_root / "infra" / "orchestration" / "airflow" / "Dockerfile").is_file()
@@ -60,6 +102,9 @@ def test_airflow_runtime_assets_exist() -> None:
     assert "/usr/local/bin/mc" in dockerfile
     assert '"numpy==1.26.4"' in dockerfile
     assert '"scipy==1.14.1"' in dockerfile
+    assert "FROM vina-bim-shop/spark:4.0.0-iceberg-1.10.1 AS spark-runtime" in dockerfile
+    assert "COPY --from=spark-runtime /opt/spark /opt/spark" in dockerfile
+    assert "COPY --from=spark-runtime /opt/java/openjdk /opt/java/openjdk" in dockerfile
 
 
 def test_airflow_init_mounts_and_runs_coursework_metadata_seed() -> None:

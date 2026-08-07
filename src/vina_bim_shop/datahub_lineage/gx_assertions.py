@@ -44,13 +44,26 @@ def _latest_successful_coursework_run() -> Path | None:
     return None
 
 
-def _run_timestamp_ms(run_id: str) -> int:
+def _run_timestamp_ms(run_id: str, *, run_root: Path | None = None) -> int:
     compact = re.search(r"(\d{8}T\d{6}Z)", run_id)
     if compact:
         return int(datetime.strptime(compact.group(1), "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc).timestamp() * 1000)
     iso = re.search(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.\d+)?([+-]\d{2}:\d{2}|Z)", run_id)
     if iso:
         return int(datetime.fromisoformat(f"{iso.group(1)}{'+00:00' if iso.group(2) == 'Z' else iso.group(2)}").timestamp() * 1000)
+    if run_root is not None:
+        for artifact_name in ("dp3_validate.json", "dp2_validate.json", "dp1_validate.json"):
+            try:
+                artifact = json.loads((run_root / artifact_name).read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            candidate = artifact.get("feature_cutoff_ts") or (artifact.get("window") or {}).get("end_ts")
+            if not isinstance(candidate, str):
+                continue
+            timestamp = datetime.fromisoformat(candidate.replace("Z", "+00:00"))
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=timezone.utc)
+            return int(timestamp.timestamp() * 1000)
     raise ValueError(f"Could not derive a deterministic timestamp from coursework run ID {run_id!r}")
 
 
@@ -79,7 +92,7 @@ def emit_coursework_assertions_to_datahub(gms_url: str = "http://datahub-gms:808
                 success=bool(spec["success"]),
                 column=str(spec["column"]),
                 run_id=str(spec["run_id"]),
-                timestamp_ms=_run_timestamp_ms(str(spec["run_id"])),
+                timestamp_ms=_run_timestamp_ms(str(spec["run_id"]), run_root=run_root),
             )
     except Exception as exc:
         return {"status": "failed", "reason": str(exc), "source_run_root": str(run_root)}

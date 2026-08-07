@@ -1,0 +1,165 @@
+{
+  "duckdb_path": "data\\gold\\vina_bim_shop_executive.duckdb",
+  "exported_at": "2026-08-07T02:43:04.944986+00:00",
+  "source": "trino://iceberg.gold",
+  "table_count": 26,
+  "tables": [
+    {
+      "column_count": 16,
+      "row_count": 12000,
+      "source_relation": "iceberg.gold.dim_customer",
+      "table_name": "dim_customer"
+    },
+    {
+      "column_count": 16,
+      "row_count": 600,
+      "source_relation": "iceberg.gold.dim_seller",
+      "table_name": "dim_seller"
+    },
+    {
+      "column_count": 17,
+      "row_count": 6000,
+      "source_relation": "iceberg.gold.dim_product",
+      "table_name": "dim_product"
+    },
+    {
+      "column_count": 4,
+      "row_count": 20,
+      "source_relation": "iceberg.gold.dim_category",
+      "table_name": "dim_category"
+    },
+    {
+      "column_count": 6,
+      "row_count": 61,
+      "source_relation": "iceberg.gold.dim_date",
+      "table_name": "dim_date"
+    },
+    {
+      "column_count": 2,
+      "row_count": 5,
+      "source_relation": "iceberg.gold.dim_payment_method",
+      "table_name": "dim_payment_method"
+    },
+    {
+      "column_count": 2,
+      "row_count": 2,
+      "source_relation": "iceberg.gold.dim_order_status",
+      "table_name": "dim_order_status"
+    },
+    {
+      "column_count": 2,
+      "row_count": 4,
+      "source_relation": "iceberg.gold.dim_shipment_status",
+      "table_name": "dim_shipment_status"
+    },
+    {
+      "column_count": 2,
+      "row_count": 5,
+      "source_relation": "iceberg.gold.dim_shipping_method",
+      "table_name": "dim_shipping_method"
+    },
+    {
+      "column_count": 13,
+      "row_count": 81,
+      "source_relation": "iceberg.gold.dim_promotion",
+      "table_name": "dim_promotion"
+    },
+    {
+      "column_count": 7,
+      "row_count": 7340,
+      "source_relation": "iceberg.gold.bridge_product_category",
+      "table_name": "bridge_product_category"
+    },
+    {
+      "column_count": 27,
+      "row_count": 45000,
+      "source_relation": "iceberg.gold.fact_order",
+      "table_name": "fact_order"
+    },
+    {
+      "column_count": 25,
+      "row_count": 165193,
+      "source_relation": "iceberg.gold.fact_order_item",
+      "table_name": "fact_order_item"
+    },
+    {
+      "column_count": 16,
+      "row_count": 45000,
+      "source_relation": "iceberg.gold.fact_payment_attempt",
+      "table_name": "fact_payment_attempt"
+    },
+    {
+      "column_count": 18,
+      "row_count": 45000,
+      "source_relation": "iceberg.gold.fact_shipment",
+      "table_name": "fact_shipment"
+    },
+    {
+      "column_count": 11,
+      "row_count": 60000,
+      "source_relation": "iceberg.gold.fact_inventory_snapshot",
+      "table_name": "fact_inventory_snapshot"
+    },
+    {
+      "column_count": 14,
+      "row_count": 58401,
+      "source_relation": "iceberg.gold.fact_promotion_application",
+      "table_name": "fact_promotion_application"
+    },
+    {
+      "column_count": 32,
+      "row_count": 45000,
+      "source_relation": "iceberg.gold.obt_order_performance",
+      "table_name": "obt_order_performance"
+    },
+    {
+      "column_count": 21,
+      "row_count": 1416,
+      "source_relation": "iceberg.gold.agg_hourly_reconciled_kpi",
+      "table_name": "agg_hourly_reconciled_kpi"
+    },
+    {
+      "column_count": 7,
+      "row_count": 11996,
+      "source_relation": "iceberg.gold.feat_customer_90d",
+      "table_name": "feat_customer_90d"
+    },
+    {
+      "column_count": 8,
+      "row_count": 53,
+      "source_relation": "iceberg.gold.feat_stream_60m",
+      "table_name": "feat_stream_60m"
+    },
+    {
+      "column_count": 12,
+      "row_count": 11996,
+      "source_relation": "iceberg.gold.feat_customer_unified",
+      "table_name": "feat_customer_unified"
+    },
+    {
+      "column_count": 2,
+      "row_count": 11996,
+      "source_relation": "iceberg.gold.ml_customer_label",
+      "table_name": "ml_customer_label"
+    },
+    {
+      "column_count": 11,
+      "row_count": 22,
+      "source_relation": "iceberg.gold.agg_feature_health_daily",
+      "table_name": "agg_feature_health_daily"
+    },
+    {
+      "column_count": 5,
+      "row_count": 0,
+      "source_relation": "iceberg.gold.feature_drift_alerts",
+      "table_name": "feature_drift_alerts"
+    },
+    {
+      "column_count": 13,
+      "row_count": 11996,
+      "source_relation": "iceberg.gold.ml_customer_purchase_training",
+      "table_name": "ml_customer_purchase_training"
+    }
+  ],
+  "total_row_count": 539187
+}

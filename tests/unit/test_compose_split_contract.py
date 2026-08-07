@@ -43,6 +43,7 @@ def test_compose_domain_files_own_each_service_once() -> None:
         "trino-worker": "compose/lakehouse.yml",
         "spark-master": "compose/batch.spark.yml",
         "spark-worker": "compose/batch.spark.yml",
+        "spark-driver": "compose/batch.spark.yml",
         "spark-history-server": "compose/batch.spark.yml",
         "flink-jobmanager": "compose/streaming.flink.yml",
         "flink-taskmanager": "compose/streaming.flink.yml",
@@ -71,6 +72,7 @@ def test_root_compose_preserves_shared_named_volumes() -> None:
         "minio_data",
         "lakehouse_postgres_data",
         "datahub_search_data",
+        "airflow_logs",
         "pinot_zookeeper_data",
         "pinot_zookeeper_datalog",
     }

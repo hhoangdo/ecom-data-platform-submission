@@ -7,8 +7,8 @@ from vina_bim_shop.lakehouse.spark.runner import run_batch_pipeline
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the Spark batch Iceberg pipeline.")
-    parser.add_argument("--start-ts", required=True)
-    parser.add_argument("--end-ts", required=True)
+    parser.add_argument("--start-ts")
+    parser.add_argument("--end-ts")
     parser.add_argument("--mode", required=True, choices=["hourly", "backfill"])
     parser.add_argument("--evidence-root", default="evidence/05_spark_batch")
     parser.add_argument("--generator-config", default="configs/generator/base.yaml")
