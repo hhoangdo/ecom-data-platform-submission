@@ -1,0 +1,16 @@
+project: edai2_rag
+provider: local
+registry:
+  registry_type: sql
+  path: postgresql+psycopg://edai2_rag:${EDAI2_RAG_POSTGRES_PASSWORD}@localhost:5432/edai2_rag
+offline_store:
+  type: postgres
+  host: localhost
+  port: 5432
+  database: edai2_rag
+  db_schema: public
+  user: edai2_rag
+  password: ${EDAI2_RAG_POSTGRES_PASSWORD}
+online_store:
+  type: sqlite
+  path: data/edai2_rag_online.db

@@ -437,3 +437,26 @@ def test_build_index_report_hash_is_canonical() -> None:
     ).hexdigest()
 
     assert module.canonical_report_sha256(payload) == expected
+
+
+def test_build_index_cli_accepts_only_the_topic10_local_sentinel_purpose() -> None:
+    spec = importlib.util.spec_from_file_location("build_index", BUILD_INDEX_SCRIPT)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    args = module.parse_args(
+        [
+            "--mode",
+            "candidate",
+            "--index-version",
+            "test_idx_001",
+            "--index-purpose",
+            "local-bootstrap-sentinel",
+            "--source-root",
+            str(REPOSITORY_SOURCE_ROOT),
+            "--dry-run",
+        ]
+    )
+
+    assert args.index_purpose == "local-bootstrap-sentinel"

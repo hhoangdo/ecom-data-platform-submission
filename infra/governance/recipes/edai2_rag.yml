@@ -1,0 +1,22 @@
+version: 1
+name: edai2-rag-index-lineage
+description: >-
+  Local candidate-to-active RAG index lineage contract. DataHub capture/read-back is
+  exercised through injected test doubles; canonical UI evidence belongs to Topic 28.
+nodes:
+  - source
+  - document_version
+  - chunk
+  - embedding
+  - candidate
+  - active
+  - feast
+  - api
+edges:
+  - source -> document_version
+  - document_version -> chunk
+  - chunk -> embedding
+  - embedding -> candidate
+  - candidate -> active
+  - active -> feast
+  - feast -> api

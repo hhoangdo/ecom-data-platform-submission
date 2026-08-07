@@ -24,6 +24,7 @@ REQUIRED_DAG_IDS = (
     "reconciliation_report",
     "local_evidence_build",
     "mini_coursework_pipeline",
+    "rag_index_pipeline",
 )
 
 
@@ -43,5 +44,6 @@ def dag_specs_by_id() -> OrderedDict[str, DagSpec]:
             ("reconciliation_report", DagSpec("reconciliation_report", "hourly_demo", True)),
             ("local_evidence_build", DagSpec("local_evidence_build", "manual", False)),
             ("mini_coursework_pipeline", DagSpec("mini_coursework_pipeline", "hourly_demo", True)),
+            ("rag_index_pipeline", DagSpec("rag_index_pipeline", "manual", False)),
         )
     )

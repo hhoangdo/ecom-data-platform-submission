@@ -10,7 +10,7 @@ import struct
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Callable, Protocol, Sequence
 
 from .contracts import (
     IndexBuildReport,
@@ -61,6 +61,69 @@ class SourceParseError(ValueError):
 
 class EmbeddingValidationError(ValueError):
     """Raised when a pinned BGE embedding violates its local contract."""
+
+
+class CandidateValidationError(RuntimeError):
+    """Raised when a candidate cannot pass the validation or promotion gate."""
+
+
+class CandidateStorePort(Protocol):
+    """Storage and alias operations required by the candidate-index pipeline."""
+
+    async def upsert_candidate(
+        self,
+        *,
+        index_version: str,
+        versions: Sequence[KnowledgeDocumentVersion],
+        chunks: Sequence[KnowledgeChunk],
+        vectors: Sequence[Sequence[float]],
+        report: IndexBuildReport,
+    ) -> None: ...
+
+    async def register_feast_feature_view(self, index_version: str) -> str: ...
+
+    async def candidate_complete(self, index_version: str) -> bool: ...
+
+    async def mark_validated(
+        self, index_version: str, report: IndexValidationReport
+    ) -> None: ...
+
+    async def is_validated(self, index_version: str) -> bool: ...
+
+    async def active_version(self) -> str | None: ...
+
+    async def compare_and_swap_active(
+        self, expected: str | None, next_version: str | None
+    ) -> str | None: ...
+
+
+class IndexCatalogPort(Protocol):
+    """Lineage operations required by the candidate-index pipeline."""
+
+    async def emit_candidate(
+        self,
+        *,
+        report: IndexBuildReport,
+        versions: Sequence[KnowledgeDocumentVersion],
+        chunks: Sequence[KnowledgeChunk],
+    ) -> str: ...
+
+    async def emit_active(
+        self,
+        *,
+        index_version: str,
+        previous_index_version: str | None,
+    ) -> str: ...
+
+    async def emit_rollback(
+        self,
+        *,
+        failed_index_version: str,
+        restored_index_version: str | None,
+        reason: str,
+    ) -> str: ...
+
+    async def read_back(self, *, index_version: str) -> bool: ...
 
 
 class PinnedBgeEmbedder:
@@ -414,36 +477,78 @@ def _validate_returns_versions(records: Sequence[KnowledgeDocumentVersion]) -> N
 
 
 class RagIndexPipeline:
-    """Own the local candidate-index stages implemented by later Topic 09 steps."""
+    """Build, validate, and promote a locally testable candidate index."""
 
     def __init__(
         self,
         *,
         tokenizer: object | None = None,
         embedder: EmbeddingPort | None = None,
+        candidate_store: CandidateStorePort | None = None,
+        catalog: IndexCatalogPort | None = None,
     ) -> None:
         self._tokenizer = tokenizer
         self._embedder = embedder or PinnedBgeEmbedder()
+        self._candidate_store = candidate_store
+        self._catalog = catalog
 
     async def build_candidate(
         self,
         source_paths: Sequence[str],
         index_version: str,
     ) -> IndexBuildReport:
-        """Build a candidate report without storage or active-alias mutation."""
+        """Run the candidate stages without changing an active alias."""
 
-        source_root = _source_root(source_paths)
-        versions = parse_sources(source_root)
-        chunks = build_chunks(
+        versions = self.parse_candidate_sources(source_paths)
+        chunks = self.chunk_candidate_sources(versions)
+        vectors = await self.embed_candidate_chunks(chunks)
+        report = self.build_candidate_report(index_version, versions, chunks, vectors)
+        if self._candidate_store is not None:
+            await self.persist_candidate(report, versions, chunks, vectors)
+            await self.register_candidate_feature_view(index_version)
+            await self.emit_candidate_lineage(report, versions, chunks)
+        return report
+
+    def parse_candidate_sources(
+        self, source_paths: Sequence[str]
+    ) -> list[KnowledgeDocumentVersion]:
+        """Parse all required source files for the first candidate stage."""
+
+        return parse_sources(_source_root(source_paths))
+
+    def chunk_candidate_sources(
+        self, versions: Sequence[KnowledgeDocumentVersion]
+    ) -> list[KnowledgeChunk]:
+        """Create deterministic 400/80 chunks for parsed candidate versions."""
+
+        return build_chunks(
             versions,
             tokenizer=self._tokenizer or _load_tokenizer(),
             tokenizer_model=BGE_MODEL,
             tokenizer_revision=BGE_REVISION,
         )
+
+    async def embed_candidate_chunks(
+        self, chunks: Sequence[KnowledgeChunk]
+    ) -> list[list[float]]:
+        """Embed every candidate chunk and enforce the pinned vector contract."""
+
         vectors = await self._embedder.embed([chunk.content for chunk in chunks])
         if len(vectors) != len(chunks):
             raise EmbeddingValidationError("embedding count does not match chunk count")
+        return [_validated_vector(vector) for vector in vectors]
 
+    def build_candidate_report(
+        self,
+        index_version: str,
+        versions: Sequence[KnowledgeDocumentVersion],
+        chunks: Sequence[KnowledgeChunk],
+        vectors: Sequence[Sequence[float]],
+    ) -> IndexBuildReport:
+        """Bind parsed content, chunks, and vectors into one candidate report."""
+
+        if len(chunks) != len(vectors):
+            raise EmbeddingValidationError("embedding count does not match candidate chunks")
         vector_hashes = {
             chunk.chunk_id: hashlib.sha256(
                 struct.pack("<384f", *_validated_vector(vector))
@@ -475,34 +580,161 @@ class RagIndexPipeline:
             tokenizer_revision=BGE_REVISION,
         )
 
+    async def persist_candidate(
+        self,
+        report: IndexBuildReport,
+        versions: Sequence[KnowledgeDocumentVersion],
+        chunks: Sequence[KnowledgeChunk],
+        vectors: Sequence[Sequence[float]],
+    ) -> None:
+        """Persist immutable candidate rows and pgvector values transactionally."""
+
+        await self._require_store().upsert_candidate(
+            index_version=report.index_version,
+            versions=versions,
+            chunks=chunks,
+            vectors=vectors,
+            report=report,
+        )
+
+    async def register_candidate_feature_view(self, index_version: str) -> str:
+        """Declare the candidate retrieval feature service without building an ANN index."""
+
+        return await self._require_store().register_feast_feature_view(index_version)
+
+    async def emit_candidate_lineage(
+        self,
+        report: IndexBuildReport,
+        versions: Sequence[KnowledgeDocumentVersion],
+        chunks: Sequence[KnowledgeChunk],
+    ) -> str:
+        """Emit source-to-candidate lineage after immutable storage succeeds."""
+
+        return await self._require_catalog().emit_candidate(
+            report=report,
+            versions=versions,
+            chunks=chunks,
+        )
+
     async def validate_candidate(
         self,
         index_version: str,
-        evaluation_path: str,
+        evaluation_path: str | Path,
     ) -> IndexValidationReport:
-        """Validate a candidate through the later retrieval quality gates."""
+        """Validate a complete candidate before any active-alias mutation."""
 
-        raise NotImplementedError("RAG validation is implemented by a successor topic")
+        store = self._require_store()
+        if not await store.candidate_complete(index_version):
+            raise CandidateValidationError(
+                f"candidate {index_version} is incomplete and cannot be validated"
+            )
+        try:
+            report = IndexValidationReport.model_validate(
+                json.loads(Path(evaluation_path).read_text(encoding="utf-8"))
+            )
+        except (OSError, ValueError, json.JSONDecodeError) as error:
+            raise CandidateValidationError("candidate evaluation report is invalid") from error
+        if report.index_version != index_version:
+            raise CandidateValidationError("candidate evaluation index version does not match")
+        if not report.passed:
+            raise CandidateValidationError("candidate evaluation did not pass")
+        await store.mark_validated(index_version, report)
+        return report
 
     async def promote(
         self,
         index_version: str,
         expected_active_version: str | None,
     ) -> str:
-        """Return a promotion boundary for a later transactional adapter."""
+        """Promote with CAS and compensate to the recorded prior alias on failure."""
 
-        raise NotImplementedError("RAG promotion is implemented by a successor topic")
+        prior_alias = await self.promote_compare_and_swap(
+            index_version,
+            expected_active_version,
+        )
+        return await self.emit_active_lineage_and_read_back(index_version, prior_alias)
 
-    async def rollback(self, previous_index_version: str) -> str:
-        """Return a rollback boundary for a later transactional adapter."""
+    async def promote_compare_and_swap(
+        self,
+        index_version: str,
+        expected_active_version: str | None,
+    ) -> str | None:
+        """Validate and compare-and-swap only; active lineage remains a later stage."""
 
-        raise NotImplementedError("RAG rollback is implemented by a successor topic")
+        store = self._require_store()
+        if not await store.is_validated(index_version):
+            raise CandidateValidationError(
+                f"candidate {index_version} must be validated before promotion"
+            )
+
+        prior_alias = await store.active_version()
+        if prior_alias != expected_active_version:
+            raise CandidateValidationError("active alias differs from the expected prior version")
+        await store.compare_and_swap_active(prior_alias, index_version)
+        return prior_alias
+
+    async def emit_active_lineage_and_read_back(
+        self,
+        index_version: str,
+        prior_alias: str | None,
+    ) -> str:
+        """Verify active lineage, compensating the exact recorded alias on failure."""
+
+        store = self._require_store()
+        catalog = self._require_catalog()
+        try:
+            await catalog.emit_active(
+                index_version=index_version,
+                previous_index_version=prior_alias,
+            )
+            await catalog.read_back(index_version=index_version)
+        except Exception as error:
+            try:
+                await store.compare_and_swap_active(index_version, prior_alias)
+            except Exception as compensation_error:
+                raise CandidateValidationError(
+                    "active lineage failed and alias compensation also failed"
+                ) from compensation_error
+            await catalog.emit_rollback(
+                failed_index_version=index_version,
+                restored_index_version=prior_alias,
+                reason=str(error),
+            )
+            raise
+        return index_version
+
+    async def rollback(self, previous_index_version: str | None) -> str | None:
+        """Compare-and-swap the active alias back to a recorded prior version."""
+
+        store = self._require_store()
+        catalog = self._require_catalog()
+        active_version = await store.active_version()
+        if active_version is None:
+            raise CandidateValidationError("no active alias exists to roll back")
+        await store.compare_and_swap_active(active_version, previous_index_version)
+        await catalog.emit_rollback(
+            failed_index_version=active_version,
+            restored_index_version=previous_index_version,
+            reason="explicit rollback",
+        )
+        return previous_index_version
+
+    def _require_store(self) -> CandidateStorePort:
+        if self._candidate_store is None:
+            raise CandidateValidationError("candidate storage is not configured")
+        return self._candidate_store
+
+    def _require_catalog(self) -> IndexCatalogPort:
+        if self._catalog is None:
+            raise CandidateValidationError("DataHub lineage is not configured")
+        return self._catalog
 
 
 __all__ = [
     "EXPECTED_SOURCE_FILES",
     "BGE_MODEL",
     "BGE_REVISION",
+    "CandidateValidationError",
     "EmbeddingValidationError",
     "PinnedBgeEmbedder",
     "QUERY_PREFIX",

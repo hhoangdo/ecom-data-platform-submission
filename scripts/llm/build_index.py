@@ -25,6 +25,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("candidate",), required=True)
     parser.add_argument("--index-version", required=True)
+    parser.add_argument(
+        "--index-purpose",
+        choices=("local-bootstrap-sentinel",),
+        default="local-bootstrap-sentinel",
+    )
     parser.add_argument("--source-root", type=Path, required=True)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
@@ -34,12 +39,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 
 async def build_report(args: argparse.Namespace) -> dict[str, object]:
-    """Download only the immutable model revision and print a local report."""
+    """Use the cached immutable model revision and print a local report."""
 
     snapshot_path = Path(
         snapshot_download(
             repo_id=BGE_MODEL,
             revision=BGE_REVISION,
+            local_files_only=True,
         )
     )
     pipeline = RagIndexPipeline()
@@ -51,6 +57,7 @@ async def build_report(args: argparse.Namespace) -> dict[str, object]:
     payload.update(
         {
             "dry_run": True,
+            "evidence_label": args.index_purpose,
             "model_file_sha256": _file_hashes(snapshot_path),
             "promotion": False,
             "storage_written": False,
