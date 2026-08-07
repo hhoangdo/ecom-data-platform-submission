@@ -362,6 +362,49 @@ class FeastPostgresAdapter:
             vector, top_k=top_k, category=category, effective_at=effective_at
         )
 
+    async def get_verified_chunk(
+        self,
+        *,
+        chunk_id: str,
+        content_sha256: str,
+    ) -> SearchMatch | None:
+        """Reload one active, hash-bound citation without similarity ranking."""
+
+        async with self._connection() as connection:
+            rows = await _fetch_all(
+                connection,
+                """
+                SELECT chunk.chunk_id, chunk.document_id, chunk.category, chunk.version,
+                       chunk.effective_from, chunk.effective_to, chunk.content,
+                       chunk.content_sha256
+                FROM edai2_rag_active_alias alias
+                JOIN edai2_rag_candidate_chunk candidate
+                  ON candidate.index_version = alias.index_version
+                JOIN edai2_rag_chunk chunk ON chunk.chunk_id = candidate.chunk_id
+                WHERE alias.alias_name = 'active'
+                  AND chunk.chunk_id = %s
+                  AND chunk.content_sha256 = %s
+                LIMIT 1
+                """,
+                (chunk_id, content_sha256),
+            )
+        if not rows:
+            return None
+        row = rows[0]
+        return SearchMatch(
+            content=str(row["content"]),
+            score=1.0,
+            citation={
+                "chunk_id": str(row["chunk_id"]),
+                "document_id": str(row["document_id"]),
+                "category": str(row["category"]),
+                "version": str(row["version"]),
+                "effective_from": row["effective_from"],
+                "effective_to": row["effective_to"],
+                "content_sha256": str(row["content_sha256"]),
+            },
+        )
+
     async def _search_exact(
         self,
         vector: Sequence[float],

@@ -36,6 +36,13 @@ class FeastPort(Protocol):
         effective_at: UtcDateTime,
     ) -> list[SearchMatch]: ...
 
+    async def get_verified_chunk(
+        self,
+        *,
+        chunk_id: str,
+        content_sha256: str,
+    ) -> SearchMatch | None: ...
+
     async def read_feature_health(
         self,
         *,

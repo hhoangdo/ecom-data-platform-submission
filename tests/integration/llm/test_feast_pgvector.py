@@ -207,6 +207,74 @@ async def test_candidate_complete_requires_every_declared_member_embedding() -> 
 
 
 @pytest.mark.asyncio
+async def test_get_verified_chunk_requires_active_candidate_membership_and_exact_hash(
+) -> None:
+    chunk_id = "b" * 64
+    content_sha256 = "c" * 64
+    connection = RecordingConnection(
+        rows=[
+            [
+                {
+                    "chunk_id": chunk_id,
+                    "document_id": "returns-policy",
+                    "category": "returns",
+                    "version": "1.0.0",
+                    "effective_from": datetime(2025, 1, 1, tzinfo=timezone.utc),
+                    "effective_to": None,
+                    "content": "Returns are accepted within thirty days.",
+                    "content_sha256": content_sha256,
+                }
+            ]
+        ]
+    )
+    adapter = FeastPostgresAdapter(connection_factory=lambda: connection)
+
+    match = await adapter.get_verified_chunk(
+        chunk_id=chunk_id,
+        content_sha256=content_sha256,
+    )
+
+    assert match is not None
+    assert match.content == "Returns are accepted within thirty days."
+    assert match.score == 1.0
+    assert match.citation.chunk_id == chunk_id
+    assert match.citation.document_id == "returns-policy"
+    assert match.citation.content_sha256 == content_sha256
+    query, parameters = connection.statements[0]
+    normalized_query = query.lower()
+    assert "from edai2_rag_active_alias alias" in normalized_query
+    assert "join edai2_rag_candidate_chunk candidate" in normalized_query
+    assert "chunk.chunk_id = %s" in normalized_query
+    assert "chunk.content_sha256 = %s" in normalized_query
+    assert "order by" not in normalized_query
+    assert "<=>" not in normalized_query
+    assert parameters == (chunk_id, content_sha256)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("case", "chunk_id", "content_sha256"),
+    [
+        ("missing", "f" * 64, "c" * 64),
+        ("inactive", "b" * 64, "c" * 64),
+        ("hash-mismatched", "b" * 64, "f" * 64),
+    ],
+)
+async def test_get_verified_chunk_returns_none_without_an_active_exact_match(
+    case: str,
+    chunk_id: str,
+    content_sha256: str,
+) -> None:
+    connection = RecordingConnection(rows=[[]])
+    adapter = FeastPostgresAdapter(connection_factory=lambda: connection)
+
+    assert await adapter.get_verified_chunk(
+        chunk_id=chunk_id,
+        content_sha256=content_sha256,
+    ) is None, case
+
+
+@pytest.mark.asyncio
 async def test_exact_query_filters_before_rank_and_keeps_chunk_id_ties_stable() -> None:
     rows = [
         [
