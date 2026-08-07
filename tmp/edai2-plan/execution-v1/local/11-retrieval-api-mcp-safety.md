@@ -23,7 +23,7 @@
 ## Locked planning basis
 
 - `C:\Users\oou1hc\.codex\RTK.md` must be read first; every shell command is prefixed with `rtk`.
-- Section 03 plan SHA-256: `ece171c3d400c3b16fc668cd28e3587faebe1f596dd6c0c4498ff055e3fc027f`.
+- Section 03 plan SHA-256: `3c906ae30ac0fee606e96608a7b5759cd7439ae048c4c12a84511fce5cc33ae6`.
 - EDAI2 master plan SHA-256: `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`.
 - Rubric source `tmp/rubic-check/Coursework Tracking (Public).xlsx` SHA-256: `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - A hash mismatch stops execution and yields a truthful `Partial` Completion Record.
@@ -41,7 +41,7 @@
 ## Read-only current-state refresh
 
 - [ ] Run `rtk git status --short --branch`. Expected: current branch and unrelated user changes are recorded before edits.
-- [ ] Run `rtk proxy certutil -hashfile tmp/edai2-plan/03_data_generator_improvement.md SHA256`. Expected: output contains `ece171c3d400c3b16fc668cd28e3587faebe1f596dd6c0c4498ff055e3fc027f`.
+- [ ] Run `rtk proxy certutil -hashfile tmp/edai2-plan/03_data_generator_improvement.md SHA256`. Expected: output contains `3c906ae30ac0fee606e96608a7b5759cd7439ae048c4c12a84511fce5cc33ae6`.
 - [ ] Run `rtk proxy certutil -hashfile tmp/edai2-plan/04.2_llm_design.md SHA256`. Expected: output contains `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`.
 - [ ] Run `rtk proxy certutil -hashfile "tmp/rubic-check/Coursework Tracking (Public).xlsx" SHA256`. Expected: output contains `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - [ ] Run `rtk proxy powershell -NoProfile -Command "Select-String -Path tmp/edai2-plan/execution-v1/local/10-rag-index-feast-airflow-datahub.md -Pattern '^Status: Complete|\| Status \| Complete \|'"`. Expected: one Completion Record match.
