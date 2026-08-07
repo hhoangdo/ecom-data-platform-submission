@@ -73,10 +73,12 @@ Run `make help` at any time to print the full catalog.
 | `scripts/qa/audit_public_documentation.py` | AST-audits the declared deployable public API and writes hash-bound coverage evidence. |
 | `scripts/qa/build_mini_coursework_rubric_manifest.py` | Builds and verifies the fail-closed, row-ordered Mini-Coursework rubric manifest. |
 | `scripts/qa/summarize_runlog.py` | Produces compact markdown summaries from long platform run logs for post-run review. |
+| `scripts/spark/driver_service.py` | Runs client-mode PySpark commands inside the socket-free `spark-driver` Compose service through its internal `/health` and serialized `/run` endpoints. |
 | `scripts/spark/export_executive_mart.py` | Executive mart export command referenced by README, deliverables, and tests. |
 | `scripts/spark/job.py` | Spark submit compatibility entry point referenced by `src/vina_bim_shop/lakehouse/spark/runner.py` and tests. |
 | `scripts/spark/run_batch.py` | Official Spark batch command referenced by deliverables and tests. |
 | `scripts/spark/run_optimization_experiments.py` | Runs one controlled Spark skew or high-cardinality experiment variant for the Section 05 evidence package without invoking the canonical batch path. |
+| `scripts/spark/submit_remote.py` | Forwards Airflow Spark arguments to the internal driver service with a bounded timeout and returns success only when the remote submission finishes successfully. |
 
 ## Develop-Only Candidates
 

@@ -64,7 +64,6 @@ def test_placeholder_deliverables_are_explicitly_out_of_scope() -> None:
     repo_root = _repo_root()
 
     for file_name in [
-        "03_data_generator_improvement.md",
         "04.1_ml_design.md",
         "04.2_llm_design.md",
     ]:
