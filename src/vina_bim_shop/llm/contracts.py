@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 from enum import StrEnum
+from pathlib import Path
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -37,6 +38,7 @@ def require_utc(value: AwareDatetime) -> AwareDatetime:
 
 UtcDateTime = Annotated[AwareDatetime, AfterValidator(require_utc)]
 Sha256 = Annotated[StrictStr, Field(pattern=r"^[0-9a-f]{64}$")]
+HubRevision = Annotated[StrictStr, Field(pattern=r"^[0-9a-f]{40}$")]
 
 
 class ApiError(ContractModel):
@@ -80,6 +82,55 @@ class KnowledgeCitation(ContractModel):
     effective_from: UtcDateTime
     effective_to: UtcDateTime | None
     content_sha256: Sha256
+
+
+class KnowledgeDocumentVersion(ContractModel):
+    """One immutable, effective-dated trusted-source record."""
+
+    source_path: Path
+    source_sha256: Sha256
+    document_id: StrictStr
+    category: KnowledgeCategory
+    version: StrictStr
+    effective_from: UtcDateTime
+    effective_to: UtcDateTime | None
+    content: StrictStr
+    content_sha256: Sha256
+
+    @model_validator(mode="after")
+    def validate_effective_window(self) -> "KnowledgeDocumentVersion":
+        """Require a non-empty finite effective window."""
+
+        if self.effective_to is not None and self.effective_from >= self.effective_to:
+            raise ValueError("effective_to must be after effective_from")
+        return self
+
+
+class KnowledgeChunk(ContractModel):
+    """One deterministic token window within an immutable document version."""
+
+    chunk_id: Sha256
+    source_sha256: Sha256
+    document_id: StrictStr
+    category: KnowledgeCategory
+    version: StrictStr
+    effective_from: UtcDateTime
+    effective_to: UtcDateTime | None
+    ordinal: Annotated[StrictInt, Field(ge=0)]
+    token_start: Annotated[StrictInt, Field(ge=0)]
+    token_end: Annotated[StrictInt, Field(gt=0)]
+    content: StrictStr
+    content_sha256: Sha256
+    tokenizer_model: StrictStr
+    tokenizer_revision: HubRevision
+
+    @model_validator(mode="after")
+    def validate_token_window(self) -> "KnowledgeChunk":
+        """Require a non-empty token window."""
+
+        if self.token_end <= self.token_start:
+            raise ValueError("token_end must be after token_start")
+        return self
 
 
 class DriftEvidenceCitation(ContractModel):
@@ -242,11 +293,19 @@ class IndexBuildReport(ContractModel):
     """Candidate index inventory report."""
 
     index_version: StrictStr
+    candidate_label: Literal["ci-bootstrap"]
     document_count: Literal[8]
     document_version_count: Literal[9]
     chunk_count: StrictInt
     embedding_dimension: Literal[384]
     source_sha256: dict[StrictStr, Sha256]
+    version_content_sha256: dict[StrictStr, Sha256]
+    chunk_content_sha256: dict[StrictStr, Sha256]
+    embedding_sha256: dict[StrictStr, Sha256]
+    embedding_model: Literal["BAAI/bge-small-en-v1.5"]
+    embedding_revision: HubRevision
+    tokenizer_model: Literal["BAAI/bge-small-en-v1.5"]
+    tokenizer_revision: HubRevision
 
 
 class IndexValidationReport(ContractModel):
@@ -293,10 +352,13 @@ __all__ = [
     "FeatureHealthPoint",
     "GroundedClaim",
     "GroundingCitation",
+    "HubRevision",
     "IndexBuildReport",
     "IndexValidationReport",
     "KnowledgeCategory",
     "KnowledgeCitation",
+    "KnowledgeChunk",
+    "KnowledgeDocumentVersion",
     "ObservedGeneration",
     "SearchMatch",
     "SearchRequest",

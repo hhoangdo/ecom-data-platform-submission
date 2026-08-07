@@ -21,6 +21,8 @@ class EmbeddingPort(Protocol):
 
     async def embed(self, texts: Sequence[str]) -> list[list[float]]: ...
 
+    async def embed_query(self, query: str) -> list[float]: ...
+
 
 class FeastPort(Protocol):
     """Read indexed documents and Section 03 feature-health data."""
