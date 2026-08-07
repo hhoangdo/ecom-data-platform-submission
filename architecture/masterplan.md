@@ -21,7 +21,12 @@ The submitted platform evidence covers:
 | Orchestration and quality | Airflow DAGs, Great Expectations validation policy, GX Data Docs, and evidence manifests. |
 | Governance | DataHub metadata emission, lineage, tags, assertions, indexed search, and rendered entity-page checks. |
 
-The current evidence excludes production deployment hardening, CI/CD rollout, security/RBAC enforcement beyond local defaults, drift scenario implementation, ML model training/serving, and LLM application design.
+The current evidence excludes production deployment hardening, CI/CD rollout,
+security/RBAC enforcement beyond local defaults, ML model training/serving,
+and LLM application design. Section 03 drift, labels, PSI monitoring, schema
+relationships, and finalizer mechanics are implemented as local contracts;
+real Airflow/DataHub/Spark captures and Feast serving remain deferred to the
+execution handoff.
 
 ## Business Context
 
@@ -119,6 +124,7 @@ The Gold model contains:
 | Facts | `fact_order`, `fact_order_item`, `fact_payment_attempt`, `fact_shipment`, `fact_inventory_snapshot`, `fact_promotion_application` |
 | OBT and aggregate | `obt_order_performance`, `agg_hourly_reconciled_kpi` |
 | Features | `feat_customer_90d`, `feat_stream_60m`, `feat_customer_unified` |
+| Section 03 serving contracts | `ml_customer_label`, `agg_feature_health_daily`, `feature_drift_alerts`, `ml_customer_purchase_training` |
 
 Detailed schema documentation is in [Schema Design and Data Dictionary](../deliverables/02_schema_design.md). ERD assets live in `diagrams/erd/physical_gold_model.puml` and `diagrams/erd/gold_layer_ERD.dbml`.
 
@@ -150,6 +156,7 @@ The recovery evidence shows indexed `fact_order` search and a rendered lineage g
 | DataHub governance | `../evidence/09_datahub_governance/` |
 | Final integration | `../evidence/final_integration/` |
 | Final raw dataset | `../evidence/final_dataset/` |
+| Section 03 candidate/verified bundles | `../evidence/03_data_generator_improvement/` |
 
 ## Repository Ownership
 
@@ -171,4 +178,7 @@ The recovery evidence shows indexed `fact_order` search and a rendered lineage g
 - Spark/Iceberg/Trino Gold is the canonical reporting path.
 - Pinot is the realtime operational serving path.
 - DuckDB files are local reproducibility and evidence artifacts.
-- Drift scenarios, ML implementation, and LLM implementation remain outside the current platform evidence.
+- The `customer_order_frequency` drift, exact `id,label` contract, PSI
+  monitoring, and Feast-ready offline join are local Section 03 contracts;
+  Feast installation/materialization/serving and live runtime proof remain
+  outside this local evidence phase.

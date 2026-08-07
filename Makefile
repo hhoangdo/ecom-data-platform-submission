@@ -26,6 +26,9 @@
 #   make install               # install Python dependencies
 #   make generate              # run the data generator with default options
 #   make generate SCALE=smoke MODE=streaming SEED=7
+#   make generate-section03   # run the configured drift/label generator path
+#   make build-section03-dbt  # build the Section 03 dbt graph
+#   make test-section03       # run the Section 03 contract tests
 #   make build-dbt             # run dbt build against the local DuckDB profile
 #   make test                  # run pytest
 #   make finalize              # produce the final Section 01/02 evidence package
@@ -52,7 +55,7 @@ SHELL := /bin/sh
 .DEFAULT_GOAL := help
 
 # Mark all targets as phony (they are commands, not files).
-.PHONY: help install generate build-dbt test finalize reset \
+.PHONY: help install generate generate-section03 build-section03-dbt test-section03 build-dbt test finalize reset \
         up-ingestion down-ingestion \
         up-lakehouse down-lakehouse \
         up-batch down-batch \
@@ -112,6 +115,20 @@ install:
 generate:
 	uv run python scripts/generate/run_generator.py \
 		--scale $(SCALE) --mode $(MODE) --clean --seed $(SEED)
+
+# Run the Section 03 drift, label, and feature-evidence generator contract.
+generate-section03:
+	uv run python scripts/generate/run_generator.py --config configs/generator/base.yaml \
+		--scale $(SCALE) --mode full --clean --seed $(SEED)
+
+# Build the Section 03 dbt graph with configuration-derived timestamps.
+build-section03-dbt:
+	uv run python scripts/analytics/run_section03_dbt.py --config configs/generator/base.yaml \
+		--scale $(SCALE)
+
+# Run the focused Section 03 generator and dbt contract tests.
+test-section03:
+	uv run pytest tests/unit/test_section03_drift.py tests/integration/test_section03_generator.py
 
 # Run dbt build against the local DuckDB profile (fast local parity path).
 build-dbt:

@@ -19,7 +19,18 @@ package "Silver: cleaned and flattened" as Silver {
 package "Gold reconciled SQL: snowflake/star hybrid" as Gold {
   database "Dimensions\ndim_customer\ndim_seller\ndim_product\ndim_category\ndim_date\ndim_payment_method\ndim_order_status\ndim_shipment_status\ndim_shipping_method\ndim_promotion\nbridge_product_category" as Dims
   database "Facts\nfact_order\nfact_order_item\nfact_payment_attempt\nfact_shipment\nfact_inventory_snapshot\nfact_promotion_application" as Facts
-  database "Serving and features\nobt_order_performance\nagg_hourly_reconciled_kpi\nfeat_customer_90d\nfeat_stream_60m\nfeat_customer_unified\nml_customer_label\nagg_feature_health_daily\nfeature_drift_alerts\nml_customer_purchase_training" as Serving
+  database "Serving and features\nobt_order_performance\nagg_hourly_reconciled_kpi\nfeat_customer_90d\nfeat_stream_60m" as Serving
+  package "Section 03 offline Gold contracts" as Section03 {
+    database "Unified features\nfeat_customer_unified" as S03Unified
+    database "Binary purchase label\nml_customer_label" as S03Label
+    database "Daily PSI health\nagg_feature_health_daily" as S03Health
+    database "Alert rows\nfeature_drift_alerts" as S03Alerts
+    database "Training join\nml_customer_purchase_training" as S03Training
+
+    S03Label ||--o{ S03Training : "id -> id"
+    S03Unified ||--o{ S03Training : "customer_id -> id"
+    S03Health ||--o{ S03Alerts : "monitoring_date, feature_name -> alert_date, feature_name"
+  }
 }
 
 package "Realtime serving — runnable" as Realtime {

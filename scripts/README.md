@@ -15,6 +15,9 @@ The repository also ships a root [Makefile](../Makefile) that provides a `make +
 | --- | --- |
 | `make install` | `uv sync` |
 | `make generate` | `scripts/generate/run_generator.py` (with `SCALE`, `MODE`, `SEED` variables) |
+| `make generate-section03` | `scripts/generate/run_generator.py --config configs/generator/base.yaml` (with `SCALE` and `SEED`) |
+| `make build-section03-dbt` | `scripts/analytics/run_section03_dbt.py --config configs/generator/base.yaml --scale SCALE` |
+| `make test-section03` | `tests/unit/test_section03_drift.py` and `tests/integration/test_section03_generator.py` |
 | `make build-dbt` | `uv run dbt build --project-dir infra/analytics/dbt --profiles-dir infra/analytics/dbt` |
 | `make test` | `uv run pytest` |
 | `make finalize` | `scripts/qa/finalize_sections_01_02.py` |
@@ -46,6 +49,7 @@ Run `make help` at any time to print the full catalog.
 | `scripts/flink/run_commerce_metrics_job.py` | Flink job entry point referenced by deliverables, tests, and `infra/flink/bin/submit-jobs.sh`. |
 | `scripts/flink/run_ops_alerts_job.py` | Flink job entry point referenced by deliverables, tests, and `infra/flink/bin/submit-jobs.sh`. |
 | `scripts/generate/run_generator.py` | Official Section 01 generator entry point referenced by README, deliverables, and integration tests. |
+| `scripts/generate/finalize_section03_evidence.py` | Finalizer entry point that imports verified runtime captures and atomically promotes the Section 03 manifest. |
 | `scripts/generate/verify_section03_manifest.py` | Independently verifies the Section 03 candidate manifest, artifact hashes, schemas, and runtime-pending contract. |
 | `scripts/kafka/bootstrap_topics.py` | Kafka topic bootstrap command referenced by the Kafka ingestion deliverable. |
 | `scripts/kafka/capture_connect_image_optimization.py` | Captures the Kafka Connect image-size optimization evidence package. |
@@ -59,6 +63,7 @@ Run `make help` at any time to print the full catalog.
 | `scripts/lakehouse/land_bronze_batch.py` | Bronze batch landing command referenced by deliverables and unit tests. |
 | `scripts/lakehouse/optimize_iceberg.py` | Captures approved Iceberg compaction and Trino benchmark evidence. |
 | `scripts/lakehouse/smoke_sql.py` | Lakehouse SQL smoke command referenced by the lakehouse deliverable. |
+| `scripts/orchestration/run_section03_dp3.py` | Section 03 Airflow/DP3 capture wrapper referenced by the orchestration and finalization contracts. |
 | `scripts/pinot/bootstrap.py` | Pinot serving bootstrap command referenced by deliverables and unit tests. |
 | `scripts/pinot/query_examples.py` | Pinot query example command referenced by the Pinot serving deliverable. |
 | `scripts/pinot/refresh_evidence.py` | Official Pinot evidence refresh command referenced by README-adjacent deliverables, tests, and Flink verification notes. |

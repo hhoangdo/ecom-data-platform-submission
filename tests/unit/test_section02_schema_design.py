@@ -298,6 +298,46 @@ def test_relationship_diagrams_match_feature_created_contract() -> None:
         assert "created_ts timestamp" not in dbml_block
 
 
+def test_section03_gold_relationships_are_explicit_across_schema_sources() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    schema_design = (repo_root / "architecture" / "diagrams" / "schema_design.puml").read_text(encoding="utf-8")
+    physical = (repo_root / "architecture" / "diagrams" / "erd" / "physical_gold_model.puml").read_text(encoding="utf-8")
+    dbml = (repo_root / "architecture" / "diagrams" / "erd" / "gold_layer_ERD.dbml").read_text(encoding="utf-8")
+
+    for entity in [
+        "feat_customer_unified",
+        "ml_customer_label",
+        "agg_feature_health_daily",
+        "feature_drift_alerts",
+        "ml_customer_purchase_training",
+    ]:
+        assert entity in schema_design
+        assert entity in physical
+        assert entity in dbml
+
+    for relationship in [
+        "S03Label ||--o{ S03Training : \"id -> id\"",
+        "S03Unified ||--o{ S03Training : \"customer_id -> id\"",
+        "S03Health ||--o{ S03Alerts : \"monitoring_date, feature_name -> alert_date, feature_name\"",
+    ]:
+        assert relationship in schema_design
+
+    for relationship in [
+        "ml_customer_label ||--o{ ml_customer_purchase_training : id->id",
+        "feat_customer_unified ||--o{ ml_customer_purchase_training : customer_id->id",
+        "agg_feature_health_daily ||--o{ feature_drift_alerts : monitoring_date->alert_date; feature_name->feature_name",
+    ]:
+        assert relationship in physical
+
+    for relationship in [
+        "Ref: ml_customer_purchase_training.id > ml_customer_label.id",
+        "Ref: ml_customer_purchase_training.id > feat_customer_unified.customer_id",
+        "Ref: feature_drift_alerts.alert_date > agg_feature_health_daily.monitoring_date",
+        "Ref: feature_drift_alerts.feature_name > agg_feature_health_daily.feature_name",
+    ]:
+        assert relationship in dbml
+
+
 def test_dbt_project_declares_expected_model_layers_and_tests() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     dbt_root = repo_root / "infra" / "analytics" / "dbt"

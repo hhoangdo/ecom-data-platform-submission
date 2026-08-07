@@ -937,6 +937,7 @@ dim_customer ||--o{ feat_stream_60m : customer_id->customer_id
 dim_customer ||--o{ feat_customer_unified : customer_id->customer_id
 dim_customer ||--o{ ml_customer_label : customer_id->id
 ml_customer_label ||--o{ ml_customer_purchase_training : id->id
+feat_customer_unified ||--o{ ml_customer_purchase_training : customer_id->id
 agg_feature_health_daily ||--o{ feature_drift_alerts : monitoring_date->alert_date; feature_name->feature_name
 
 @enduml

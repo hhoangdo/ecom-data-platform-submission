@@ -109,6 +109,19 @@ def test_root_readme_points_reviewers_to_script_inventory() -> None:
     assert "[Script inventory](scripts/README.md)" in readme
 
 
+def test_section03_script_surface_is_explicitly_classified() -> None:
+    repo_root = _repo_root()
+    inventory = (repo_root / "scripts" / "README.md").read_text(encoding="utf-8")
+
+    for script_path in [
+        "scripts/analytics/run_section03_dbt.py",
+        "scripts/orchestration/run_section03_dp3.py",
+        "scripts/generate/finalize_section03_evidence.py",
+    ]:
+        assert f"`{script_path}`" in inventory
+        assert "official-main" in inventory
+
+
 def test_develop_only_candidates_are_not_officially_referenced() -> None:
     repo_root = _repo_root()
     references: dict[str, list[str]] = {candidate: [] for candidate in DEVELOP_ONLY_CANDIDATES}

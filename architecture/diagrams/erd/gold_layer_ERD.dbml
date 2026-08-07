@@ -523,3 +523,8 @@ DiagramView Default {
     ml_customer_purchase_training
   }
 }
+
+Ref: ml_customer_purchase_training.id > ml_customer_label.id
+Ref: ml_customer_purchase_training.id > feat_customer_unified.customer_id
+Ref: feature_drift_alerts.alert_date > agg_feature_health_daily.monitoring_date
+Ref: feature_drift_alerts.feature_name > agg_feature_health_daily.feature_name

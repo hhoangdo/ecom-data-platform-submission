@@ -25,12 +25,21 @@ This document anchors the business framing for the implemented coursework platfo
 | Which categories, sellers, and products drive orders, GMV, official paid revenue, and repeat purchases? | Gold facts, dimensions, `obt_order_performance`, and `agg_hourly_reconciled_kpi`. |
 | Where do users drop out between browsing, cart, checkout, order placement, and payment? | `commerce_events`, `stg_commerce_events`, `feat_stream_60m`, Flink metrics, and Pinot realtime tables. |
 | Which payment, inventory, or shipment issues create operational risk? | Payment/shipment facts, fulfillment events, ops events, and `realtime_ops_alerts`. |
-| Which local evidence can reviewers inspect without running the full stack? | dbt-DuckDB parity file, DuckDB Executive Mart, final dataset package, and committed evidence reports. |
+| Which local evidence can reviewers inspect without running the full stack? | dbt-DuckDB parity file, DuckDB Executive Mart, final dataset package, Section 03 configuration/label/training artifacts, and committed evidence reports. |
 | How can metadata and lineage be inspected across the platform? | DataHub governance evidence for Kafka, MinIO/S3, Trino/Iceberg, dbt, Spark, Flink, and GX assertions. |
+
+During a campaign, the platform can compare pre-drift and post-drift customer
+order-frequency windows, identify customers with a successful purchase in the
+following seven-day horizon, and expose a cutoff-safe training join. This
+supports an AI/ML feature-preparation use case without claiming that a model
+or Feast online service is deployed.
 
 ## Scope Boundaries
 
 - The project models one synthetic marketplace, not multiple marketplaces.
 - International tax, returns, refunds, true COGS, and seller finance workflows are not implemented.
 - Sensitive personal data is not generated; identifiers are synthetic and geography is coarse.
-- Drift scenario implementation, ML model training/serving, and LLM application design are outside the current platform evidence.
+- The `customer_order_frequency` drift and its label/monitoring contracts are
+  implemented locally. ML model training/serving, Feast installation or
+  materialization, and LLM application design are outside this local evidence
+  phase.

@@ -104,6 +104,11 @@ For the original Sections 01/02 submission boundary, Spark, Flink, Apache Pinot,
 | `Runnable locally` | `dbt-DuckDB`, the final dataset package, and the documented evidence artifacts can be reproduced on one machine. |
 | `Architectural contract` | The staged Kafka, Spark, Flink, Pinot, Trino, Airflow, and DataHub stack documents the full target platform through service-level deliverables and evidence. |
 
+Section 03 is implemented as a reproducible local drift/label/monitoring
+contract. It owns the `customer_order_frequency` scenario, the exact
+`id,label` output, and the Feast-ready offline training join; it does not claim
+Feast serving or live Airflow/DataHub execution.
+
 Historical Section 01/02 artifacts and evidence:
 
 - `uv run python scripts/qa/finalize_sections_01_02.py`
@@ -113,6 +118,7 @@ Historical Section 01/02 artifacts and evidence:
 - `data/gold/vina_bim_shop_executive.duckdb`
 - [Data generator deliverable](deliverables/01_data_generator.md)
 - [Schema design deliverable and Data Dictionary](deliverables/02_schema_design.md)
+- [Section 03 data-generator improvement](deliverables/03_data_generator_improvement.md)
 - [Physical Gold model PlantUML](architecture/diagrams/erd/physical_gold_model.puml)
 - [Physical Gold model PNG](architecture/diagrams/erd/physical_gold_model.png)
 - [Generator quality report](evidence/01_data_generator/quality_report.md)
@@ -302,6 +308,9 @@ The repository ships a root [Makefile](Makefile) that wraps the most common comm
 | --- | --- |
 | `make install` | `uv sync` to install Python dependencies. |
 | `make generate` | Run the data generator with default options (`SCALE=medium`, `MODE=full`, `SEED=42`). Override with `make generate SCALE=smoke MODE=streaming SEED=7`. |
+| `make generate-section03 SCALE=medium SEED=42` | Run the configured Section 03 drift/label generator path. |
+| `make build-section03-dbt SCALE=medium` | Build the configuration-derived Section 03 dbt graph. |
+| `make test-section03` | Run the focused Section 03 drift and generator contract tests. |
 | `make build-dbt` | Run `dbt build` against the local DuckDB profile. |
 | `make test` | Run `pytest`. |
 | `make finalize` | Produce the final Section 01/02 evidence package. |
@@ -324,6 +333,16 @@ Use this path when you want reproducible Section 01/02 evidence without starting
 uv run python scripts/generate/run_generator.py --scale medium --mode full --clean --seed 42
 uv run dbt build --project-dir infra/analytics/dbt --profiles-dir infra/analytics/dbt
 uv run pytest
+```
+
+For the local Section 03 contract path, use the documented `rtk make`
+commands above. The finalizer and runtime capture commands are reserved for
+the Topic 07 execution handoff.
+
+```powershell
+rtk make generate-section03 SCALE=medium SEED=42
+rtk make build-section03-dbt SCALE=medium
+rtk make test-section03
 ```
 
 ### 3. Start the distributed platform in stages
@@ -417,7 +436,11 @@ These are current runtime, data-truth, and scope boundaries to keep in mind when
 
 ### Scope boundaries
 
-- Observability hardening, production security, CI/CD, and Section 03 drift scenarios are outside the current project scope.
+- Observability hardening, production security, and CI/CD remain outside the
+  current project scope. Section 03 drift, labels, PSI monitoring, schema
+  relationships, and finalizer mechanics are documented and tested locally;
+  live runtime capture, strict promotion, Feast serving, and screenshots remain
+  Topic 07 responsibilities.
 
 ---
 
