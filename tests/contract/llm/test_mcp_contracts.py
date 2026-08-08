@@ -3,6 +3,8 @@ from __future__ import annotations
 import inspect
 import json
 
+import pytest
+
 from vina_bim_shop.llm.api.drift import app as drift_app
 from vina_bim_shop.llm.api.retrieval import app as retrieval_app
 from vina_bim_shop.llm.mcp.drift import (
@@ -17,6 +19,7 @@ from vina_bim_shop.llm.mcp.retrieval import (
     RETRIEVAL_TOOL_OUTPUT_SCHEMA,
     search_ecommerce_knowledge,
 )
+from vina_bim_shop.llm.retrieval import FeastRetrievalService, IndexUnavailableError
 
 
 def _canonical(value: object) -> str:
@@ -63,3 +66,19 @@ def test_mcp_input_and_output_schemas_byte_match_openapi_components() -> None:
         drift_components["DriftDetectResponse"]
     )
 
+
+def test_retrieval_mcp_registers_only_its_named_tool() -> None:
+    from vina_bim_shop.llm.mcp.retrieval import mcp
+
+    assert set(mcp._tool_manager._tools) == {RETRIEVAL_TOOL_NAME}
+
+
+@pytest.mark.asyncio
+async def test_retrieval_mcp_uses_the_same_unavailable_service_boundary() -> None:
+    original_service = retrieval_app.state.retrieval_service
+    try:
+        retrieval_app.state.retrieval_service = FeastRetrievalService()
+        with pytest.raises(IndexUnavailableError, match="index_unavailable"):
+            await search_ecommerce_knowledge(query="returns")
+    finally:
+        retrieval_app.state.retrieval_service = original_service

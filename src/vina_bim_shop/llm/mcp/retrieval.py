@@ -1,19 +1,15 @@
-"""Retrieval MCP tool contract and OpenAPI schema binding."""
+"""Streamable-HTTP MCP adapter for the shared retrieval service."""
 
 from __future__ import annotations
 
 from typing import Annotated
-from uuid import uuid4
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from ..api.retrieval import app as retrieval_app
-from ..contracts import (
-    KnowledgeCategory,
-    SearchResponse,
-    UtcDateTime,
-)
+from ..api.retrieval import get_retrieval_service
+from ..contracts import KnowledgeCategory, SearchRequest, SearchResponse, UtcDateTime
 
 
 RETRIEVAL_TOOL_NAME = "search_ecommerce_knowledge"
@@ -27,17 +23,15 @@ async def search_ecommerce_knowledge(
     category: KnowledgeCategory | None = None,
     effective_at: UtcDateTime | None = None,
 ) -> SearchResponse:
-    """Return the typed local retrieval abstention until an index is promoted."""
+    """Adapt the exact search contract to the same async retrieval service."""
 
-    del query, top_k, category, effective_at
-    return SearchResponse(
-        request_id=uuid4(),
-        index_version="unavailable",
-        embedding_model="BAAI/bge-small-en-v1.5",
-        matches=[],
-        retrieval_ms=0.0,
-        abstained=True,
-        reason="index_unavailable",
+    return await get_retrieval_service().search(
+        SearchRequest(
+            query=query,
+            top_k=top_k,
+            category=category,
+            effective_at=effective_at,
+        )
     )
 
 

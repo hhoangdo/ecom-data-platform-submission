@@ -64,11 +64,31 @@ def test_valid_contract_requests_return_typed_local_abstentions() -> None:
     assert chat.json()["safety_action"] == "abstain"
 
 
+def test_retrieval_openapi_declares_typed_success_and_error_contracts() -> None:
+    operation = retrieval_app.openapi()["paths"]["/v1/retrieval/search"]["post"]
+    responses = operation["responses"]
+
+    assert responses["200"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/SearchResponse"
+    }
+    for status_code in ("409", "422", "503"):
+        assert responses[status_code]["content"]["application/json"]["schema"] == {
+            "$ref": "#/components/schemas/ApiError"
+        }
+
+
 def test_health_readiness_and_metrics_are_local_and_machine_readable() -> None:
-    for app in APPS:
+    for app in [drift_app, chat_app]:
         client = TestClient(app)
         assert client.get("/healthz").status_code == 200
         assert client.get("/readyz").status_code == 200
         metrics = client.get("/metrics")
         assert metrics.status_code == 200
         assert "text/plain" in metrics.headers["content-type"]
+
+    retrieval_client = TestClient(retrieval_app)
+    assert retrieval_client.get("/healthz").status_code == 200
+    readiness = retrieval_client.get("/readyz")
+    assert readiness.status_code == 503
+    assert readiness.json()["status"] == "not_ready"
+    assert "text/plain" in retrieval_client.get("/metrics").headers["content-type"]
