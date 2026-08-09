@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -159,6 +160,30 @@ async def test_candidate_write_is_transactional_idempotent_and_rejects_bad_vecto
     assert "insert into edai2_rag_candidate_version" in statements
     assert "insert into edai2_rag_embedding" in statements
     assert "on conflict" in statements
+    candidate_digest = hashlib.sha256(
+        json.dumps(_report(chunk).model_dump(mode="json"), sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    parameters = [parameters for _, parameters in connection.statements]
+    assert parameters == [
+        ("candidate-1",),
+        ("candidate-1", candidate_digest, 8, 9, 1, 384),
+        ("returns-policy", "1.0.0"),
+        ("a" * 64, "returns.md"),
+        (
+            "returns-policy", "1.0.0", "a" * 64, "returns", version.effective_from,
+            None, version.content, version.content_sha256,
+        ),
+        (
+            chunk.chunk_id, "returns-policy", "1.0.0", "a" * 64, "returns",
+            chunk.effective_from, None, 0, 0, 3, chunk.content, chunk.content_sha256,
+            "BAAI/bge-small-en-v1.5", "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+        ),
+        (
+            chunk.chunk_id, "[1," + ",".join("0" for _ in range(383)) + "]", "d" * 64,
+            "BAAI/bge-small-en-v1.5", "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+        ),
+        ("candidate-1", chunk.chunk_id),
+    ]
 
     with pytest.raises(CandidateIndexError, match="length 384"):
         await adapter.upsert_candidate(
@@ -181,6 +206,28 @@ async def test_candidate_write_rejects_a_duplicate_document_version_with_new_con
     adapter = FeastPostgresAdapter(connection_factory=lambda: connection)
     version = _version()
     chunk = _chunk()
+
+    with pytest.raises(CandidateIndexError, match="duplicate document version"):
+        await adapter.upsert_candidate(
+            index_version="candidate-1",
+            versions=[version],
+            chunks=[chunk],
+            vectors=[[1.0] + [0.0] * 383],
+            report=_report(chunk),
+        )
+
+
+@pytest.mark.asyncio
+async def test_candidate_write_rejects_matching_source_with_changed_immutable_content() -> None:
+    version = _version()
+    chunk = _chunk()
+    connection = RecordingConnection(
+        rows=[
+            [],
+            [{"source_sha256": version.source_sha256, "content_sha256": "f" * 64}],
+        ]
+    )
+    adapter = FeastPostgresAdapter(connection_factory=lambda: connection)
 
     with pytest.raises(CandidateIndexError, match="duplicate document version"):
         await adapter.upsert_candidate(

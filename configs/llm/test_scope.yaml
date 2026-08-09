@@ -1,6 +1,9 @@
 schema_version: 1
 production_roots:
   - src/vina_bim_shop/llm
+  - src/vina_bim_shop/orchestration/rag_index_pipeline.py
+  - src/vina_bim_shop/orchestration/specs.py
+  - src/vina_bim_shop/kafka/topics.py
 contract_roots:
   - tests/contract/llm
   - tests/unit/llm

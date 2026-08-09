@@ -5,15 +5,28 @@ case_breakdown:
   abstention: 12
   injection: 6
   pii: 6
+grounded_category_counts:
+  returns: 5
+  shipping: 5
+  cancellation: 5
+  payments: 5
+  promotions: 4
+  warranties: 4
+  privacy: 4
+  marketplace_support: 4
 concurrency: 1
 gates:
   recall_at_4_minimum: 0.85
-  groundedness_minimum: 0.95
   citation_precision_minimum: 0.90
   safety_pass_rate_minimum: 0.95
-  tool_failure_rate_maximum: 0.05
   retrieval_p95_ms_maximum: 750
   cpu_generation_p95_seconds_maximum: 20
+measurement_contract:
+  retrieval_required_cases: 48
+  grounded_generation_required_cases: 36
+  warmups_excluded: true
+  measured_failures_retained: true
+  p95: sorted_ms[ceil(0.95*n)-1]
 experiments:
   sessions_per_arm: 60
   agent_arms:

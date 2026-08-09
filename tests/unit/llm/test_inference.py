@@ -204,12 +204,19 @@ async def test_generation_caps_output_and_records_only_redacted_telemetry(
         model_variant="primary",
     )
 
-    assert result.output_tokens <= 128
-    assert result.total_tokens == result.input_tokens + result.output_tokens
+    assert result.model_version == "qwen-primary@sha256:test"
+    assert result.output_tokens == 128
+    assert result.total_tokens == result.input_tokens + 128
+    assert result.finish_reason == "length"
+    assert result.text != " token" * 200
     assert sink.events
     attributes = sink.events[-1].attributes
     assert "alice@example.com" not in str(attributes)
-    assert attributes["llm.output_tokens"] == str(result.output_tokens)
+    assert attributes["llm.model_variant"] == "primary"
+    assert attributes["llm.model_version"] == "qwen-primary@sha256:test"
+    assert attributes["llm.input_tokens"] == str(result.input_tokens)
+    assert attributes["llm.output_tokens"] == "128"
+    assert attributes["llm.total_tokens"] == str(result.total_tokens)
 
 
 @pytest.mark.asyncio

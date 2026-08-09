@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import csv
 from pathlib import Path
 import shutil
 from types import ModuleType
@@ -11,6 +12,7 @@ import pytest
 
 from vina_bim_shop.llm.section03_ingestion import (
     Section03ActivationError,
+    Section03ActivationReport,
     Section03Loader,
     Section03ManifestReader,
 )
@@ -235,6 +237,35 @@ async def test_postgres_adapter_stages_all_health_columns_and_reads_injected_fin
     assert "stddev_value" in statements
     assert "warning_flag" in statements
     assert "alert_flag" in statements
+    with verified.training_path.open("r", encoding="utf-8", newline="") as handle:
+        first_training = next(csv.DictReader(handle))
+    with verified.health_path.open("r", encoding="utf-8", newline="") as handle:
+        first_health = next(csv.DictReader(handle))
+    assert len(connection.statements) == 2 + verified.training_count + verified.health_count + 5
+    assert connection.statements[0][1] is None
+    assert connection.statements[1][1] == (
+        verified.manifest_sha256,
+        consumer["label"]["sha256"],
+        consumer["training_join"]["sha256"],
+        consumer["feature_health"]["sha256"],
+        consumer["training_join"]["feature_cutoff_ts"],
+        consumer["feature_health"]["baseline_date"],
+        verified.training_count,
+        verified.health_count,
+    )
+    assert connection.statements[2][1] == {**first_training, "manifest": verified.manifest_sha256}
+    first_health_index = 2 + verified.training_count
+    assert connection.statements[first_health_index][1] == {
+        **first_health,
+        "manifest": verified.manifest_sha256,
+    }
+    assert [parameters for _, parameters in connection.statements[-5:]] == [
+        (verified.manifest_sha256,),
+        (verified.manifest_sha256,),
+        (verified.manifest_sha256,),
+        (verified.manifest_sha256,),
+        None,
+    ]
 
 
 @pytest.mark.asyncio
@@ -366,11 +397,14 @@ def test_loader_rejects_wrong_manifest_identity_with_a_named_expectation(
 async def test_activation_success_reports_all_post_action_fingerprints() -> None:
     adapter = FakeActivationAdapter()
     report = await Section03Loader(MANIFEST).activate(adapter)
-    assert report.status == "activated"
-    assert report.active_manifest_sha256 == report.manifest_sha256
-    assert report.feast_fingerprint == f"feast:{report.manifest_sha256}"
-    assert report.valkey_fingerprint == f"valkey:{report.manifest_sha256}"
-    assert adapter.calls[:5] == ["stage", "staged", "switch", f"feast:{report.manifest_sha256}", f"valkey:{report.manifest_sha256}"]
+    assert report == Section03ActivationReport(
+        "activated", MANIFEST_SHA256, "previous", MANIFEST_SHA256,
+        f"feast:{MANIFEST_SHA256}", f"valkey:{MANIFEST_SHA256}",
+        11996, 22, "not_required",
+    )
+    assert adapter.calls == [
+        "stage", "staged", "switch", f"feast:{MANIFEST_SHA256}", f"valkey:{MANIFEST_SHA256}",
+    ]
 
 
 @pytest.mark.asyncio
@@ -378,8 +412,34 @@ async def test_activation_full_fingerprint_match_is_a_noop() -> None:
     target = Section03Loader(MANIFEST).verify_only().manifest_sha256
     adapter = FakeActivationAdapter(active=target, feast=target, valkey=target)
     report = await Section03Loader(MANIFEST).activate(adapter)
-    assert report.status == "noop"
+    assert report == Section03ActivationReport(
+        "noop", target, target, target, f"feast:{target}", f"valkey:{target}",
+        11996, 22, "not_required",
+    )
     assert adapter.calls == []
+
+
+@pytest.mark.asyncio
+async def test_activation_staging_readback_mismatch_surfaces_pre_switch_state_without_compensation() -> None:
+    class StagingMismatchAdapter(FakeActivationAdapter):
+        async def staged_section03_manifest_hash(self, manifest_sha256: str) -> str | None:
+            self.calls.append("staged")
+            assert manifest_sha256 == MANIFEST_SHA256
+            return "wrong-staged-hash"
+
+    adapter = StagingMismatchAdapter()
+    with pytest.raises(Section03ActivationError, match="staging fingerprint read-back mismatch") as error:
+        await Section03Loader(MANIFEST).activate(adapter)
+    assert str(error.value.original) == "staging fingerprint read-back mismatch"
+    assert error.value.rollback is None
+    assert error.value.rollback_status == "not_attempted"
+    assert error.value.before_manifest_sha256 == "previous"
+    assert error.value.after_manifest_sha256 == "previous"
+    assert error.value.feast_fingerprint == "feast:previous"
+    assert error.value.valkey_fingerprint == "valkey:previous"
+    assert error.value.training_count == 11996
+    assert error.value.health_count == 22
+    assert adapter.calls == ["stage", "staged"]
 
 
 @pytest.mark.asyncio
@@ -419,8 +479,16 @@ async def test_activation_feast_failure_restores_all_prior_fingerprints() -> Non
     assert error.value.rollback_status == "restored"
     assert error.value.before_manifest_sha256 == "previous"
     assert error.value.after_manifest_sha256 == "previous"
+    assert error.value.feast_fingerprint == "feast:previous"
+    assert error.value.valkey_fingerprint == "valkey:previous"
+    assert error.value.rollback_fingerprints == ("previous", "feast:previous", "valkey:previous")
+    assert error.value.training_count == 11996
+    assert error.value.health_count == 22
     assert (await failing.fingerprint()) == ("previous", "feast:previous", "valkey:previous")
-    assert failing.calls[-3:] == ["restore", "feast:previous", "valkey:previous"]
+    assert failing.calls == [
+        "stage", "staged", "switch", f"feast:{MANIFEST_SHA256}",
+        "restore", "feast:previous", "valkey:previous",
+    ]
 
 
 @pytest.mark.asyncio
@@ -430,6 +498,11 @@ async def test_activation_valkey_failure_restores_all_prior_fingerprints() -> No
         await Section03Loader(MANIFEST).activate(valkey_failure)
     assert str(error.value.original) == "valkey failed"
     assert error.value.rollback is None
+    assert error.value.rollback_status == "restored"
+    assert error.value.before_manifest_sha256 == "previous"
+    assert error.value.after_manifest_sha256 == "previous"
+    assert error.value.feast_fingerprint == "feast:previous"
+    assert error.value.valkey_fingerprint == "valkey:previous"
     assert (await valkey_failure.fingerprint()) == ("previous", "feast:previous", "valkey:previous")
 
 
@@ -440,9 +513,21 @@ async def test_activation_post_readback_mismatch_restores_all_prior_fingerprints
         await Section03Loader(MANIFEST).activate(adapter)
     assert str(error.value.original) == "activation fingerprint read-back mismatch"
     assert error.value.rollback is None
+    assert error.value.rollback_status == "restored"
+    assert error.value.before_manifest_sha256 == "previous"
+    assert error.value.after_manifest_sha256 == "previous"
+    assert error.value.feast_fingerprint == "feast:previous"
+    assert error.value.valkey_fingerprint == "valkey:previous"
+    assert error.value.rollback_fingerprints == ("previous", "feast:previous", "valkey:previous")
+    assert error.value.training_count == 11996
+    assert error.value.health_count == 22
     assert adapter.active == "previous"
     assert adapter.feast == "previous"
     assert adapter.valkey == "previous"
+    assert adapter.calls == [
+        "stage", "staged", "switch", f"feast:{MANIFEST_SHA256}", f"valkey:{MANIFEST_SHA256}",
+        "restore", "feast:previous", "valkey:previous",
+    ]
 
 
 @pytest.mark.asyncio
@@ -452,3 +537,37 @@ async def test_activation_rollback_failure_surfaces_original_and_compensation_er
         await Section03Loader(MANIFEST).activate(adapter)
     assert str(error.value.original) == "feast failed"
     assert str(error.value.rollback) == "restore failed"
+    assert error.value.rollback_status == "failed"
+    assert error.value.before_manifest_sha256 == "previous"
+    assert error.value.after_manifest_sha256 == MANIFEST_SHA256
+    assert error.value.training_count == 11996
+    assert error.value.health_count == 22
+    assert error.value.feast_fingerprint is None
+    assert error.value.valkey_fingerprint is None
+    assert adapter.calls == ["stage", "staged", "switch", f"feast:{MANIFEST_SHA256}", "restore"]
+
+
+@pytest.mark.asyncio
+async def test_activation_rollback_readback_mismatch_preserves_original_and_failed_compensation_state() -> None:
+    class RollbackReadbackMismatchAdapter(FakeActivationAdapter):
+        async def fingerprint(self) -> tuple[str | None, str, str]:
+            if self.calls and self.calls[-1] == "valkey:previous":
+                return ("wrong", "feast:wrong", "valkey:wrong")
+            return await super().fingerprint()
+
+    adapter = RollbackReadbackMismatchAdapter(fail_feast=True)
+    with pytest.raises(Section03ActivationError, match="rollback fingerprint read-back mismatch") as error:
+        await Section03Loader(MANIFEST).activate(adapter)
+    assert str(error.value.original) == "feast failed"
+    assert str(error.value.rollback) == "rollback fingerprint read-back mismatch"
+    assert error.value.rollback_status == "failed"
+    assert error.value.before_manifest_sha256 == "previous"
+    assert error.value.after_manifest_sha256 == MANIFEST_SHA256
+    assert error.value.training_count == 11996
+    assert error.value.health_count == 22
+    assert error.value.feast_fingerprint is None
+    assert error.value.valkey_fingerprint is None
+    assert adapter.calls == [
+        "stage", "staged", "switch", f"feast:{MANIFEST_SHA256}",
+        "restore", "feast:previous", "valkey:previous",
+    ]

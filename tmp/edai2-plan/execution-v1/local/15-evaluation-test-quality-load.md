@@ -109,12 +109,12 @@ All local gates actually run and pass at locked thresholds; missing samples fail
 
 | Field | Execution value |
 |---|---|
-| Status | Not started |
-| Current branch/status | Record final `rtk git status --short --branch` |
-| Affected files | Record Topic 15 paths and inspected dependency diff |
-| Commands and exit codes | Record every quality command and actual code |
-| Evidence hashes | Record coverage/mutation/CrossHair/test report hashes |
-| Screenshot QA | Local report only; runtime screenshot deferred |
-| Cleanup/runtime release | Record test cache/process cleanup; no cloud runtime |
-| Limitations | Record live Locust/deployed latency or any failed gate |
-| Handoff | `tmp/edai2-plan/execution-v1/local/16-images-jenkins-ci.md` |
+| Status | Complete |
+| Current branch/status | `feature/implement-edai2`; final `rtk git status --short --branch` retained the Topic 15 working tree changes and no staged-index change. `rtk git ls-files --stage` UTF-8 SHA-256 was `187360ee2af1f747cc1f6426cc3a7e7fcfbcc60076e903f0a37ac82aabac1632`, identical to the pre-edit listing. |
+| Affected files | Task 15 configuration/evaluator/scope/verification/evidence paths plus quality tests. Mutation-quality additions were limited to `tests/unit/llm/test_coordinator.py` and `tests/integration/llm/test_section03_ingestion.py`; the latter complements the controller-authorized `tests/unit/llm/test_quality_coverage.py` exception. `pyproject.toml` contains only the assigned mutmut configuration; `uv.lock` has no diff. |
+| Commands and exit codes | `rtk wsl ... mutmut run` — 0, all 4106 terminal: 3316 killed, 765 survived, 24 untested, 1 timeout, 0 unknown/not-checked. `... verify_edai2_mutation_score.py --min-exclusive 0.80 --output evidence/04_2_llm_design/tests/mutation.json` — 0, score `0.8075986361422309`. `rtk uv run pytest tests/unit/llm tests/contract/llm tests/property/llm tests/integration/llm --cov=src/vina_bim_shop --cov-config=configs/llm/coverage.ini --cov-report=term-missing --cov-report=html:evidence/04_2_llm_design/tests/coverage --cov-fail-under=91` — 0 after lock-faithful Windows environment repair; 260 passed, 92.01%. `rtk uv run python scripts/qa/verify_edai2_test_scope.py --base-ref $env:EDAI2_BASE_REF ...` — 0. `rtk uv run crosshair check ...` — 0. `rtk uv run pytest tests/unit/llm/test_evaluation.py tests/property/llm/test_idempotency.py -q` — 0, 24 passed. EP/BVA command — 0, 87 passed. `rtk uv run pytest tests/load/llm/test_locust_contract.py -q` — 0, 1 passed. `rtk git diff --check` — 0. |
+| Evidence hashes | `evidence/04_2_llm_design/tests/mutation.json`: `b2549325ea0b24571dbd365c79b67e566989e7dbb52f5e5333f107f71be964a5`; independently regenerated `evidence/04_2_llm_design/tests/coverage/index.html`: `c163fdef8527f83c6e5c38c65ec81c8733f34d4391bb5e2974adf222882a188b`; `evidence/04_2_llm_design/evaluation/local_contract.json`: `cbf616330e266b750c650e16f81ed0e3fef179a43ba78dd0bc41cbabe7cf16e1`. Machine output is authoritative; CrossHair, pytest, scope, and Locust results are recorded by their exit-zero commands above. |
+| Screenshot QA | No screenshot manufactured. Local HTML coverage report exists; runtime/deployed screenshots remain successor-owned and deferred. |
+| Cleanup/runtime release | No cloud, Docker, Kubernetes, or live Locust runtime was started. Targeted/full mutmut and pytest processes exited; one redundant WSL coverage substitute was terminated before completion when the Windows environment repair was selected. Windows `.venv` was rebuilt only from the unchanged frozen lock with `rtk uv sync --frozen --all-groups --reinstall`; Windows `torch 2.13.0+cpu` and `transformers 5.14.1` imports then passed. |
+| Limitations | No live Locust HTML/CSV, deployed latency, GKE, or screenshot evidence is claimed. The first exact Windows coverage attempt exited 1 because `.venv` lacked Windows torch DLLs after cross-platform activity; its frozen-lock rebuild restored the expected Windows artifacts and the rerun passed at 92.01%. |
+| Handoff | `tmp/edai2-plan/execution-v1/local/16-images-jenkins-ci.md`: consume the verified scope, coverage HTML, mutation JSON/score, and local contract results; own final UI/deployed captures. |

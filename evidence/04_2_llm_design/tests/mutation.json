@@ -1,0 +1,13 @@
+{
+  "counts": {
+    "killed": 3316,
+    "survived": 765,
+    "suspicious": 0,
+    "timeout": 1,
+    "untested": 24
+  },
+  "denominator": 4106,
+  "min_exclusive": 0.8,
+  "passed": true,
+  "score": 0.8075986361422309
+}

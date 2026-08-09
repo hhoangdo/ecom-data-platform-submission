@@ -50,3 +50,26 @@ packages = ["src/vina_bim_shop"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.mutmut]
+paths_to_mutate = [
+  "src/vina_bim_shop/llm",
+  "src/vina_bim_shop/orchestration/rag_index_pipeline.py",
+  "src/vina_bim_shop/orchestration/specs.py",
+  "src/vina_bim_shop/kafka/topics.py",
+]
+pytest_add_cli_args_test_selection = [
+  "tests/unit/llm",
+  "tests/contract/llm",
+  "tests/property/llm",
+  "tests/integration/llm",
+]
+also_copy = [
+  "configs",
+  "data/knowledge/ecommerce",
+  "evidence/03_data_generator_improvement",
+  "infra",
+  "notebooks/edai2",
+  "scripts",
+  "tmp/edai2-plan/03_data_generator_improvement.md",
+]
