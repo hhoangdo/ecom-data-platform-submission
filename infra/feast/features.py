@@ -38,3 +38,8 @@ RETRIEVAL_SERVICE = {
     ],
     "pgvector_owner": "postgres",
 }
+
+CUSTOMER_ENTITY = {"name": "customer", "join_key": "id"}
+SECTION03_TRAINING_SOURCE = {"name": "edai2_section03_training_source", "table": "edai2_section03_training_active", "type": "postgres", "timestamp_field": "event_timestamp"}
+SECTION03_HEALTH_SOURCE = {"name": "edai2_section03_health_source", "table": "edai2_section03_health_active", "type": "postgres", "timestamp_field": "monitoring_date"}
+SECTION03_FEATURE_SERVICE = {"name": "customer_order_drift", "features": ["ml_customer_purchase_training:label", "agg_feature_health_daily:psi_vs_baseline"]}

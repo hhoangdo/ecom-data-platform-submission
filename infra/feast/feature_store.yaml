@@ -12,5 +12,5 @@ offline_store:
   user: edai2_rag
   password: ${EDAI2_RAG_POSTGRES_PASSWORD}
 online_store:
-  type: sqlite
-  path: data/edai2_rag_online.db
+  type: redis
+  connection_string: ${EDAI2_VALKEY_URL}

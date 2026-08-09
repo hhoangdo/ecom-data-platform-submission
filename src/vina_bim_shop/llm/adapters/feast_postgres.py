@@ -6,6 +6,7 @@ import hashlib
 import inspect
 import json
 import math
+import csv
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -28,6 +29,10 @@ class CandidateIndexError(ValueError):
     """Raised when a candidate cannot satisfy immutable storage rules."""
 
 
+class Section03AdapterError(RuntimeError):
+    """Raised when the activation-only PostgreSQL/Feast/Valkey seam is incomplete."""
+
+
 class StaleActiveAliasError(RuntimeError):
     """Raised when a compare-and-swap sees a different active index."""
 
@@ -48,9 +53,17 @@ class FeastPostgresAdapter:
         *,
         dsn: str | None = None,
         connection_factory: ConnectionFactory | None = None,
+        feast_apply: Callable[[str | None], Any] | None = None,
+        valkey_materialize: Callable[[str | None], Any] | None = None,
+        feast_fingerprint: Callable[[], Any] | None = None,
+        valkey_fingerprint: Callable[[], Any] | None = None,
     ) -> None:
         self._dsn = dsn
         self._connection_factory = connection_factory
+        self._feast_apply = feast_apply
+        self._valkey_materialize = valkey_materialize
+        self._feast_fingerprint = feast_fingerprint
+        self._valkey_fingerprint = valkey_fingerprint
 
     @asynccontextmanager
     async def _connection(self) -> AsyncIterator[Any]:
@@ -473,9 +486,18 @@ class FeastPostgresAdapter:
         feature_name: str,
         window: TimeWindow,
     ) -> Sequence[FeatureHealthPoint]:
-        """Reserve Section 03 reads for the dedicated successor topic."""
+        """Read only the stable active daily-health view."""
 
-        raise NotImplementedError("Feast feature reads belong to the Section 03 loader")
+        async with self._connection() as connection:
+            rows = await _fetch_all(connection, """
+                SELECT monitoring_date, feature_name, window_days, baseline_date,
+                       customer_count, mean_value, psi_vs_baseline, drift_status
+                FROM edai2_section03_health_active
+                WHERE feature_name = %s
+                  AND monitoring_date >= %s AND monitoring_date < %s
+                ORDER BY monitoring_date
+                """, (feature_name, window.start.date(), window.end.date()))
+        return [FeatureHealthPoint.model_validate(row) for row in rows]
 
     async def read_customer_snapshot(
         self,
@@ -483,9 +505,165 @@ class FeastPostgresAdapter:
         id: str,
         as_of: UtcDateTime,
     ) -> Section03FeatureRow | None:
-        """Reserve point-in-time Section 03 reads for the successor topic."""
+        """Read one cutoff-safe active snapshot without changing the source schema."""
 
-        raise NotImplementedError("Section 03 point-in-time reads belong to the loader")
+        async with self._connection() as connection:
+            rows = await _fetch_all(connection, """
+                SELECT id, event_timestamp, label, f_customer_total_orders_90d,
+                       f_customer_paid_revenue_90d, f_customer_avg_order_value_90d,
+                       f_customer_distinct_categories_90d, f_stream_views_60m,
+                       f_stream_add_to_cart_60m, f_stream_checkout_started_60m,
+                       f_stream_order_placed_60m, f_stream_cart_to_purchase_ratio_60m, created
+                FROM edai2_section03_training_active
+                WHERE id = %s AND event_timestamp <= %s AND created <= event_timestamp
+                ORDER BY event_timestamp DESC LIMIT 1
+                """, (id, as_of))
+        return None if not rows else Section03FeatureRow.model_validate(rows[0])
+
+    async def active_section03_manifest_hash(self) -> str | None:
+        """Return the active immutable Section 03 identity for readiness gates."""
+
+        async with self._connection() as connection:
+            rows = await _fetch_all(connection, "SELECT manifest_sha256 FROM edai2_section03_active_version WHERE singleton = TRUE", None)
+        return None if not rows or rows[0]["manifest_sha256"] is None else str(rows[0]["manifest_sha256"])
+
+    async def fingerprint(self) -> tuple[str | None, str, str]:
+        """Read the three activation fingerprints without changing active state."""
+
+        if self._feast_fingerprint is None or self._valkey_fingerprint is None:
+            raise Section03AdapterError(
+                "Section 03 activation requires explicit Feast and Valkey fingerprint readback hooks"
+            )
+        active = await self.active_section03_manifest_hash()
+        feast = await _call_hook(self._feast_fingerprint, "Feast")
+        valkey = await _call_hook(self._valkey_fingerprint, "Valkey")
+        return (active, feast, valkey)
+
+    async def staged_section03_manifest_hash(self, manifest_sha256: str) -> str | None:
+        """Read back immutable staging before a view switch."""
+
+        async with self._connection() as connection:
+            rows = await _fetch_all(
+                connection,
+                "SELECT manifest_sha256 FROM edai2_section03_version WHERE manifest_sha256 = %s",
+                (manifest_sha256,),
+            )
+        return None if not rows else str(rows[0]["manifest_sha256"])
+
+    async def stage(self, verified: Any) -> None:
+        """Insert immutable verified-version metadata under the advisory transaction lock."""
+
+        consumer = verified.manifest["consumer_contract"]
+        async with self._connection() as connection:
+            async with connection.transaction():
+                await connection.execute("SELECT pg_advisory_xact_lock(hashtextextended('edai2-section03-loader', 0))")
+                await connection.execute(
+                    """INSERT INTO edai2_section03_version
+                       (manifest_sha256, label_sha256, training_sha256, health_sha256, feature_cutoff, baseline_date, training_count, health_count)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT (manifest_sha256) DO NOTHING""",
+                    (verified.manifest_sha256, consumer["label"]["sha256"], consumer["training_join"]["sha256"], consumer["feature_health"]["sha256"], consumer["training_join"]["feature_cutoff_ts"], consumer["feature_health"]["baseline_date"], verified.training_count, verified.health_count),
+                )
+                with verified.training_path.open("r", encoding="utf-8", newline="") as handle:
+                    for row in csv.DictReader(handle):
+                        await connection.execute("""INSERT INTO edai2_section03_training_row
+                            (manifest_sha256, id, event_timestamp, label, f_customer_total_orders_90d, f_customer_paid_revenue_90d, f_customer_avg_order_value_90d, f_customer_distinct_categories_90d, f_stream_views_60m, f_stream_add_to_cart_60m, f_stream_checkout_started_60m, f_stream_order_placed_60m, f_stream_cart_to_purchase_ratio_60m, created)
+                            VALUES (%(manifest)s,%(id)s,%(event_timestamp)s,%(label)s,%(f_customer_total_orders_90d)s,%(f_customer_paid_revenue_90d)s,%(f_customer_avg_order_value_90d)s,%(f_customer_distinct_categories_90d)s,%(f_stream_views_60m)s,%(f_stream_add_to_cart_60m)s,%(f_stream_checkout_started_60m)s,%(f_stream_order_placed_60m)s,%(f_stream_cart_to_purchase_ratio_60m)s,%(created)s) ON CONFLICT DO NOTHING""", {**row, "manifest": verified.manifest_sha256})
+                with verified.health_path.open("r", encoding="utf-8", newline="") as handle:
+                    for row in csv.DictReader(handle):
+                        await connection.execute("""INSERT INTO edai2_section03_health_row
+                            (manifest_sha256, monitoring_date, feature_name, window_days, baseline_date, customer_count, mean_value, stddev_value, psi_vs_baseline, drift_status, warning_flag, alert_flag)
+                            VALUES (%(manifest)s,%(monitoring_date)s,%(feature_name)s,%(window_days)s,%(baseline_date)s,%(customer_count)s,%(mean_value)s,%(stddev_value)s,%(psi_vs_baseline)s,%(drift_status)s,%(warning_flag)s,%(alert_flag)s) ON CONFLICT DO NOTHING""", {**row, "manifest": verified.manifest_sha256})
+                await self._verify_staged(connection, verified, consumer)
+
+    async def _verify_staged(self, connection: Any, verified: Any, consumer: dict[str, Any]) -> None:
+        """Refuse a same-hash candidate unless all immutable rows match the verified bundle."""
+
+        metadata_rows = await _fetch_all(
+            connection,
+            """SELECT manifest_sha256, label_sha256, training_sha256, health_sha256,
+                      feature_cutoff, baseline_date, training_count, health_count
+               FROM edai2_section03_version WHERE manifest_sha256 = %s""",
+            (verified.manifest_sha256,),
+        )
+        expected = {
+            "manifest_sha256": verified.manifest_sha256,
+            "label_sha256": consumer["label"]["sha256"],
+            "training_sha256": consumer["training_join"]["sha256"],
+            "health_sha256": consumer["feature_health"]["sha256"],
+            "feature_cutoff": consumer["training_join"]["feature_cutoff_ts"],
+            "baseline_date": consumer["feature_health"]["baseline_date"],
+            "training_count": verified.training_count,
+            "health_count": verified.health_count,
+        }
+        if not metadata_rows or any(
+            _stored_value(metadata_rows[0].get(key)) != _stored_value(value)
+            for key, value in expected.items()
+        ):
+            raise Section03AdapterError("Section 03 staged metadata mismatch")
+        training_rows = await _fetch_all(
+            connection,
+            "SELECT COUNT(*) AS row_count FROM edai2_section03_training_row WHERE manifest_sha256 = %s",
+            (verified.manifest_sha256,),
+        )
+        if not training_rows or int(training_rows[0]["row_count"]) != verified.training_count:
+            raise Section03AdapterError("Section 03 staged training row count mismatch")
+        health_rows = await _fetch_all(
+            connection,
+            "SELECT COUNT(*) AS row_count FROM edai2_section03_health_row WHERE manifest_sha256 = %s",
+            (verified.manifest_sha256,),
+        )
+        if not health_rows or int(health_rows[0]["row_count"]) != verified.health_count:
+            raise Section03AdapterError("Section 03 staged health row count mismatch")
+
+    async def switch_active(self, manifest_sha256: str) -> str | None:
+        """Transactionally repoint the stable active views to one immutable version."""
+
+        async with self._connection() as connection:
+            async with connection.transaction():
+                await connection.execute("SELECT pg_advisory_xact_lock(hashtextextended('edai2-section03-loader', 0))")
+                previous_rows = await _fetch_all(
+                    connection,
+                    "SELECT manifest_sha256 FROM edai2_section03_active_version WHERE singleton = TRUE FOR UPDATE",
+                    None,
+                )
+                previous = None if not previous_rows else previous_rows[0]["manifest_sha256"]
+                switched = await _fetch_all(
+                    connection,
+                    """UPDATE edai2_section03_active_version
+                       SET manifest_sha256 = %s, updated_at = CURRENT_TIMESTAMP
+                       WHERE singleton = TRUE AND manifest_sha256 IS NOT DISTINCT FROM %s
+                       RETURNING manifest_sha256""",
+                    (manifest_sha256, previous),
+                )
+                if not switched:
+                    raise CandidateIndexError("Section 03 active hash changed before switch")
+        return previous
+
+    async def restore_active(self, manifest_sha256: str | None) -> None:
+        """Compensate a failed post-switch activation back to the recorded prior hash."""
+
+        async with self._connection() as connection:
+            async with connection.transaction():
+                await connection.execute("SELECT pg_advisory_xact_lock(hashtextextended('edai2-section03-loader', 0))")
+                await connection.execute("UPDATE edai2_section03_active_version SET manifest_sha256 = %s, updated_at = CURRENT_TIMESTAMP WHERE singleton = TRUE", (manifest_sha256,))
+
+    async def apply_feast(self, manifest_sha256: str | None) -> None:
+        """Expose the named apply phase; runtime wiring supplies the actual Feast client."""
+
+        if self._feast_apply is None:
+            raise Section03AdapterError("a Feast apply hook is required for Section 03 activation")
+        result = self._feast_apply(manifest_sha256)
+        if inspect.isawaitable(result):
+            await result
+
+    async def materialize_valkey(self, manifest_sha256: str | None) -> None:
+        """Expose the named online-materialization phase; runtime wiring supplies Valkey."""
+
+        if self._valkey_materialize is None:
+            raise Section03AdapterError("a Valkey materialization hook is required for Section 03 activation")
+        result = self._valkey_materialize(manifest_sha256)
+        if inspect.isawaitable(result):
+            await result
 
 
 async def _fetch_all(
@@ -496,6 +674,23 @@ async def _fetch_all(
     cursor = await connection.execute(sql, parameters)
     rows = await cursor.fetchall()
     return [dict(row) for row in rows]
+
+
+async def _call_hook(hook: Callable[[], Any], dependency: str) -> str:
+    result = hook()
+    if inspect.isawaitable(result):
+        result = await result
+    if not isinstance(result, str) or not result:
+        raise Section03AdapterError(f"{dependency} fingerprint readback is invalid")
+    return result
+
+
+def _stored_value(value: Any) -> str:
+    if isinstance(value, datetime):
+        return value.isoformat().replace("+00:00", "Z")
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
 
 
 def _validated_vector(vector: Sequence[float]) -> list[float]:
@@ -530,5 +725,6 @@ def _validation_digest(report: IndexValidationReport) -> str:
 __all__ = [
     "CandidateIndexError",
     "FeastPostgresAdapter",
+    "Section03AdapterError",
     "StaleActiveAliasError",
 ]

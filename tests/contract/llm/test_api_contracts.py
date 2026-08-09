@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from vina_bim_shop.llm.api.chat import app as chat_app
 from vina_bim_shop.llm.api.drift import app as drift_app
+from vina_bim_shop.llm.drift import SECTION03_MANIFEST_SHA256
 from vina_bim_shop.llm.api.retrieval import app as retrieval_app
 
 
@@ -78,13 +79,17 @@ def test_retrieval_openapi_declares_typed_success_and_error_contracts() -> None:
 
 
 def test_health_readiness_and_metrics_are_local_and_machine_readable() -> None:
-    for app in [drift_app, chat_app]:
-        client = TestClient(app)
-        assert client.get("/healthz").status_code == 200
-        assert client.get("/readyz").status_code == 200
-        metrics = client.get("/metrics")
-        assert metrics.status_code == 200
-        assert "text/plain" in metrics.headers["content-type"]
+    chat_client = TestClient(chat_app)
+    assert chat_client.get("/healthz").status_code == 200
+    assert chat_client.get("/readyz").status_code == 200
+    assert "text/plain" in chat_client.get("/metrics").headers["content-type"]
+
+    drift_client = TestClient(drift_app)
+    assert drift_client.get("/healthz").status_code == 200
+    readiness = drift_client.get("/readyz")
+    assert readiness.status_code == 503
+    assert readiness.json()["status"] == "not_ready"
+    assert "text/plain" in drift_client.get("/metrics").headers["content-type"]
 
     retrieval_client = TestClient(retrieval_app)
     assert retrieval_client.get("/healthz").status_code == 200

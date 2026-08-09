@@ -20,6 +20,7 @@ from vina_bim_shop.llm.mcp.retrieval import (
     search_ecommerce_knowledge,
 )
 from vina_bim_shop.llm.retrieval import FeastRetrievalService, IndexUnavailableError
+from vina_bim_shop.llm.drift import DriftDetectionService, FeatureUnavailableError
 
 
 def _canonical(value: object) -> str:
@@ -82,3 +83,18 @@ async def test_retrieval_mcp_uses_the_same_unavailable_service_boundary() -> Non
             await search_ecommerce_knowledge(query="returns")
     finally:
         retrieval_app.state.retrieval_service = original_service
+
+
+@pytest.mark.asyncio
+async def test_drift_mcp_uses_the_same_unavailable_service_boundary() -> None:
+    original_service = getattr(drift_app.state, "drift_service", None)
+    try:
+        drift_app.state.drift_service = DriftDetectionService()
+        with pytest.raises(FeatureUnavailableError, match="feature_unavailable"):
+            await detect_customer_order_drift(
+                id=None,
+                baseline_window={"start": "2026-04-04T00:00:00Z", "end": "2026-04-11T00:00:00Z"},
+                candidate_window={"start": "2026-04-11T00:00:00Z", "end": "2026-04-12T00:00:00Z"},
+            )
+    finally:
+        drift_app.state.drift_service = original_service

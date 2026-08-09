@@ -1,15 +1,15 @@
-"""Drift MCP tool contract and OpenAPI schema binding."""
+"""Streamable-HTTP MCP adapter for the shared drift service."""
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Annotated
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from ..api.drift import app as drift_app
-from ..contracts import DriftDetectResponse, TimeWindow, UtcDateTime
+from ..api.drift import get_drift_service
+from ..contracts import DriftDetectRequest, DriftDetectResponse, TimeWindow
 
 
 DRIFT_TOOL_NAME = "detect_customer_order_drift"
@@ -23,10 +23,9 @@ async def detect_customer_order_drift(
     candidate_window: TimeWindow,
     feature_name: str = "f_customer_order_frequency_7d",
 ) -> DriftDetectResponse:
-    """Expose the typed drift boundary without fabricating a measurement."""
+    """Adapt the exact drift contract to the same async API-owned service."""
 
-    del id, baseline_window, candidate_window, feature_name
-    raise RuntimeError("feature_unavailable")
+    return await get_drift_service().detect(DriftDetectRequest(id=id, baseline_window=baseline_window, candidate_window=candidate_window, feature_name=feature_name))
 
 
 DRIFT_TOOL_INPUT_SCHEMA = drift_app.openapi()["components"]["schemas"]["DriftDetectRequest"]
@@ -37,11 +36,4 @@ _registered_tool.fn_metadata.output_schema = DRIFT_TOOL_OUTPUT_SCHEMA
 streamable_http_app = mcp.streamable_http_app()
 
 
-__all__ = [
-    "DRIFT_TOOL_INPUT_SCHEMA",
-    "DRIFT_TOOL_NAME",
-    "DRIFT_TOOL_OUTPUT_SCHEMA",
-    "detect_customer_order_drift",
-    "mcp",
-    "streamable_http_app",
-]
+__all__ = ["DRIFT_TOOL_INPUT_SCHEMA", "DRIFT_TOOL_NAME", "DRIFT_TOOL_OUTPUT_SCHEMA", "detect_customer_order_drift", "mcp", "streamable_http_app"]
