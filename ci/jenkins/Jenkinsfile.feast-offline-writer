@@ -1,0 +1,2 @@
+def ci = load 'ci/jenkins/pipeline.groovy'
+ci.pipelineFor('edai2-feast-offline-writer', 'feast_offline_writer', 'worker', 'infra/helm/edai2/worker/values.yaml', 'feast-offline-writer', 'edai2-feast-offline-writer')

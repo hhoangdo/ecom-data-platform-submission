@@ -1,0 +1,9 @@
+{{- if .Values.agentgatewayPolicy.enabled }}
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata:
+  name: {{ .Values.workload.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  workload: {{ .Values.workload.name }}
+{{- end }}

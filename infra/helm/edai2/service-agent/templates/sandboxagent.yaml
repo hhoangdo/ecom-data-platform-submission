@@ -1,0 +1,23 @@
+{{- range .Values.sandboxAgents }}
+apiVersion: kagent.dev/v1alpha2
+kind: SandboxAgent
+metadata:
+  name: {{ .resourceName }}
+  namespace: {{ $.Values.namespace }}
+  labels:
+    edai2.logical-agent: {{ .logicalAgent | quote }}
+    edai2.runtime-variant: {{ .runtimeVariant | quote }}
+spec:
+  platform: {{ .sandboxAgent.platform }}
+  type: {{ .sandboxAgent.type }}
+  declarative: {{ toYaml .sandboxAgent.declarative | nindent 4 }}
+  substrate:
+    workerPoolRef: {{ toYaml .sandboxAgent.substrate.workerPoolRef | nindent 6 }}
+    snapshot:
+      bucketName: {{ required "substrate.bucketName is required" $.Values.substrate.bucketName | quote }}
+      prefix: {{ .snapshot.prefix | quote }}
+      logicalAgent: {{ .snapshot.logicalAgent | quote }}
+      runtimeVariant: {{ .snapshot.runtimeVariant | quote }}
+      suffix: {{ .snapshot.suffix | quote }}
+---
+{{- end }}

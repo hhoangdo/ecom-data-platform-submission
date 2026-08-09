@@ -1,0 +1,2 @@
+def ci = load 'ci/jenkins/pipeline.groovy'
+ci.pipelineFor('edai2-drift-agent', 'drift_agent', 'service-agent', 'infra/helm/edai2/values/drift-agent.yaml', 'drift-agent', 'edai2-drift-agent')

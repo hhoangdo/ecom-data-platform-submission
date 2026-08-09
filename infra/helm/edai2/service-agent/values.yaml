@@ -1,0 +1,25 @@
+namespace: edai2
+image:
+  repository: registry.invalid/edai2/service-agent
+  tag: ""
+  pullPolicy: IfNotPresent
+workload:
+  name: service-agent
+  command: []
+service:
+  port: 8080
+serviceAccount:
+  name: edai2-service-agent
+autoscaling:
+  enabled: false
+  minReplicaCount: 1
+  maxReplicaCount: 1
+networkPolicy:
+  enabled: true
+substrate:
+  bucketName: ""
+remoteMcpServers: []
+sandboxAgents: []
+credentialReferences: {}
+agentgatewayPolicy:
+  enabled: true

@@ -1,0 +1,2 @@
+def ci = load 'ci/jenkins/pipeline.groovy'
+ci.pipelineFor('edai2-rag-index', 'rag_index', 'worker', 'infra/helm/edai2/worker/values.yaml', 'rag-index', 'edai2-rag-index')

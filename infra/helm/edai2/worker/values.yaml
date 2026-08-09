@@ -1,0 +1,16 @@
+namespace: edai2
+image:
+  repository: registry.invalid/edai2/worker
+  tag: ""
+  pullPolicy: IfNotPresent
+workload:
+  name: worker
+  command: []
+serviceAccount:
+  name: edai2-worker
+autoscaling:
+  enabled: false
+  minReplicaCount: 1
+  maxReplicaCount: 1
+networkPolicy:
+  enabled: true

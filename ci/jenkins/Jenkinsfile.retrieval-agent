@@ -1,0 +1,2 @@
+def ci = load 'ci/jenkins/pipeline.groovy'
+ci.pipelineFor('edai2-retrieval-agent', 'retrieval_agent', 'service-agent', 'infra/helm/edai2/values/retrieval-agent.yaml', 'retrieval-agent', 'edai2-retrieval-agent')

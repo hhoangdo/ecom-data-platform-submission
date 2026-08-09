@@ -1,0 +1,64 @@
+schema_version: 1
+all_jobs:
+  - edai2-rag-index
+  - edai2-retrieval-agent
+  - edai2-drift-agent
+  - edai2-coordinator
+  - edai2-feast-offline-writer
+  - edai2-feast-online-writer
+rules:
+  - job: edai2-rag-index
+    paths:
+      - data/knowledge/ecommerce/**
+      - src/vina_bim_shop/llm/indexing.py
+      - src/vina_bim_shop/orchestration/rag_index_pipeline.py
+      - infra/orchestration/airflow/**
+      - infra/feast/**
+  - job: edai2-retrieval-agent
+    paths:
+      - src/vina_bim_shop/llm/retrieval.py
+      - src/vina_bim_shop/llm/api/retrieval.py
+      - src/vina_bim_shop/llm/mcp/retrieval.py
+      - src/vina_bim_shop/llm/safety.py
+      - infra/helm/edai2/workloads/retrieval.yaml
+  - job: edai2-drift-agent
+    paths:
+      - src/vina_bim_shop/llm/drift.py
+      - src/vina_bim_shop/llm/section03_ingestion.py
+      - src/vina_bim_shop/llm/api/drift.py
+      - src/vina_bim_shop/llm/mcp/drift.py
+      - infra/helm/edai2/workloads/drift.yaml
+      - src/vina_bim_shop/generators/**
+  - job: edai2-coordinator
+    paths:
+      - src/vina_bim_shop/llm/inference.py
+      - src/vina_bim_shop/llm/routing.py
+      - src/vina_bim_shop/llm/coordinator.py
+      - src/vina_bim_shop/llm/api/chat.py
+      - src/vina_bim_shop/llm/adapters/kagent.py
+      - infra/kagent/**
+      - infra/agentregistry/**
+  - job: edai2-feast-offline-writer
+    paths:
+      - src/vina_bim_shop/llm/streaming/offline_writer.py
+      - scripts/feast/run_offline_writer.py
+      - infra/helm/edai2/workloads/feast-offline-writer.yaml
+      - infra/kafka/schemas/customer_feature_updates-offline.schema.json
+  - job: edai2-feast-online-writer
+    paths:
+      - src/vina_bim_shop/llm/streaming/online_writer.py
+      - scripts/feast/run_online_writer.py
+      - infra/helm/edai2/workloads/feast-online-writer.yaml
+      - infra/kafka/schemas/customer_feature_updates-online.schema.json
+shared_paths:
+  - configs/llm/**
+  - containers/edai2/**
+  - ci/jenkins/**
+  - infra/helm/edai2/service-agent/**
+  - infra/helm/edai2/worker/**
+  - infra/agentgateway/**
+  - infra/security/**
+  - infra/observability/**
+  - src/vina_bim_shop/llm/contracts.py
+  - src/vina_bim_shop/llm/ports.py
+  - src/vina_bim_shop/llm/telemetry.py

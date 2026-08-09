@@ -1,0 +1,38 @@
+schema_version: 1
+images:
+  - job: edai2-rag-index
+    target: rag_index
+    context: .
+    command: [python, scripts/llm/build_index.py]
+    artifact_registry_repository: edai2-rag-index
+    helm_release: edai2-rag-index
+  - job: edai2-retrieval-agent
+    target: retrieval_agent
+    context: .
+    command: [uvicorn, vina_bim_shop.llm.api.retrieval:app, --host, 0.0.0.0, --port, "8080"]
+    artifact_registry_repository: edai2-retrieval-agent
+    helm_release: edai2-retrieval-agent
+  - job: edai2-drift-agent
+    target: drift_agent
+    context: .
+    command: [uvicorn, vina_bim_shop.llm.api.drift:app, --host, 0.0.0.0, --port, "8080"]
+    artifact_registry_repository: edai2-drift-agent
+    helm_release: edai2-drift-agent
+  - job: edai2-coordinator
+    target: coordinator
+    context: .
+    command: [uvicorn, vina_bim_shop.llm.api.chat:app, --host, 0.0.0.0, --port, "8080"]
+    artifact_registry_repository: edai2-coordinator
+    helm_release: edai2-coordinator
+  - job: edai2-feast-offline-writer
+    target: feast_offline_writer
+    context: .
+    command: [python, scripts/feast/run_offline_writer.py]
+    artifact_registry_repository: edai2-feast-offline-writer
+    helm_release: edai2-feast-offline-writer
+  - job: edai2-feast-online-writer
+    target: feast_online_writer
+    context: .
+    command: [python, scripts/feast/run_online_writer.py]
+    artifact_registry_repository: edai2-feast-online-writer
+    helm_release: edai2-feast-online-writer

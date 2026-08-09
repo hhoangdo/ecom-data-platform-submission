@@ -1,0 +1,2 @@
+def ci = load 'ci/jenkins/pipeline.groovy'
+ci.pipelineFor('edai2-coordinator', 'coordinator', 'service-agent', 'infra/helm/edai2/values/coordinator-agent.yaml', 'coordinator', 'edai2-coordinator')

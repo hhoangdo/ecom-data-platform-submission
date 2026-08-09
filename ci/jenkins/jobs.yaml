@@ -1,0 +1,19 @@
+schema_version: 1
+controller:
+  num_executors: 0
+buildkit_lock:
+  name: edai2-buildkit-slot
+  capacity: 1
+jobs:
+  - name: edai2-rag-index
+    jenkinsfile: ci/jenkins/Jenkinsfile.rag-index
+  - name: edai2-retrieval-agent
+    jenkinsfile: ci/jenkins/Jenkinsfile.retrieval-agent
+  - name: edai2-drift-agent
+    jenkinsfile: ci/jenkins/Jenkinsfile.drift-agent
+  - name: edai2-coordinator
+    jenkinsfile: ci/jenkins/Jenkinsfile.coordinator
+  - name: edai2-feast-offline-writer
+    jenkinsfile: ci/jenkins/Jenkinsfile.feast-offline-writer
+  - name: edai2-feast-online-writer
+    jenkinsfile: ci/jenkins/Jenkinsfile.feast-online-writer
