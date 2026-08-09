@@ -5,6 +5,8 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 
 from vina_bim_shop.llm.api.chat import app as chat_app
+from vina_bim_shop.llm.coordinator import CommerceAgentCoordinator
+from vina_bim_shop.llm.inference import ContextTooLargeError
 from vina_bim_shop.llm.api.drift import app as drift_app
 from vina_bim_shop.llm.drift import SECTION03_MANIFEST_SHA256
 from vina_bim_shop.llm.api.retrieval import app as retrieval_app
@@ -63,6 +65,7 @@ def test_valid_contract_requests_return_typed_local_abstentions() -> None:
     )
     assert chat.status_code == 200
     assert chat.json()["safety_action"] == "abstain"
+    assert chat.json()["tool_calls"][0]["status"] == "failed"
 
 
 def test_retrieval_openapi_declares_typed_success_and_error_contracts() -> None:
@@ -81,7 +84,7 @@ def test_retrieval_openapi_declares_typed_success_and_error_contracts() -> None:
 def test_health_readiness_and_metrics_are_local_and_machine_readable() -> None:
     chat_client = TestClient(chat_app)
     assert chat_client.get("/healthz").status_code == 200
-    assert chat_client.get("/readyz").status_code == 200
+    assert chat_client.get("/readyz").status_code == 503
     assert "text/plain" in chat_client.get("/metrics").headers["content-type"]
 
     drift_client = TestClient(drift_app)
@@ -97,3 +100,37 @@ def test_health_readiness_and_metrics_are_local_and_machine_readable() -> None:
     assert readiness.status_code == 503
     assert readiness.json()["status"] == "not_ready"
     assert "text/plain" in retrieval_client.get("/metrics").headers["content-type"]
+
+
+def test_chat_openapi_and_context_too_large_error_are_byte_faithful() -> None:
+    operation = chat_app.openapi()["paths"]["/v1/chat"]["post"]
+    assert operation["responses"]["200"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/ChatResponse"
+    }
+    assert operation["responses"]["422"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/ApiError"
+    }
+    request = {"session_id": str(uuid4()), "message": "hello", "route": "auto"}
+    response = TestClient(chat_app).post("/v1/chat", json=request)
+    assert response.status_code == 200
+    assert set(response.json()) == {
+        "request_id", "route", "answer", "claims", "agent_name", "agent_version",
+        "model_version", "index_version", "tool_calls", "safety_action",
+    }
+
+
+def test_chat_maps_context_too_large_to_the_typed_422_envelope() -> None:
+    class OverBudgetPort:
+        async def chat(self, **_: object) -> object:
+            raise ContextTooLargeError("context_too_large")
+
+    original = chat_app.state.coordinator
+    chat_app.state.coordinator = CommerceAgentCoordinator(agent=OverBudgetPort())
+    try:
+        response = TestClient(chat_app).post(
+            "/v1/chat", json={"session_id": str(uuid4()), "message": "hello"}
+        )
+    finally:
+        chat_app.state.coordinator = original
+    assert response.status_code == 422
+    assert response.json()["code"] == "context_too_large"

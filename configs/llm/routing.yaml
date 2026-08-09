@@ -16,6 +16,11 @@ experiments:
       v1-primary: 90
       v1-comparison: 10
 coordinator:
+  promoted_alias: v1-primary
+  destinations:
+    v1-primary: coordinator-v1-primary
+    v2-primary: coordinator-v2-primary
+    v1-comparison: coordinator-v1-comparison
   specialists:
     - search_ecommerce_knowledge
     - detect_customer_order_drift
