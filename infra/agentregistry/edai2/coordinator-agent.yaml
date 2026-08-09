@@ -1,0 +1,63 @@
+agentName: coordinator
+version: __LATE_BOUND_VERSION__
+image: __LATE_BOUND_ACTOR_TEMPLATE_IMAGE__
+language: go
+framework: kagent
+modelProvider: llmd
+modelName: Qwen/Qwen2.5-1.5B-Instruct
+description: Sandboxed coordinator for retrieval and drift specialists.
+mcpServers: []
+edai2:
+  route: coordinator-v1-primary
+  snapshot: agent-substrate/coordinator/v1-primary/
+  commitSha: __LATE_BOUND_COMMIT_SHA__
+  pythonServiceImage: __LATE_BOUND_PYTHON_SERVICE_IMAGE__
+  runtimeVariants:
+    v1-primary:
+      route: coordinator-v1-primary
+      modelConfig: default-model-config
+      snapshot: agent-substrate/coordinator/v1-primary/
+      promptHash: __LATE_BOUND_HASH_PROMPT_V1_PRIMARY__
+      resourceHash: __LATE_BOUND_HASH_RESOURCE_V1_PRIMARY__
+      modelHash: __LATE_BOUND_HASH_MODEL_PRIMARY__
+      toolHash: __LATE_BOUND_HASH_TOOL__
+      heldConstantHashes:
+        specialists: __LATE_BOUND_HASH_SPECIALISTS__
+        tools: __LATE_BOUND_HASH_TOOL__
+        index: __LATE_BOUND_HASH_INDEX__
+        safety: __LATE_BOUND_HASH_SAFETY__
+        timeouts: __LATE_BOUND_HASH_TIMEOUTS__
+      pythonServiceImage: __LATE_BOUND_PYTHON_SERVICE_IMAGE__
+      commitSha: __LATE_BOUND_COMMIT_SHA__
+    v2-primary:
+      route: coordinator-v2-primary
+      modelConfig: default-model-config
+      snapshot: agent-substrate/coordinator/v2-primary/
+      promptHash: __LATE_BOUND_HASH_PROMPT_V2_PRIMARY__
+      resourceHash: __LATE_BOUND_HASH_RESOURCE_V2_PRIMARY__
+      modelHash: __LATE_BOUND_HASH_MODEL_PRIMARY__
+      toolHash: __LATE_BOUND_HASH_TOOL__
+      heldConstantHashes:
+        specialists: __LATE_BOUND_HASH_SPECIALISTS__
+        tools: __LATE_BOUND_HASH_TOOL__
+        index: __LATE_BOUND_HASH_INDEX__
+        safety: __LATE_BOUND_HASH_SAFETY__
+        timeouts: __LATE_BOUND_HASH_TIMEOUTS__
+      pythonServiceImage: __LATE_BOUND_PYTHON_SERVICE_IMAGE__
+      commitSha: __LATE_BOUND_COMMIT_SHA__
+    v1-comparison:
+      route: coordinator-v1-comparison
+      modelConfig: edai2-comparison
+      snapshot: agent-substrate/coordinator/v1-comparison/
+      promptHash: __LATE_BOUND_HASH_PROMPT_V1_COMPARISON__
+      resourceHash: __LATE_BOUND_HASH_RESOURCE_V1_COMPARISON__
+      modelHash: __LATE_BOUND_HASH_MODEL_COMPARISON__
+      toolHash: __LATE_BOUND_HASH_TOOL__
+      heldConstantHashes:
+        specialists: __LATE_BOUND_HASH_SPECIALISTS__
+        tools: __LATE_BOUND_HASH_TOOL__
+        index: __LATE_BOUND_HASH_INDEX__
+        safety: __LATE_BOUND_HASH_SAFETY__
+        timeouts: __LATE_BOUND_HASH_TIMEOUTS__
+      pythonServiceImage: __LATE_BOUND_PYTHON_SERVICE_IMAGE__
+      commitSha: __LATE_BOUND_COMMIT_SHA__

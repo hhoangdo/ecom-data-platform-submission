@@ -1,0 +1,18 @@
+agentName: drift
+version: __LATE_BOUND_VERSION__
+image: __LATE_BOUND_ACTOR_TEMPLATE_IMAGE__
+language: go
+framework: kagent
+modelProvider: llmd
+modelName: Qwen/Qwen2.5-1.5B-Instruct
+description: Drift-only sandboxed commerce feature-health agent.
+mcpServers:
+  - drift-mcp
+edai2:
+  route: drift-mcp
+  snapshot: agent-substrate/drift/v1-primary/
+  commitSha: __LATE_BOUND_COMMIT_SHA__
+  pythonServiceImage: __LATE_BOUND_PYTHON_SERVICE_IMAGE__
+  hashes:
+    prompt: __LATE_BOUND_HASH_PROMPT__
+    resource: __LATE_BOUND_HASH_RESOURCE__

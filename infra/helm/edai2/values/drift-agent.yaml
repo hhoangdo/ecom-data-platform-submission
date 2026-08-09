@@ -1,0 +1,52 @@
+namespace: edai2
+proxy:
+  url: http://agentgateway-proxy.edai2.svc.cluster.local:15000
+substrate:
+  # Topic 16's chart must require a non-empty Terraform-provided value at render time.
+  bucketName: ""
+credentialReferences:
+  model:
+    secretName: kagent-model-route-key
+    key: api-key
+  driftMcp:
+    secretName: kagent-gateway-keys
+    key: drift-detect
+remoteMcpServers:
+  - name: drift-mcp
+    transport: STREAMABLE_HTTP
+    url: http://drift-mcp.edai2.svc.cluster.local:8080/mcp
+    credential: driftMcp
+sandboxAgents:
+  - resourceName: drift
+    logicalAgent: drift
+    runtimeVariant: v1-primary
+    modelConfigRef: default-model-config
+    snapshot:
+      prefix: agent-substrate
+      logicalAgent: drift
+      runtimeVariant: v1-primary
+      suffix: /
+    environment:
+      - name: EDAI2_LOGICAL_AGENT
+        value: drift
+      - name: EDAI2_RUNTIME_VARIANT
+        value: v1-primary
+    credentialBindings:
+      - driftMcp
+    tools:
+      - drift-mcp
+    sandboxAgent:
+      platform: substrate
+      type: Declarative
+      declarative:
+        runtime: go
+      substrate:
+        workerPoolRef:
+          name: edai2-agents
+      sandbox:
+        network:
+          allowedDomains:
+            - kube-dns.kube-system.svc.cluster.local
+            - api.ate-system.svc.cluster.local
+            - atenet-router.ate-system.svc.cluster.local
+            - agentgateway-proxy.edai2.svc.cluster.local

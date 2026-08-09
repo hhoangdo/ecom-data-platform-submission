@@ -1,0 +1,90 @@
+namespace: edai2
+proxy:
+  url: http://agentgateway-proxy.edai2.svc.cluster.local:15000
+substrate:
+  # Topic 16's chart must require a non-empty Terraform-provided value at render time.
+  bucketName: ""
+credentialReferences:
+  model:
+    secretName: kagent-model-route-key
+    key: api-key
+  coordinatorSpecialist:
+    secretName: kagent-gateway-keys
+    key: coordinator-to-specialist
+  facadeCoordinator:
+    secretName: facade-gateway-key
+    key: authorization
+facadeCredentialBinding: facadeCoordinator
+remoteMcpServers: []
+sandboxAgents:
+  - resourceName: coordinator-v1-primary
+    logicalAgent: coordinator
+    runtimeVariant: v1-primary
+    modelConfigRef: default-model-config
+    snapshot: &v1_primary_snapshot
+      prefix: agent-substrate
+      logicalAgent: coordinator
+      runtimeVariant: v1-primary
+      suffix: /
+    environment: &v1_primary_environment
+      - name: EDAI2_LOGICAL_AGENT
+        value: coordinator
+      - name: EDAI2_RUNTIME_VARIANT
+        value: v1-primary
+    credentialBindings: &coordinator_credentials
+      - coordinatorSpecialist
+    tools: &coordinator_tools
+      - support-a2a
+      - drift-a2a
+    sandboxAgent: &coordinator_sandbox
+      platform: substrate
+      type: Declarative
+      declarative:
+        runtime: go
+      substrate:
+        workerPoolRef:
+          name: edai2-agents
+      sandbox:
+        network:
+          allowedDomains:
+            - kube-dns.kube-system.svc.cluster.local
+            - api.ate-system.svc.cluster.local
+            - atenet-router.ate-system.svc.cluster.local
+            - agentgateway-proxy.edai2.svc.cluster.local
+  - resourceName: coordinator-v2-primary
+    logicalAgent: coordinator
+    runtimeVariant: v2-primary
+    modelConfigRef: default-model-config
+    snapshot:
+      <<: *v1_primary_snapshot
+      runtimeVariant: v2-primary
+    environment:
+      - name: EDAI2_LOGICAL_AGENT
+        value: coordinator
+      - name: EDAI2_RUNTIME_VARIANT
+        value: v2-primary
+    credentialBindings: *coordinator_credentials
+    tools: *coordinator_tools
+    sandboxAgent: *coordinator_sandbox
+  - resourceName: coordinator-v1-comparison
+    logicalAgent: coordinator
+    runtimeVariant: v1-comparison
+    modelConfigRef: edai2-comparison
+    snapshot:
+      <<: *v1_primary_snapshot
+      runtimeVariant: v1-comparison
+    environment:
+      - name: EDAI2_LOGICAL_AGENT
+        value: coordinator
+      - name: EDAI2_RUNTIME_VARIANT
+        value: v1-comparison
+    credentialBindings: *coordinator_credentials
+    tools: *coordinator_tools
+    sandboxAgent: *coordinator_sandbox
+a2aTools:
+  - name: support-a2a
+    route: coordinator-to-support
+    credential: coordinatorSpecialist
+  - name: drift-a2a
+    route: coordinator-to-drift
+    credential: coordinatorSpecialist

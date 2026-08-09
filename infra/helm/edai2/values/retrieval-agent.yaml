@@ -1,0 +1,52 @@
+namespace: edai2
+proxy:
+  url: http://agentgateway-proxy.edai2.svc.cluster.local:15000
+substrate:
+  # Topic 16's chart must require a non-empty Terraform-provided value at render time.
+  bucketName: ""
+credentialReferences:
+  model:
+    secretName: kagent-model-route-key
+    key: api-key
+  retrievalMcp:
+    secretName: kagent-gateway-keys
+    key: support-retrieval
+remoteMcpServers:
+  - name: retrieval-mcp
+    transport: STREAMABLE_HTTP
+    url: http://retrieval-mcp.edai2.svc.cluster.local:8080/mcp
+    credential: retrievalMcp
+sandboxAgents:
+  - resourceName: support
+    logicalAgent: retrieval
+    runtimeVariant: v1-primary
+    modelConfigRef: default-model-config
+    snapshot:
+      prefix: agent-substrate
+      logicalAgent: retrieval
+      runtimeVariant: v1-primary
+      suffix: /
+    environment:
+      - name: EDAI2_LOGICAL_AGENT
+        value: retrieval
+      - name: EDAI2_RUNTIME_VARIANT
+        value: v1-primary
+    credentialBindings:
+      - retrievalMcp
+    tools:
+      - retrieval-mcp
+    sandboxAgent:
+      platform: substrate
+      type: Declarative
+      declarative:
+        runtime: go
+      substrate:
+        workerPoolRef:
+          name: edai2-agents
+      sandbox:
+        network:
+          allowedDomains:
+            - kube-dns.kube-system.svc.cluster.local
+            - api.ate-system.svc.cluster.local
+            - atenet-router.ate-system.svc.cluster.local
+            - agentgateway-proxy.edai2.svc.cluster.local
