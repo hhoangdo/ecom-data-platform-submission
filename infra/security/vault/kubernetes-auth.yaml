@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: edai2-vault-kubernetes-auth
+data:
+  retrieval-role: retrieval
+  drift-role: drift
+  coordinator-role: coordinator
+  agentgateway-role: agentgateway
+  jenkins-role: jenkins

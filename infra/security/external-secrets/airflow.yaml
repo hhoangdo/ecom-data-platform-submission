@@ -1,0 +1,4 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: { name: airflow }
+spec: { refreshInterval: 1h, secretStoreRef: { name: edai2-vault, kind: ClusterSecretStore }, target: { name: airflow }, data: [{ secretKey: fernet-key, remoteRef: { key: edai2/platform/airflow, property: fernet-key } }, { secretKey: webserver-secret, remoteRef: { key: edai2/platform/airflow, property: webserver-secret } }, { secretKey: admin-password, remoteRef: { key: edai2/platform/airflow, property: admin-password } }] }

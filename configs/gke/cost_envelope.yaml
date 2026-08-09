@@ -16,3 +16,4 @@ rules:
   - measured_sku_price_is_required_before_runtime
   - spot_price_is_rechecked_before_acquisition
   - no_static_cost_claim_is_evidence
+  - forecast_must_not_exceed_180_usd

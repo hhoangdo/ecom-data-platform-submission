@@ -1,0 +1,27 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: kagent-model-route-key
+spec:
+  refreshInterval: 1h
+  secretStoreRef: { name: edai2-vault, kind: ClusterSecretStore }
+  target: { name: kagent-model-route-key }
+  data:
+    - secretKey: api-key
+      remoteRef: { key: edai2/kagent/gateway-keys, property: model-api-key }
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: kagent-gateway-keys
+spec:
+  refreshInterval: 1h
+  secretStoreRef: { name: edai2-vault, kind: ClusterSecretStore }
+  target: { name: kagent-gateway-keys }
+  data:
+    - secretKey: support-retrieval
+      remoteRef: { key: edai2/kagent/gateway-keys, property: support-authorization }
+    - secretKey: drift-detect
+      remoteRef: { key: edai2/kagent/gateway-keys, property: drift-authorization }
+    - secretKey: coordinator-to-specialist
+      remoteRef: { key: edai2/kagent/gateway-keys, property: coordinator-authorization }

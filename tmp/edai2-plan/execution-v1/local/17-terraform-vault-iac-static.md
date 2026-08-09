@@ -121,12 +121,12 @@ Exact environment/modules/profiles/cost/lifecycle/IAM/Vault/ExternalSecret contr
 
 | Field | Execution value |
 |---|---|
-| Status | Not started |
-| Current branch/status | Record final `rtk git status --short --branch` |
-| Affected files | Record Topic 17 exact paths |
-| Commands and exit codes | Record fmt/init/validate/static commands |
-| Evidence hashes | Record sanitized reports/provider lock hash |
-| Screenshot QA | Not captured locally |
-| Cleanup/runtime release | Record owned .terraform cache cleanup; no cloud runtime |
-| Limitations | Record deferred plan/apply/live Vault proof |
-| Handoff | `tmp/edai2-plan/execution-v1/local/18-platform-helm-kustomize.md` |
+| Status | Complete |
+| Current branch/status | `feature/implement-edai2`; final status recorded after Topic 17-only uncommitted additions/modifications, with no staged entries. |
+| Affected files | Created the Terraform root and six `main.tf`/`variables.tf`/`outputs.tf` modules, Vault/ExternalSecret contracts, permission/profile/budget CLIs, budget tests, and the provider lock; modified only Topic 08 profile/cost scaffolds, the two static-test scaffolds, and this Completion Record. |
+| Commands and exit codes | Preconditions (`git status`, three locked hashes, predecessor lookup, `uv lock --check`, tfvars unset, and `git diff --check`) exited 0. Red static gate exited 1 with missing Topic 17 artifacts. Initial fmt and first init each exited 1 on local HCL syntax only; bounded corrections followed. Final `terraform fmt -check -recursive`, `terraform init -backend=false`, and `terraform validate` exited 0. Correction red gate for CLI/profile behavior exited 1 with the expected missing callable interfaces; `test_gke_budget.py` then exited 0 (20 passed) for fake project/billing/IAM/notification/recovery/DNS/URL failures, redaction, timestamp, budget/TTL, adapter-injection, and profile dry-run gates. Both CLI help commands exited 0; final combined static suite exited 0 (32 passed); final `git diff --check` exited 0. No plan/apply/refresh/import, gcloud, authentication, Vault init, Helm install, or Kubernetes command ran. |
+| Evidence hashes | Provider lock SHA-256: `e00c7af4aadb32e63bcddd682b52c686cb6e29985fe4436c10bda90f99c69f52`; Terraform initialized `hashicorp/google` `v6.50.0` without a backend. Machine terminal output is authoritative. |
+| Screenshot QA | Not captured locally; no screenshot was manufactured. |
+| Cleanup/runtime release | Removed only Topic 17-owned `infra/terraform/edai2/.terraform` after recording the lock hash. No tfstate/tfplan, cloud resource, lease, Docker runtime, or Kubernetes runtime was created. |
+| Limitations | Static validation does not prove a GCP apply, budget notification delivery, Workload Identity session, live Vault Raft/KMS/Kubernetes auth, ExternalSecret reconciliation, chat TLS/auth/rate-limit behavior, or Sheet3 screenshot. The live preflight intentionally returns nonzero without a later-topic explicit adapter factory; it never falls back to ADC/default credentials. |
+| Handoff | `tmp/edai2-plan/execution-v1/local/18-platform-helm-kustomize.md` consumes the lock, Terraform outputs, profile/cost gates, Vault policies, and exact ExternalSecret references; it must not edit Topic 16-owned chart templates. |

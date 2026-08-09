@@ -1,0 +1,16 @@
+{
+  "project": [
+    "resourcemanager.projects.get",
+    "resourcemanager.projects.getIamPolicy",
+    "resourcemanager.projects.setIamPolicy"
+  ],
+  "billing_account": [
+    "billing.accounts.get",
+    "billing.accounts.getIamPolicy",
+    "billing.resourceAssociations.list",
+    "billing.budgets.create",
+    "billing.budgets.get",
+    "billing.budgets.list",
+    "billing.budgets.update"
+  ]
+}

@@ -1,0 +1,4 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: { name: valkey }
+spec: { refreshInterval: 1h, secretStoreRef: { name: edai2-vault, kind: ClusterSecretStore }, target: { name: valkey }, data: [{ secretKey: password, remoteRef: { key: edai2/platform/valkey, property: password } }] }

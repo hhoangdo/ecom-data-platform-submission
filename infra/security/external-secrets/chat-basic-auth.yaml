@@ -1,0 +1,4 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: { name: chat-basic-auth }
+spec: { refreshInterval: 1h, secretStoreRef: { name: edai2-vault, kind: ClusterSecretStore }, target: { name: chat-basic-auth }, data: [{ secretKey: auth, remoteRef: { key: edai2/ingress/chat-basic-auth, property: auth } }] }

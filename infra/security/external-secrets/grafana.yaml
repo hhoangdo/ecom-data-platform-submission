@@ -1,0 +1,4 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: { name: grafana }
+spec: { refreshInterval: 1h, secretStoreRef: { name: edai2-vault, kind: ClusterSecretStore }, target: { name: grafana }, data: [{ secretKey: admin-user, remoteRef: { key: edai2/platform/grafana, property: admin-user } }, { secretKey: admin-password, remoteRef: { key: edai2/platform/grafana, property: admin-password } }] }

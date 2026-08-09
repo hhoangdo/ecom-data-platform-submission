@@ -1,0 +1,4 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: { name: langfuse }
+spec: { refreshInterval: 1h, secretStoreRef: { name: edai2-vault, kind: ClusterSecretStore }, target: { name: langfuse }, data: [{ secretKey: nextauth-secret, remoteRef: { key: edai2/platform/langfuse, property: nextauth-secret } }, { secretKey: salt, remoteRef: { key: edai2/platform/langfuse, property: salt } }, { secretKey: encryption-key, remoteRef: { key: edai2/platform/langfuse, property: encryption-key } }] }

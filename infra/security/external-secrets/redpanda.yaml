@@ -1,0 +1,4 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: { name: redpanda }
+spec: { refreshInterval: 1h, secretStoreRef: { name: edai2-vault, kind: ClusterSecretStore }, target: { name: redpanda }, data: [{ secretKey: sasl-user, remoteRef: { key: edai2/platform/redpanda, property: sasl-user } }, { secretKey: sasl-password, remoteRef: { key: edai2/platform/redpanda, property: sasl-password } }] }

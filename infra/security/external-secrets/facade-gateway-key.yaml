@@ -1,0 +1,10 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: { name: facade-gateway-key }
+spec:
+  refreshInterval: 1h
+  secretStoreRef: { name: edai2-vault, kind: ClusterSecretStore }
+  target: { name: facade-gateway-key }
+  data:
+    - secretKey: authorization
+      remoteRef: { key: edai2/facade/gateway-entry, property: authorization }

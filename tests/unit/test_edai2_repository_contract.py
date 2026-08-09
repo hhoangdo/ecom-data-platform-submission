@@ -440,3 +440,13 @@ def test_topic16_release_script_has_valid_bash_syntax_and_dispatch_metadata() ->
         )
         assert missing_bucket.returncode != 0
         assert not args_path.exists()
+
+
+def test_topic17_root_composes_only_approved_modules_and_nonsecret_outputs() -> None:
+    root = _topic16_root()
+    terraform_root = root / "infra" / "terraform" / "edai2"
+    main = (terraform_root / "main.tf").read_text(encoding="utf-8")
+    outputs = (terraform_root / "outputs.tf").read_text(encoding="utf-8").lower()
+    assert all(f'module "{name}"' in main for name in ("gke", "artifact_registry", "gcs", "kms", "iam", "budget"))
+    assert "backend" not in main.lower()
+    assert not any(value in outputs for value in ("secret", "token", "password", "credential", "private_key"))
