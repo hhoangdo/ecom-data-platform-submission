@@ -124,12 +124,12 @@ Exact schemas, budgets, assignments, destinations, timeout abstention, citations
 
 | Field | Execution value |
 |---|---|
-| Status | Not started |
-| Current branch/status | Record final `rtk git status --short --branch` |
-| Affected files | Record Topic 13 exact paths only |
-| Commands and exit codes | Record red/green tests, CrossHair, local smoke, diff check |
-| Evidence hashes | Record non-secret report SHA-256 |
-| Screenshot QA | Not captured locally |
-| Cleanup/runtime release | Record owned uvicorn stop; no cloud runtime |
-| Limitations | Record unexecuted live A2A/model proof or bounded failure |
-| Handoff | `tmp/edai2-plan/execution-v1/local/14-agent-security-registry-notebooks.md` |
+| Status | Partial — execution stopped before scoped implementation because the locked Qwen tokenizer is absent from the local cache and local-only resolution is forbidden from downloading it. |
+| Current branch/status | Started clean on `## feature/implement-edai2...origin/feature/implement-edai2`; final status is `## feature/implement-edai2...origin/feature/implement-edai2` plus ` M tmp/edai2-plan/execution-v1/local/13-coordinator-inference-routing-telemetry.md`. No index entries were staged or unstaged. |
+| Affected files | Modified only this Completion Record. No Topic 13 production/config/test/fixture file was changed. |
+| Commands and exit codes | `rtk git status --short --branch`, all three locked-input `certutil` SHA-256 checks, predecessor Completion Record check, `rtk uv lock --check`, and `rtk git diff --check` exited `0` before edits. The combined preflight's final PowerShell `Get-FileHash` call exited `1` because that cmdlet is unavailable in this host, after it had already written the index listing; the prescribed `rtk proxy certutil -hashfile tmp/edai2-local/topic13/git-ls-files-before.txt SHA256` retry exited `0`. The one permitted remaining tokenizer gate, `rtk uv run python -X utf8 -c "from transformers import AutoTokenizer; t=AutoTokenizer.from_pretrained('Qwen/Qwen2.5-1.5B-Instruct',revision='989aa7980e4cf806f80c7fef2b1adb7bc71aa306',local_files_only=True); print(type(t).__name__, t.name_or_path)"`, exited `1`: `LocalEntryNotFoundError`/`OSError` reports no cached files and disabled outgoing traffic. Final `fc /b` index comparison, `rtk uv lock --check`, `rtk git diff --check`, and `rtk git diff --cached --exit-code` exited `0`. No red/green tests, CrossHair, or local smoke were run because the exact-Qwen-tokenizer prerequisite failed before test creation. |
+| Evidence hashes | Locked inputs: Section 03 `3c906ae30ac0fee606e96608a7b5759cd7439ae048c4c12a84511fce5cc33ae6`; master plan `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`; workbook `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`. Pre/post index listings `tmp/edai2-local/topic13/git-ls-files-before.txt` and `git-ls-files-after.txt` are byte-for-byte identical (`fc /b` exit `0`) and both SHA-256 `60244bd7409ea7d4f72c126b9422a34f853bc235e5defa0946939f35033ea775`. |
+| Screenshot QA | Not captured; no screenshot was manufactured. |
+| Cleanup/runtime release | No Uvicorn monitor, model, A2A endpoint, GCP, GKE, Kind, Docker, database, token, or lease was started or acquired. |
+| Limitations | The exact 3968-token rendered-Qwen-template requirement cannot be implemented or tested without the locked local tokenizer assets. A tiktoken approximation, network download, dependency/lockfile change, live model call, and fabricated evidence are prohibited. Consequently routing, telemetry, A2A adapter, API, safety, and test changes are intentionally absent. |
+| Handoff | Restore the exact pinned Qwen tokenizer revision to the approved local cache, then restart Topic 13 from its preflight and test-first steps. Topic 14 remains blocked; do not bind resources to the three destinations from this Partial record. |
