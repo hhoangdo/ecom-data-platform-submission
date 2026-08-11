@@ -1,0 +1,28 @@
+image:
+  tag: ""
+workload:
+  name: feast-online-writer
+  command: [python, scripts/feast/run_online_writer.py]
+deploymentStrategy:
+  type: RollingUpdate
+  rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { cpu: 500m, memory: 512Mi }
+autoscaling:
+  enabled: true
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  pollingInterval: 15
+  cooldownPeriod: 60
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-server.edai2.svc.cluster.local
+        metricName: edai2_feature_updates_online_lag
+        threshold: "1"
+        query: sum(edai2_feature_updates_online_lag)
+streaming:
+  topic: customer_feature_updates.v1
+  consumerGroup: edai2-feast-online-writer-v1
+  destination: online

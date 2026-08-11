@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "customer_feature_updates-value.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "manifest_sha256", "id", "event_timestamp", "feature_name", "feature_value", "source_version"],
+  "properties": {
+    "event_id": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "manifest_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "id": {"type": "string", "minLength": 1},
+    "event_timestamp": {"type": "string", "format": "date-time"},
+    "feature_name": {"type": "string", "minLength": 1},
+    "feature_value": {"type": "number"},
+    "source_version": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "dlqEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dlq_id", "consumer_group", "source_topic", "source_partition", "source_offset", "payload_sha256", "error_code", "observed_at"],
+      "properties": {
+        "dlq_id": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "consumer_group": {"type": "string", "minLength": 1},
+        "source_topic": {"type": "string", "minLength": 1},
+        "source_partition": {"type": "integer", "minimum": 0},
+        "source_offset": {"type": "integer", "minimum": 0},
+        "payload_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "error_code": {"type": "string", "minLength": 1},
+        "observed_at": {"type": "string", "format": "date-time"}
+      }
+    }
+  }
+}

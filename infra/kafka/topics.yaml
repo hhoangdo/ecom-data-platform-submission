@@ -32,3 +32,14 @@ derived_placeholder_topics:
     partitions: 1
     replication_factor: 1
     cleanup_policy: delete
+feature_update_topics:
+  customer_feature_updates.v1:
+    partitions: 1
+    replication_factor: 1
+    cleanup_policy: delete
+    retention_ms: 604800000
+  customer_feature_updates.v1.dlq:
+    partitions: 1
+    replication_factor: 1
+    cleanup_policy: delete
+    retention_ms: 604800000

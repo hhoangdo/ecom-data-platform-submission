@@ -1,0 +1,20 @@
+image:
+  tag: ""
+workload:
+  name: rag-index
+  command: [python, scripts/llm/build_index.py]
+deploymentStrategy:
+  type: RollingUpdate
+  rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { cpu: 500m, memory: 512Mi }
+autoscaling:
+  enabled: false
+  minReplicaCount: 1
+  maxReplicaCount: 1
+index:
+  ciBootstrapTemplate: ci-bootstrap-${GIT_COMMIT}
+  temporary: true
+  canonicalOwner: airflow-rag-pipeline
+  canonicalPromotionForbidden: true

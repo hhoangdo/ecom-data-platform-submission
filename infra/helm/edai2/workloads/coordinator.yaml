@@ -1,0 +1,57 @@
+image:
+  tag: ""
+workload:
+  name: coordinator
+  command: [uvicorn, vina_bim_shop.llm.api.chat:app, --host, 0.0.0.0, --port, "8080"]
+deploymentStrategy:
+  type: RollingUpdate
+  rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+readinessProbe:
+  httpGet: { path: /readyz, port: http }
+livenessProbe:
+  httpGet: { path: /healthz, port: http }
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { cpu: 500m, memory: 512Mi }
+autoscaling:
+  enabled: true
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  pollingInterval: 15
+  cooldownPeriod: 60
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-server.edai2.svc.cluster.local
+        metricName: edai2_chat_rps
+        threshold: "1"
+        query: sum(rate(edai2_chat_requests_total[1m]))
+facade:
+  external: false
+  destinations: [coordinator-v1-primary, coordinator-v2-primary, coordinator-v1-comparison]
+inferenceFactorial:
+  order: [cache_off+load_aware, cache_on+load_aware, cache_off+prefix_aware, cache_on+prefix_aware]
+  constants:
+    globalConcurrency: 1
+    contextTokens: 4096
+    maxNewTokens: 128
+    temperature: 0
+    topP: 1
+    seed: 20260715
+    activeModelReplicas: 2
+  inactiveModelReplicas: 0
+experiments:
+  agent:
+    salt: agent_exp_v1
+    sessionsPerArm: 60
+    arms: [coordinator-v1-primary, coordinator-v2-primary]
+    heldConstants: [modelConfig, specialists, tools, indexBinding, safetyCode, promptFields]
+    promotionGates: [groundedness_or_citation_plus_2pp, safety_non_regression, tool_failures_not_rise, chat_p95_regression_lte_5pct]
+  model:
+    salt: model_exp_v1
+    sessionsPerArm: 60
+    arms: [coordinator-v1-primary, coordinator-v1-comparison]
+    heldConstants: [prompt, specialists, tools, indexBinding, safetyCode]
+    onlyVariable: modelConfigAndDigest
+    promotionGates: [all_evaluation_gates, cost_per_100_improvement_gte_20pct]
+  failedPromotion: preserve-prior-alias-with-cas-readback

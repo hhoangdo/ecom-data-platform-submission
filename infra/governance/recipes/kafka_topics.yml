@@ -16,6 +16,8 @@ source:
         - "realtime_commerce_metrics_1m"
         - "realtime_ops_alerts"
         - "realtime_metric_corrections"
+        - "customer_feature_updates.v1"
+        - "customer_feature_updates.v1.dlq"
       ignoreCase: true
 
 sink:

@@ -20,12 +20,12 @@ TOPIC16_JOBS = (
 )
 
 TOPIC16_RELEASE_METADATA = {
-    "edai2-rag-index": ("rag_index", "worker", "infra/helm/edai2/worker/values.yaml", "rag-index", None),
-    "edai2-retrieval-agent": ("retrieval_agent", "service-agent", "infra/helm/edai2/values/retrieval-agent.yaml", "retrieval-agent", None),
-    "edai2-drift-agent": ("drift_agent", "service-agent", "infra/helm/edai2/values/drift-agent.yaml", "drift-agent", None),
-    "edai2-coordinator": ("coordinator", "service-agent", "infra/helm/edai2/values/coordinator-agent.yaml", "coordinator", None),
-    "edai2-feast-offline-writer": ("feast_offline_writer", "worker", "infra/helm/edai2/worker/values.yaml", "feast-offline-writer", None),
-    "edai2-feast-online-writer": ("feast_online_writer", "worker", "infra/helm/edai2/worker/values.yaml", "feast-online-writer", None),
+    "edai2-rag-index": ("rag_index", "worker", "infra/helm/edai2/workloads/rag-index.yaml", "rag-index", None),
+    "edai2-retrieval-agent": ("retrieval_agent", "service-agent", "infra/helm/edai2/values/retrieval-agent.yaml", "retrieval-agent", "infra/helm/edai2/workloads/retrieval.yaml"),
+    "edai2-drift-agent": ("drift_agent", "service-agent", "infra/helm/edai2/values/drift-agent.yaml", "drift-agent", "infra/helm/edai2/workloads/drift.yaml"),
+    "edai2-coordinator": ("coordinator", "service-agent", "infra/helm/edai2/values/coordinator-agent.yaml", "coordinator", "infra/helm/edai2/workloads/coordinator.yaml"),
+    "edai2-feast-offline-writer": ("feast_offline_writer", "worker", "infra/helm/edai2/workloads/feast-offline-writer.yaml", "feast-offline-writer", None),
+    "edai2-feast-online-writer": ("feast_online_writer", "worker", "infra/helm/edai2/workloads/feast-online-writer.yaml", "feast-online-writer", None),
 }
 
 

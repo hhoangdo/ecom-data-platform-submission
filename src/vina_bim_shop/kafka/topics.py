@@ -25,5 +25,13 @@ def derived_placeholder_topic_names(path: str | Path = TOPICS_CONFIG_PATH) -> li
     return list(load_topic_config(path)["derived_placeholder_topics"])
 
 
+def feature_update_topic_names(path: str | Path = TOPICS_CONFIG_PATH) -> list[str]:
+    return list(load_topic_config(path)["feature_update_topics"])
+
+
+def feature_update_consumer_groups() -> tuple[str, str]:
+    return ("edai2-feast-offline-writer-v1", "edai2-feast-online-writer-v1")
+
+
 def all_topic_names(path: str | Path = TOPICS_CONFIG_PATH) -> list[str]:
-    return [*source_topic_names(path), *derived_placeholder_topic_names(path)]
+    return [*source_topic_names(path), *derived_placeholder_topic_names(path), *feature_update_topic_names(path)]

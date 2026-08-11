@@ -1,18 +1,15 @@
-"""Online Feast writer contract without Redpanda/Valkey side effects."""
+"""Deterministic online feature-update writer contract."""
 
 from __future__ import annotations
 
-from typing import Mapping
+from .offline_writer import ONLINE_CONSUMER_GROUP, WriterStore, _FeatureWriter
 
 
-class OnlineWriterContract:
-    """Validate and publish one online event in a later runtime topic."""
+class OnlineWriterContract(_FeatureWriter):
+    """Persist one valid update to the online destination before checkpointing."""
 
-    async def write(self, event: Mapping[str, object]) -> None:
-        """Reject live writes in the contract-only phase."""
-
-        del event
-        raise NotImplementedError("online writer behavior belongs to successor topics")
+    def __init__(self, store: WriterStore) -> None:
+        super().__init__(store, consumer_group=ONLINE_CONSUMER_GROUP, destination="online")
 
 
 __all__ = ["OnlineWriterContract"]
