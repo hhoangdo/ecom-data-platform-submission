@@ -1,0 +1,1 @@
+{"title":"EDAI2 Compute","panels":[{"title":"CPU","targets":[{"expr":"sum(edai2_container_cpu_usage_ratio)"}]},{"title":"RAM","targets":[{"expr":"sum(edai2_container_memory_usage_ratio)"}]},{"title":"Disk","targets":[{"expr":"sum(edai2_persistent_volume_usage_ratio)"}]},{"title":"Network","targets":[{"expr":"sum(rate(container_network_receive_bytes_total[1m]))"}]}]}

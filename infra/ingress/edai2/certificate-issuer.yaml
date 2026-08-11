@@ -1,0 +1,19 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata: {name: edai2-acme-staging}
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: evidence@example.invalid
+    privateKeySecretRef: {name: edai2-acme-staging-account}
+    solvers: [{http01: {ingress: {ingressClassName: nginx}}}]
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata: {name: edai2-acme-production}
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: evidence@example.invalid
+    privateKeySecretRef: {name: edai2-acme-production-account}
+    solvers: [{http01: {ingress: {ingressClassName: nginx}}}]

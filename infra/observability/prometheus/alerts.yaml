@@ -1,0 +1,24 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: edai2-observability
+  namespace: edai2
+spec:
+  groups:
+    - name: edai2-observability
+      rules:
+        - alert: EDAI2ApiToolFailureHigh
+          expr: sum(rate(edai2_api_tool_failures_total[5m])) / sum(rate(edai2_api_tool_calls_total[5m])) > 0.05
+          for: 5m
+        - alert: EDAI2RetrievalP95High
+          expr: histogram_quantile(0.95, sum by (le) (rate(edai2_retrieval_request_duration_seconds_bucket[5m]))) > 0.75
+          for: 5m
+        - alert: EDAI2ActiveIndexStale
+          expr: time() - edai2_active_index_updated_timestamp_seconds > 86400
+          for: 5m
+        - alert: EDAI2MemoryHigh
+          expr: edai2_container_memory_usage_ratio > 0.90
+          for: 5m
+        - alert: EDAI2DiskHigh
+          expr: edai2_persistent_volume_usage_ratio > 0.80
+          for: 5m

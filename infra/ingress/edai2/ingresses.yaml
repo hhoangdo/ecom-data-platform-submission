@@ -1,0 +1,37 @@
+- apiVersion: networking.k8s.io/v1
+  kind: Ingress
+  metadata:
+    name: edai2-chat
+    namespace: edai2
+    labels:
+      edai2.route-set: runtime-rendered
+      edai2.lease-owner: runtime-rendered
+    annotations:
+      nginx.ingress.kubernetes.io/auth-type: basic
+      nginx.ingress.kubernetes.io/auth-secret: chat-basic-auth
+      nginx.ingress.kubernetes.io/limit-rps: "1"
+      nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
+  spec:
+    ingressClassName: nginx
+    tls: [{hosts: ["chat.temporary.invalid"], secretName: edai2-chat-tls}]
+    rules:
+      - host: "chat.temporary.invalid"
+        http:
+          paths:
+            - {path: /v1/chat, pathType: Prefix, backend: {service: {name: coordinator, port: {number: 8080}}}}
+- apiVersion: networking.k8s.io/v1
+  kind: Ingress
+  metadata:
+    name: edai2-retrieval
+    namespace: edai2
+    labels:
+      edai2.route-set: runtime-rendered
+      edai2.lease-owner: runtime-rendered
+  spec:
+    ingressClassName: nginx
+    tls: [{hosts: ["retrieval.temporary.invalid"], secretName: edai2-retrieval-tls}]
+    rules:
+      - host: "retrieval.temporary.invalid"
+        http:
+          paths:
+            - {path: /, pathType: Prefix, backend: {service: {name: retrieval-agent, port: {number: 8080}}}}

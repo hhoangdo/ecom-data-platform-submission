@@ -1,0 +1,27 @@
+// EDAI2 keeps application and system streams disjoint for Grafana queries.
+loki.source.file "edai2_application" {
+  targets = [{__path__ = "/var/log/edai2/*.json", log_scope = "application"}]
+  forward_to = [loki.write.edai2.receiver]
+}
+
+loki.source.kubernetes "system" {
+  targets = [{log_scope = "system"}]
+  forward_to = [loki.write.edai2.receiver]
+}
+
+loki.write "edai2" {
+  endpoint { url = "http://loki.edai2.svc.cluster.local/loki/api/v1/push" }
+}
+
+otelcol.receiver.otlp "edai2" {
+  grpc {}
+  http {}
+  output { traces = [otelcol.exporter.otlp.tempo.input] }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client { endpoint = "tempo.edai2.svc.cluster.local:4317" }
+}
+
+// Required parent chain: nginx/chat -> facade -> agentgateway -> coordinator.
+// Branches: agentgateway -> llm-d; agentgateway -> specialist -> agentgateway -> matching MCP -> retrieval/drift API -> Feast/PostgreSQL.

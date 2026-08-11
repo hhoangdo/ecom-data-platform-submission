@@ -1,0 +1,1 @@
+{"title":"EDAI2 Agents","panels":[{"title":"Agent calls","targets":[{"expr":"sum by (agent) (edai2_agent_calls_total)"}]},{"title":"MCP calls","targets":[{"expr":"sum by (tool) (edai2_mcp_calls_total)"}]},{"title":"Tool failures","targets":[{"expr":"sum by (tool) (edai2_api_tool_failures_total)"}]},{"title":"Application logs","targets":[{"expr":"{log_scope=\"application\"}"}]}]}

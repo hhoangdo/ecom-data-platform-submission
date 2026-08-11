@@ -1,0 +1,1 @@
+{"title":"EDAI2 HTTP","panels":[{"title":"RPS","targets":[{"expr":"sum(rate(edai2_chat_requests_total[1m]))"}]},{"title":"Request count","targets":[{"expr":"sum(edai2_chat_requests_total)"}]},{"title":"Failures","targets":[{"expr":"sum(rate(edai2_api_tool_failures_total[1m]))"}]}]}
