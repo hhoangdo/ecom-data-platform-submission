@@ -1,0 +1,4 @@
+service: { type: ClusterIP }
+auth: { existingSecret: redpanda }
+storage: { size: 8Gi }
+retentionDays: 7

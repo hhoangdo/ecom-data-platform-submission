@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: llmd-router, namespace: edai2 }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: llmd-router } }
+  template:
+    metadata: { labels: { app: llmd-router } }
+    spec:
+      containers:
+        - name: router
+          image: ghcr.io/llm-d/llm-d-inference-scheduler:v0.7.0
+          env: [{ name: EDAI2_PRIVATE_ROUTER, value: "true" }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: llmd-router, namespace: edai2 }
+spec:
+  type: ClusterIP
+  selector: { app: llmd-router }
+  ports: [{ port: 8000, targetPort: 8000 }]

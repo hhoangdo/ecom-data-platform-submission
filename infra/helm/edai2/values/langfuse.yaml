@@ -1,0 +1,8 @@
+service: { type: ClusterIP }
+existingSecret: langfuse
+postgres: { existingSecret: postgres }
+clickhouse: { existingSecret: clickhouse, shards: 1, replicas: 1 }
+valkey: { existingSecret: valkey }
+gcsPrefix: langfuse-events/
+retentionDays: 7
+minio: { enabled: false }

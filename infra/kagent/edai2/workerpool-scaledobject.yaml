@@ -1,0 +1,16 @@
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata: { name: edai2-agents, namespace: kagent }
+spec:
+  platform: substrate
+  replicas: 1
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata: { name: edai2-agents, namespace: kagent }
+spec:
+  scaleTargetRef: { apiVersion: ate.dev/v1alpha1, kind: WorkerPool, name: edai2-agents }
+  minReplicaCount: 1
+  maxReplicaCount: 2
+  pollingInterval: 15
+  cooldownPeriod: 60

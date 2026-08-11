@@ -109,12 +109,12 @@ All charts lint/render, Kustomize renders, platform/resource/security tests pass
 
 | Field | Execution value |
 |---|---|
-| Status | Not started |
-| Current branch/status | Record final `rtk git status --short --branch` |
-| Affected files | Record Topic 18 paths only |
-| Commands and exit codes | Record lint/template/kustomize/tests/dry-run |
-| Evidence hashes | Record local render/test SHA-256 |
+| Status | Complete |
+| Current branch/status | `feature/implement-edai2...origin/feature/implement-edai2`; final `rtk git status --short --branch` records only Topic 18 paths plus this Completion Record. |
+| Affected files | `.gitignore` (unignores only the non-secret render fixture); `infra/helm/edai2/releases.yaml`; `infra/helm/edai2/values/{agentgateway,agentregistry,airflow,alloy,cert-manager,clickhouse,datahub,external-secrets,feast,grafana,ingress-nginx,jenkins,kagent,keda,langfuse,loki,opensearch,postgres,prometheus,redpanda,substrate,tempo,valkey,vault}.yaml`; `infra/agentgateway/edai2/*.yaml`; `infra/kagent/edai2/*.yaml`; `infra/kustomize/llmd/overlays/cpu/*.yaml`; `tests/integration/llm/conftest.py`; `tests/integration/llm/test_gke_agents.py`; `tests/fixtures/kubernetes/render-only-kubeconfig.yaml`. Topic 16-owned `service-agent` and `worker` charts and Topic 14-owned agent values were consumed only, with no Topic 18 edit. |
+| Commands and exit codes | `rtk uv lock --check` 0; `rtk helm lint infra/helm/edai2/service-agent` 0; `rtk helm lint infra/helm/edai2/worker` 0; the retrieval/drift/coordinator service-agent and feast-offline-writer Helm templates 0; explicit-kubeconfig/context llm-d Kustomize render 0; `rtk uv run pytest tests/integration/llm/test_gke_agents.py tests/unit/test_edai2_security_static.py -q` 0 (11 passed); `rtk uv run python scripts/gke/manage_profile.py core --ttl 2h --dry-run` 0; `rtk git diff --check` 0. |
+| Evidence hashes | Fresh transient UTF-8 stdout SHA-256: retrieval service-agent render `35538846a2e34f4d179bce9d8d85fa0a7b7b8f9a7b5fa9db6b5c857de8a3ddb5`; worker render `6a1a3a6f25bc8a08400836760e180ee4f6cb6611ed7562745173c4533980493f`; llm-d Kustomize render `6b7fb49582fc5a26e5c62da5d71050b0cd17531e0ec49e1626e675ab1896a5de`; static pytest report `10451cf472a048760cedde8c99bb5ac550eae84b228e24f6cdb24451efbc21fe`; profile dry-run report `f5ec2bc780a98db43fc715c422862c42ea70c4e9a7eb3d4e3629258ff9a28eaa`. No report files were retained. |
 | Screenshot QA | Not captured locally |
-| Cleanup/runtime release | Record render temp cleanup; no runtime |
-| Limitations | Record deferred install/readiness/model proof |
+| Cleanup/runtime release | No temporary render file or runtime was created; all render/test output was transient, and no Helm/Kustomize/kubectl apply, GCP, Docker, model, or secret action occurred. |
+| Limitations | Installation/readiness, model-cache generation proof, GKE/model/registry behavior, public ingress, screenshots, and runtime rubric evidence remain deferred to successor live topics. |
 | Handoff | `tmp/edai2-plan/execution-v1/local/19-workload-charts-streaming-keda-experiments.md` |

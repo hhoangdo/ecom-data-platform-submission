@@ -1,0 +1,10 @@
+service: { type: ClusterIP }
+database: { urlFile: /vault/secrets/kagent-postgres-url }
+builtInAgents: { enabled: false }
+kmcp: { enabled: false }
+kagentTools: { enabled: false }
+grafanaMcp: { enabled: false }
+querydoc: { enabled: false }
+controller: { substrate: { enabled: true } }
+substrateWorkerPool: { create: true, name: edai2-agents }
+proxy: { url: http://agentgateway-proxy.edai2.svc.cluster.local:15000 }

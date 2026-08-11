@@ -1,0 +1,2 @@
+service: { type: ClusterIP }
+server: { ha: { raft: { enabled: true } } }

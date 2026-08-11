@@ -1,0 +1,6 @@
+service: { type: ClusterIP }
+existingSecret: clickhouse
+shards: 1
+replicas: 1
+persistence: { size: 8Gi }
+retentionDays: 7

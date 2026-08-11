@@ -1,0 +1,8 @@
+service: { type: ClusterIP }
+valkey: { enabled: false }
+rustfs: { enabled: false }
+redis: { clusterAddress: edai2-valkey-primary.edai2.svc.cluster.local:6379 }
+atelet:
+  storageBackend: gcs
+  gcsPrefix: agent-substrate/
+  image: ateom-gvisor:v0.0.6

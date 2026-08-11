@@ -27,6 +27,11 @@ infra/analytics/dbt/.user.yml
 # Test data and fixtures
 tests/data_quality/
 tests/fixtures/
+!tests/fixtures/
+tests/fixtures/*
+!tests/fixtures/kubernetes/
+tests/fixtures/kubernetes/*
+!tests/fixtures/kubernetes/render-only-kubeconfig.yaml
 
 # Final Section 01/02 dataset evidence is intentionally committed.
 evidence/runtime/

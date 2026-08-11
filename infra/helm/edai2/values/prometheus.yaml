@@ -1,0 +1,3 @@
+service: { type: ClusterIP }
+retention: 7d
+persistence: { size: 8Gi }

@@ -1,0 +1,19 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: coordinator-specialist-route
+  namespace: edai2
+  labels: { edai2.route-class: a2a-specialist }
+spec:
+  parentRefs: [{ name: edai2-private-gateway }]
+  rules: [{ backendRefs: [{ name: coordinator-agent, port: 8080 }] }]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: facade-coordinator-route
+  namespace: edai2
+  labels: { edai2.route-class: a2a-facade }
+spec:
+  parentRefs: [{ name: edai2-private-gateway }]
+  rules: [{ backendRefs: [{ name: coordinator-agent, port: 8080 }] }]

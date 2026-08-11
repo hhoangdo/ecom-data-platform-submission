@@ -1,0 +1,21 @@
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata: { name: default-model-config, namespace: edai2 }
+spec:
+  provider: OpenAI
+  model: Qwen/Qwen2.5-1.5B-Instruct
+  contextTokens: 4096
+  openAI: { baseUrl: http://agentgateway-proxy.edai2.svc.cluster.local:15000/v1 }
+  apiKeySecret: kagent-model-route-key
+  apiKeySecretKey: api-key
+---
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata: { name: edai2-comparison, namespace: edai2 }
+spec:
+  provider: OpenAI
+  model: Qwen/Qwen2.5-0.5B-Instruct
+  contextTokens: 4096
+  openAI: { baseUrl: http://agentgateway-proxy.edai2.svc.cluster.local:15000/v1 }
+  apiKeySecret: kagent-model-route-key
+  apiKeySecretKey: api-key

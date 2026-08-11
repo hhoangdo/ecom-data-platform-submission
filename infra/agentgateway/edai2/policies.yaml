@@ -1,0 +1,124 @@
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: allow-model-route, namespace: edai2 }
+spec: { credential: model-route, routeClass: model, effect: allow, secretName: kagent-model-route-key, secretKey: api-key }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: allow-retrieval-mcp, namespace: edai2 }
+spec: { credential: retrieval-mcp, routeClass: retrieval-mcp, effect: allow, secretName: kagent-gateway-keys, secretKey: support-retrieval }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: allow-drift-mcp, namespace: edai2 }
+spec: { credential: drift-mcp, routeClass: drift-mcp, effect: allow, secretName: kagent-gateway-keys, secretKey: drift-detect }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: allow-coordinator-specialist, namespace: edai2 }
+spec: { credential: coordinator-specialist, routeClass: a2a-specialist, effect: allow, secretName: kagent-gateway-keys, secretKey: coordinator-to-specialist }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: allow-facade-coordinator, namespace: edai2 }
+spec: { credential: facade-coordinator, routeClass: a2a-facade, effect: allow, secretName: facade-gateway-key, secretKey: authorization }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-model-route-retrieval-mcp, namespace: edai2 }
+spec: { credential: model-route, routeClass: retrieval-mcp, effect: deny, statusCode: 403 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-model-route-drift-mcp, namespace: edai2 }
+spec: { credential: model-route, routeClass: drift-mcp, effect: deny, statusCode: 403 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-model-route-specialist, namespace: edai2 }
+spec: { credential: model-route, routeClass: a2a-specialist, effect: deny, statusCode: 403 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-model-route-facade, namespace: edai2 }
+spec: { credential: model-route, routeClass: a2a-facade, effect: deny, statusCode: 403 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-retrieval-model, namespace: edai2 }
+spec: { credential: retrieval-mcp, routeClass: model, effect: deny, statusCode: 401 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-retrieval-drift, namespace: edai2 }
+spec: { credential: retrieval-mcp, routeClass: drift-mcp, effect: deny, statusCode: 403 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-retrieval-specialist, namespace: edai2 }
+spec: { credential: retrieval-mcp, routeClass: a2a-specialist, effect: deny, statusCode: 403 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-retrieval-facade, namespace: edai2 }
+spec: { credential: retrieval-mcp, routeClass: a2a-facade, effect: deny, statusCode: 403 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-drift-model, namespace: edai2 }
+spec: { credential: drift-mcp, routeClass: model, effect: deny, statusCode: 401 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-drift-retrieval, namespace: edai2 }
+spec: { credential: drift-mcp, routeClass: retrieval-mcp, effect: deny, statusCode: 403 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-drift-specialist, namespace: edai2 }
+spec: { credential: drift-mcp, routeClass: a2a-specialist, effect: deny, statusCode: 403 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-drift-facade, namespace: edai2 }
+spec: { credential: drift-mcp, routeClass: a2a-facade, effect: deny, statusCode: 403 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-specialist-model, namespace: edai2 }
+spec: { credential: coordinator-specialist, routeClass: model, effect: deny, statusCode: 401 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-specialist-retrieval, namespace: edai2 }
+spec: { credential: coordinator-specialist, routeClass: retrieval-mcp, effect: deny, statusCode: 403 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-specialist-drift, namespace: edai2 }
+spec: { credential: coordinator-specialist, routeClass: drift-mcp, effect: deny, statusCode: 403 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-specialist-facade, namespace: edai2 }
+spec: { credential: coordinator-specialist, routeClass: a2a-facade, effect: deny, statusCode: 403 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-facade-model, namespace: edai2 }
+spec: { credential: facade-coordinator, routeClass: model, effect: deny, statusCode: 401 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-facade-retrieval, namespace: edai2 }
+spec: { credential: facade-coordinator, routeClass: retrieval-mcp, effect: deny, statusCode: 403 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-facade-drift, namespace: edai2 }
+spec: { credential: facade-coordinator, routeClass: drift-mcp, effect: deny, statusCode: 403 }
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentGatewayPolicy
+metadata: { name: deny-facade-specialist, namespace: edai2 }
+spec: { credential: facade-coordinator, routeClass: a2a-specialist, effect: deny, statusCode: 403 }

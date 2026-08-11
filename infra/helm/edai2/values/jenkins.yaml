@@ -1,0 +1,2 @@
+service: { type: ClusterIP }
+controller: { existingSecret: jenkins-controller, numExecutors: 0 }

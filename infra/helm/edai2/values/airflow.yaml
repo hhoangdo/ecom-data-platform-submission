@@ -1,0 +1,5 @@
+service: { type: ClusterIP }
+existingSecret: airflow
+retentionDays: 7
+gcsPrefix: airflow-logs/
+resources: { requests: { cpu: 250m, memory: 512Mi } }

@@ -1,0 +1,3 @@
+service: { type: ClusterIP }
+version: "1.3.1"
+existingSecrets: [kagent-gateway-keys, facade-gateway-key]

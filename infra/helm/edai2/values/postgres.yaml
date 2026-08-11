@@ -1,0 +1,3 @@
+service: { type: ClusterIP }
+auth: { existingSecret: postgres }
+primary: { persistence: { size: 16Gi } }

@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: Job
+metadata: { name: llmd-model-cache-init, namespace: edai2 }
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: cache-init
+          image: ghcr.io/llm-d/llm-d-cpu:v0.7.0
+          env:
+            - { name: MODEL_CACHE_PREFIX, value: model-cache/ }
+            - { name: MODEL_CACHE_GENERATION_REQUIRED, value: "true" }
+          volumeMounts: [{ name: model-cache, mountPath: /models }]
+      volumes: [{ name: model-cache, emptyDir: { sizeLimit: 5Gi } }]

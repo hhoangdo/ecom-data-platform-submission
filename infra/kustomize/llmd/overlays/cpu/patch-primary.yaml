@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llmd-primary
+  namespace: edai2
+  annotations: { edai2.replica-states: "primary-factorial: 2; comparison-core: 0" }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: llmd-primary } }
+  template:
+    metadata: { labels: { app: llmd-primary } }
+    spec:
+      containers:
+        - name: model
+          image: ghcr.io/llm-d/llm-d-cpu:v0.7.0
+          args: [--model, Qwen/Qwen2.5-1.5B-Instruct, --max-model-len, "4096"]
+          resources: { requests: { cpu: "2", memory: 4Gi } }

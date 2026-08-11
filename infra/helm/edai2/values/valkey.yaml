@@ -1,0 +1,3 @@
+service: { type: ClusterIP }
+auth: { existingSecret: valkey }
+primary: { persistence: { size: 4Gi } }
