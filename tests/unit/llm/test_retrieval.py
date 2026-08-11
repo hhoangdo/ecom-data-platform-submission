@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
+from vina_bim_shop.llm.api import retrieval as retrieval_api
 from vina_bim_shop.llm.api.retrieval import app as retrieval_app
 from vina_bim_shop.llm.contracts import KnowledgeCitation, SearchMatch, SearchRequest
 from vina_bim_shop.llm.retrieval import (
@@ -20,6 +21,58 @@ from vina_bim_shop.llm.safety import CitationIntegrityError
 
 
 NOW = datetime(2026, 8, 8, 12, 0, tzinfo=timezone.utc)
+
+
+def test_kind_preflight_fake_retrieval_requires_exact_environment_gate() -> None:
+    factory = getattr(retrieval_api, "create_retrieval_service_from_environment")
+
+    unavailable = factory({})
+    assert asyncio.run(unavailable.is_ready()) is False
+
+    with pytest.raises(RuntimeError, match="kind-preflight"):
+        factory({"EDAI2_ENVIRONMENT": "local"})
+
+    with pytest.raises(RuntimeError, match="kind-preflight"):
+        factory(
+            {
+                "EDAI2_ENVIRONMENT": "local",
+                "EDAI2_RUNTIME_MODE": "kind-preflight",
+                "EDAI2_ALLOW_FAKE_RETRIEVAL": "0",
+            }
+        )
+
+    ready = factory(
+        {
+            "EDAI2_ENVIRONMENT": "local",
+            "EDAI2_RUNTIME_MODE": "kind-preflight",
+            "EDAI2_ALLOW_FAKE_RETRIEVAL": "1",
+        }
+    )
+    assert asyncio.run(ready.is_ready()) is True
+
+
+def test_kind_preflight_fake_retrieval_returns_only_verified_empty_abstention() -> None:
+    factory = getattr(retrieval_api, "create_retrieval_service_from_environment")
+    original_service = retrieval_app.state.retrieval_service
+    try:
+        retrieval_app.state.retrieval_service = factory(
+            {
+                "EDAI2_ENVIRONMENT": "local",
+                "EDAI2_RUNTIME_MODE": "kind-preflight",
+                "EDAI2_ALLOW_FAKE_RETRIEVAL": "1",
+            }
+        )
+        response = TestClient(retrieval_app).post(
+            "/v1/retrieval/search",
+            json={"query": "returns"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["matches"] == []
+        assert body["abstained"] is True
+        assert body["reason"] == "no_matching_policy_row"
+    finally:
+        retrieval_app.state.retrieval_service = original_service
 
 
 def _match(content: str = "Returns are accepted within thirty days.") -> SearchMatch:

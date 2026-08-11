@@ -1,0 +1,30 @@
+namespace: edai2-lean
+fullnameOverride: edai2-retrieval-kind
+image:
+  pullPolicy: IfNotPresent
+workload:
+  name: edai2-retrieval-kind
+  command: [/bin/sh, -ec, "EDAI2_ENVIRONMENT=local EDAI2_RUNTIME_MODE=kind-preflight EDAI2_ALLOW_FAKE_RETRIEVAL=1 exec uvicorn vina_bim_shop.llm.api.retrieval:app --host 0.0.0.0 --port 8080"]
+service:
+  port: 8080
+serviceAccount:
+  name: edai2-retrieval-kind
+autoscaling:
+  enabled: false
+  minReplicaCount: 1
+  maxReplicaCount: 1
+  triggers: []
+readinessProbe:
+  httpGet: { path: /readyz, port: http }
+livenessProbe:
+  httpGet: { path: /healthz, port: http }
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { cpu: 500m, memory: 512Mi }
+networkPolicy:
+  enabled: false
+agentgatewayPolicy:
+  enabled: false
+remoteMcpServers: []
+sandboxAgents: []
+credentialReferences: {}

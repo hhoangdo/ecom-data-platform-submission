@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: edai2-lean-bounds
+  namespace: edai2-lean
+spec:
+  hard:
+    requests.cpu: "6"
+    requests.memory: 16Gi
+    limits.cpu: "10"
+    limits.memory: 22Gi
+    pods: "30"
+    persistentvolumeclaims: "8"
+    requests.storage: 20Gi
+    services.loadbalancers: "0"

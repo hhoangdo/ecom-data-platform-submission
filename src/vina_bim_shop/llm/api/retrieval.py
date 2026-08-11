@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+from collections.abc import Mapping
 from time import perf_counter
 from uuid import uuid4
 
@@ -29,7 +31,85 @@ _DURATION = Histogram(
 )
 
 app = FastAPI(title=SERVICE_NAME, version="0.1.0")
-app.state.retrieval_service = FeastRetrievalService()
+
+
+class _KindPreflightFakeRetrieval:
+    """Expose a verified-empty retrieval dependency for the dedicated Kind smoke."""
+
+    async def active_version(self) -> str:
+        """Return the fixed local-only index identity."""
+
+        return "kind-preflight-empty"
+
+    async def candidate_complete(self, index_version: str) -> bool:
+        """Accept only the fixed local-only index identity."""
+
+        return index_version == "kind-preflight-empty"
+
+    async def is_validated(self, index_version: str) -> bool:
+        """Accept only the fixed local-only index identity."""
+
+        return index_version == "kind-preflight-empty"
+
+    async def search_documents(
+        self,
+        vector: list[float],
+        *,
+        top_k: int,
+        category: str | None,
+        effective_at: object,
+    ) -> list[object]:
+        """Return no documents so the API emits a typed abstention."""
+
+        del vector, top_k, category, effective_at
+        return []
+
+    async def get_verified_chunk(
+        self,
+        *,
+        chunk_id: str,
+        content_sha256: str,
+    ) -> None:
+        """Return no chunk because the fake dependency never returns matches."""
+
+        del chunk_id, content_sha256
+        return None
+
+
+class _KindPreflightFakeEmbedder:
+    """Provide the required query adapter without generating retrieval content."""
+
+    async def embed_query(self, query: str) -> list[float]:
+        """Return a fixed-dimensional zero vector for the empty local slice."""
+
+        del query
+        return [0.0] * 384
+
+
+_KIND_PREFLIGHT_ENVIRONMENT = {
+    "EDAI2_ENVIRONMENT": "local",
+    "EDAI2_RUNTIME_MODE": "kind-preflight",
+    "EDAI2_ALLOW_FAKE_RETRIEVAL": "1",
+}
+
+
+def create_retrieval_service_from_environment(
+    environ: Mapping[str, str] | None = None,
+) -> FeastRetrievalService:
+    """Build the default unavailable service or the exact local Kind fake dependency."""
+
+    settings = os.environ if environ is None else environ
+    if not any(name in settings for name in _KIND_PREFLIGHT_ENVIRONMENT):
+        return FeastRetrievalService()
+    if {name: settings.get(name) for name in _KIND_PREFLIGHT_ENVIRONMENT} != _KIND_PREFLIGHT_ENVIRONMENT:
+        raise RuntimeError("kind-preflight retrieval requires the exact local environment gate")
+    return FeastRetrievalService(
+        feast=_KindPreflightFakeRetrieval(),
+        embedder=_KindPreflightFakeEmbedder(),
+    )
+
+
+app.state.retrieval_service = create_retrieval_service_from_environment()
 
 
 def get_retrieval_service() -> FeastRetrievalService:
@@ -123,4 +203,9 @@ async def metrics() -> Response:
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
-__all__ = ["app", "get_retrieval_service", "search"]
+__all__ = [
+    "app",
+    "create_retrieval_service_from_environment",
+    "get_retrieval_service",
+    "search",
+]
