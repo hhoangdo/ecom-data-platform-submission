@@ -20,12 +20,12 @@ TOPIC16_JOBS = (
 )
 
 TOPIC16_RELEASE_METADATA = {
-    "edai2-rag-index": ("rag_index", "worker", "infra/helm/edai2/worker/values.yaml", "rag-index"),
-    "edai2-retrieval-agent": ("retrieval_agent", "service-agent", "infra/helm/edai2/values/retrieval-agent.yaml", "retrieval-agent"),
-    "edai2-drift-agent": ("drift_agent", "service-agent", "infra/helm/edai2/values/drift-agent.yaml", "drift-agent"),
-    "edai2-coordinator": ("coordinator", "service-agent", "infra/helm/edai2/values/coordinator-agent.yaml", "coordinator"),
-    "edai2-feast-offline-writer": ("feast_offline_writer", "worker", "infra/helm/edai2/worker/values.yaml", "feast-offline-writer"),
-    "edai2-feast-online-writer": ("feast_online_writer", "worker", "infra/helm/edai2/worker/values.yaml", "feast-online-writer"),
+    "edai2-rag-index": ("rag_index", "worker", "infra/helm/edai2/worker/values.yaml", "rag-index", None),
+    "edai2-retrieval-agent": ("retrieval_agent", "service-agent", "infra/helm/edai2/values/retrieval-agent.yaml", "retrieval-agent", None),
+    "edai2-drift-agent": ("drift_agent", "service-agent", "infra/helm/edai2/values/drift-agent.yaml", "drift-agent", None),
+    "edai2-coordinator": ("coordinator", "service-agent", "infra/helm/edai2/values/coordinator-agent.yaml", "coordinator", None),
+    "edai2-feast-offline-writer": ("feast_offline_writer", "worker", "infra/helm/edai2/worker/values.yaml", "feast-offline-writer", None),
+    "edai2-feast-online-writer": ("feast_online_writer", "worker", "infra/helm/edai2/worker/values.yaml", "feast-online-writer", None),
 }
 
 
@@ -269,11 +269,16 @@ def test_topic16_jenkins_image_buildkit_stage_chart_contracts() -> None:
     assert {item["name"] for item in jobs["jobs"]} == set(TOPIC16_JOBS)
     for item in jobs["jobs"]:
         assert (root / item["jenkinsfile"]).is_file()
-        target, chart, values, workload_name = TOPIC16_RELEASE_METADATA[item["name"]]
+        target, chart, values, workload_name, workload_values = TOPIC16_RELEASE_METADATA[item["name"]]
         jenkinsfile = _read_topic16(item["jenkinsfile"])
+        arguments = (
+            f"'{item['name']}', '{target}', '{chart}', "
+            f"'{values}', '{workload_name}', '{item['name']}'"
+        )
+        if workload_values:
+            arguments += f", '{workload_values}'"
         assert (
-            f"ci.pipelineFor('{item['name']}', '{target}', '{chart}', "
-            f"'{values}', '{workload_name}', '{item['name']}')"
+            f"ci.pipelineFor({arguments})"
         ) in jenkinsfile
 
     pod = pod_path.read_text(encoding="utf-8")
@@ -288,8 +293,8 @@ def test_topic16_jenkins_image_buildkit_stage_chart_contracts() -> None:
     assert "EDAI2_FORCE_ALL" in pipeline
     assert "--opt target=" in pipeline
     assert "--output type=docker,dest=artifacts/" in pipeline
-    assert "pipelineFor(String jobName, String target, String chartKind, String valuesFile, String workloadName, String repository)" in pipeline
-    assert 'release.sh helm_atomic ${jobName} ${chartKind} ${valuesFile} ${workloadName} ${repository}' in pipeline
+    assert "pipelineFor(String jobName, String target, String chartKind, String valuesFile, String workloadName, String repository, String workloadValuesFile = '')" in pipeline
+    assert 'release.sh helm_atomic ${jobName} ${chartKind} ${valuesFile} ${workloadName} ${repository}${workloadValuesArgument}' in pipeline
 
     release = release_path.read_text(encoding="utf-8")
     for value in ("trivy_0.70.0", "crane_0.21.7", "8b4376d5d6befe5c24d503f10ff136d9e0c49f9127a4279fd110b727929a5aa9", "1a57bc98207fa1c0d04bf760699099e26f8383499bfd55b99c1b919a928a7230"):
@@ -440,6 +445,230 @@ def test_topic16_release_script_has_valid_bash_syntax_and_dispatch_metadata() ->
         )
         assert missing_bucket.returncode != 0
         assert not args_path.exists()
+
+
+def test_reusable_charts_render_topic19_keda_and_deployment_interfaces(tmp_path: Path) -> None:
+    """Omitting a reusable KEDA or deployment field would block workload values from rendering it."""
+    root = _topic16_root()
+    overrides = tmp_path / "topic19-interface.yaml"
+    overrides.write_text(
+        yaml.safe_dump(
+            {
+                "image": {"tag": "testsha"},
+                "workload": {"name": "interface-test"},
+                "autoscaling": {
+                    "enabled": True,
+                    "minReplicaCount": 1,
+                    "maxReplicaCount": 2,
+                    "pollingInterval": 15,
+                    "cooldownPeriod": 60,
+                    "triggers": [
+                        {
+                            "type": "prometheus",
+                            "metadata": {
+                                "serverAddress": "http://prometheus.edai2.svc.cluster.local",
+                                "metricName": "edai2_pending_work",
+                                "threshold": "1",
+                                "query": "sum(edai2_pending_work)",
+                            },
+                        }
+                    ],
+                },
+                "readinessProbe": {"httpGet": {"path": "/ready", "port": "http"}},
+                "livenessProbe": {"httpGet": {"path": "/live", "port": "http"}},
+                "resources": {
+                    "requests": {"cpu": "100m", "memory": "128Mi"},
+                    "limits": {"cpu": "500m", "memory": "512Mi"},
+                },
+                "deploymentStrategy": {
+                    "type": "RollingUpdate",
+                    "rollingUpdate": {"maxUnavailable": 0, "maxSurge": 1},
+                },
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    expected_trigger = {
+        "type": "prometheus",
+        "metadata": {
+            "serverAddress": "http://prometheus.edai2.svc.cluster.local",
+            "metricName": "edai2_pending_work",
+            "threshold": "1",
+            "query": "sum(edai2_pending_work)",
+        },
+    }
+    expected_strategy = {
+        "type": "RollingUpdate",
+        "rollingUpdate": {"maxUnavailable": 0, "maxSurge": 1},
+    }
+    expected_resources = {
+        "requests": {"cpu": "100m", "memory": "128Mi"},
+        "limits": {"cpu": "500m", "memory": "512Mi"},
+    }
+    for chart in ("service-agent", "worker"):
+        rendered = subprocess.run(
+            [
+                "helm",
+                "template",
+                "interface-test",
+                f"infra/helm/edai2/{chart}",
+                "-f",
+                str(overrides),
+            ],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        documents = [item for item in yaml.safe_load_all(rendered.stdout) if item]
+        deployment = next(item for item in documents if item["kind"] == "Deployment")
+        scaled_object = next(item for item in documents if item["kind"] == "ScaledObject")
+        container = deployment["spec"]["template"]["spec"]["containers"][0]
+        assert deployment["spec"]["strategy"] == expected_strategy
+        assert container["readinessProbe"] == {"httpGet": {"path": "/ready", "port": "http"}}
+        assert container["livenessProbe"] == {"httpGet": {"path": "/live", "port": "http"}}
+        assert container["resources"] == expected_resources
+        assert scaled_object["spec"]["pollingInterval"] == 15
+        assert scaled_object["spec"]["cooldownPeriod"] == 60
+        assert scaled_object["spec"]["triggers"] == [expected_trigger]
+
+
+def test_existing_topic16_chart_values_still_render_without_topic19_overrides() -> None:
+    """Requiring Topic 19-only values would break the already-owned Topic 16 render interface."""
+    root = _topic16_root()
+    service = subprocess.run(
+        [
+            "helm",
+            "template",
+            "retrieval",
+            "infra/helm/edai2/service-agent",
+            "-f",
+            "infra/helm/edai2/values/retrieval-agent.yaml",
+            "--set",
+            "image.tag=testsha",
+            "--set-string",
+            "substrate.bucketName=edai2-sentinel-bucket",
+        ],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    worker = subprocess.run(
+        ["helm", "template", "writer", "infra/helm/edai2/worker", "--set", "image.tag=testsha"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert any(item and item["kind"] == "Deployment" for item in yaml.safe_load_all(service.stdout))
+    assert any(item and item["kind"] == "Deployment" for item in yaml.safe_load_all(worker.stdout))
+
+
+def test_topic19_release_values_are_ordered_and_fail_closed_in_helm_atomic(tmp_path: Path) -> None:
+    """Dropping either values layer, substrate, or release mapping must stop before Helm runs."""
+    root = _topic16_root()
+    release = root / "ci/jenkins/scripts/release.sh"
+    commit = "a" * 40
+    release_source = release.read_bytes().replace(b"\r\n", b"\n")
+    environment = (
+        f'export PATH="bin:$PATH" FAKE_HELM_ARGS=helm-args.txt GIT_COMMIT="{commit}" '
+        "AR_LOCATION=us-central1 GCP_PROJECT_ID=project "
+        "EDAI2_KUBECONFIG=fixture-kubeconfig EDAI2_KUBE_CONTEXT=fixture-context "
+        "SUBSTRATE_BUCKET_NAME=sentinel-bucket\n"
+    )
+    (tmp_path / "release.sh").write_bytes(
+        release_source.replace(b"\n", b"\n" + environment.encode("utf-8"), 1)
+    )
+    (tmp_path / "release-no-bucket.sh").write_bytes(
+        release_source.replace(
+            b"\n",
+            b"\n" + environment.replace("SUBSTRATE_BUCKET_NAME=sentinel-bucket", "unset SUBSTRATE_BUCKET_NAME").encode("utf-8"),
+            1,
+        )
+    )
+    for path in (
+        "infra/helm/edai2/values/retrieval-agent.yaml",
+        "infra/helm/edai2/worker/values.yaml",
+        "infra/helm/edai2/workloads/retrieval.yaml",
+        "infra/helm/edai2/workloads/feast-offline-writer.yaml",
+        "infra/helm/edai2/workloads/unexpected.yaml",
+    ):
+        value = tmp_path / path
+        value.parent.mkdir(parents=True, exist_ok=True)
+        value.write_text("namespace: edai2\n", encoding="utf-8")
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    for job in ("edai2-retrieval-agent", "edai2-feast-offline-writer", "unknown"):
+        (reports / f"{job}-remote-manifest-digest.txt").write_text("sha256:example\n", encoding="utf-8")
+    fake_helm = tmp_path / "bin/helm"
+    fake_helm.parent.mkdir()
+    fake_helm.write_bytes(b'#!/usr/bin/env bash\nprintf "%s\\n" "$@" > "$FAKE_HELM_ARGS"\n')
+    fake_helm.chmod(0o755)
+
+    def run_release(*arguments: str, script: str = "release.sh") -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["bash", script, *arguments],
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+
+    retrieval = run_release(
+        "helm_atomic",
+        "edai2-retrieval-agent",
+        "service-agent",
+        "infra/helm/edai2/values/retrieval-agent.yaml",
+        "retrieval-agent",
+        "edai2-retrieval-agent",
+        "infra/helm/edai2/workloads/retrieval.yaml",
+    )
+    assert retrieval.returncode == 0, retrieval.stderr
+    assert (tmp_path / "helm-args.txt").read_text(encoding="utf-8").splitlines() == [
+        "upgrade", "--install", "edai2-retrieval-agent", "infra/helm/edai2/service-agent", "--atomic", "--wait",
+        "--kubeconfig", "fixture-kubeconfig", "--kube-context", "fixture-context",
+        "-f", "infra/helm/edai2/values/retrieval-agent.yaml", "-f", "infra/helm/edai2/workloads/retrieval.yaml",
+        "--set-string", "image.repository=us-central1-docker.pkg.dev/project/edai2-retrieval-agent",
+        "--set-string", f"image.tag={commit}", "--set-string", "workload.name=retrieval-agent",
+        "--set-string", "substrate.bucketName=sentinel-bucket",
+    ]
+    (tmp_path / "helm-args.txt").unlink()
+    worker = run_release(
+        "helm_atomic", "edai2-feast-offline-writer", "worker",
+        "infra/helm/edai2/workloads/feast-offline-writer.yaml", "feast-offline-writer", "edai2-feast-offline-writer",
+    )
+    assert worker.returncode == 0, worker.stderr
+    assert (tmp_path / "helm-args.txt").read_text(encoding="utf-8").splitlines().count("-f") == 1
+    (tmp_path / "helm-args.txt").unlink()
+    worker_legacy_extra = run_release(
+        "helm_atomic", "edai2-feast-offline-writer", "worker",
+        "infra/helm/edai2/worker/values.yaml", "feast-offline-writer", "edai2-feast-offline-writer",
+        "infra/helm/edai2/workloads/unexpected.yaml",
+    )
+    assert worker_legacy_extra.returncode != 0
+    assert not (tmp_path / "helm-args.txt").exists()
+    worker_multiple_values = run_release(
+        "helm_atomic", "edai2-feast-offline-writer", "worker",
+        "infra/helm/edai2/workloads/feast-offline-writer.yaml", "feast-offline-writer", "edai2-feast-offline-writer",
+        "infra/helm/edai2/workloads/unexpected.yaml",
+    )
+    assert worker_multiple_values.returncode != 0
+    assert not (tmp_path / "helm-args.txt").exists()
+    unknown = run_release(
+        "helm_atomic", "unknown", "worker", "infra/helm/edai2/workloads/feast-offline-writer.yaml", "worker", "unknown",
+    )
+    assert unknown.returncode != 0
+    assert "unknown chart or release metadata" in unknown.stderr
+    assert not (tmp_path / "helm-args.txt").exists()
+    missing_substrate = run_release(
+        "helm_atomic", "edai2-retrieval-agent", "service-agent",
+        "infra/helm/edai2/values/retrieval-agent.yaml", "retrieval-agent", "edai2-retrieval-agent",
+        "infra/helm/edai2/workloads/retrieval.yaml", script="release-no-bucket.sh",
+    )
+    assert missing_substrate.returncode != 0
+    assert "SUBSTRATE_BUCKET_NAME is required" in missing_substrate.stderr
+    assert not (tmp_path / "helm-args.txt").exists()
 
 
 def test_topic17_root_composes_only_approved_modules_and_nonsecret_outputs() -> None:

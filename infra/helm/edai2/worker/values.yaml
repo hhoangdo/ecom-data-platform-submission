@@ -12,5 +12,12 @@ autoscaling:
   enabled: false
   minReplicaCount: 1
   maxReplicaCount: 1
+  pollingInterval: null
+  cooldownPeriod: null
+  triggers: []
+readinessProbe: {}
+livenessProbe: {}
+resources: {}
+deploymentStrategy: {}
 networkPolicy:
   enabled: true

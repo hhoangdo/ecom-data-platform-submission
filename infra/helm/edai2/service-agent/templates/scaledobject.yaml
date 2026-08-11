@@ -9,4 +9,14 @@ spec:
     name: {{ .Values.workload.name }}
   minReplicaCount: {{ .Values.autoscaling.minReplicaCount }}
   maxReplicaCount: {{ .Values.autoscaling.maxReplicaCount }}
+  {{- with .Values.autoscaling.pollingInterval }}
+  pollingInterval: {{ . }}
+  {{- end }}
+  {{- with .Values.autoscaling.cooldownPeriod }}
+  cooldownPeriod: {{ . }}
+  {{- end }}
+  {{- with .Values.autoscaling.triggers }}
+  triggers:
+{{ toYaml . | indent 4 }}
+  {{- end }}
 {{- end }}

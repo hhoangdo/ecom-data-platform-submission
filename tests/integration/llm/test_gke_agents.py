@@ -98,6 +98,17 @@ def test_model_configs_workerpool_and_cpu_overlay_are_private_and_bounded() -> N
     assert worker[1]["spec"]["scaleTargetRef"] == {
         "apiVersion": "ate.dev/v1alpha1", "kind": "WorkerPool", "name": "edai2-agents"
     }
+    assert worker[1]["spec"]["pollingInterval"] == 15
+    assert worker[1]["spec"]["cooldownPeriod"] == 60
+    assert worker[1]["spec"]["triggers"] == [{
+        "type": "prometheus",
+        "metadata": {
+            "serverAddress": "http://prometheus-server.edai2.svc.cluster.local",
+            "metricName": "edai2_pending_chat_requests",
+            "threshold": "1",
+            "query": "sum(edai2_pending_chat_requests)",
+        },
+    }]
 
     overlay = ROOT / "infra/kustomize/llmd/overlays/cpu"
     rendered_sources = "\n".join(path.read_text(encoding="utf-8") for path in overlay.glob("*.yaml"))

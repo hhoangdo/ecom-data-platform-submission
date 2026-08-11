@@ -66,27 +66,65 @@ push_archive() {
 
 helm_atomic() {
   local job="$1" chart_kind="$2" values_file="$3" workload_name="$4" repository="$5"
+  shift 5
+  local -a values_files=("$values_file") value_args=()
+  values_files+=("$@")
   require_commit
   test -s "reports/${job}-remote-manifest-digest.txt"
   [[ -n "${EDAI2_KUBECONFIG:-}" && -n "${EDAI2_KUBE_CONTEXT:-}" ]] || { echo "explicit kubeconfig and context are required" >&2; exit 1; }
-  [[ -f "$values_file" ]] || { echo "release values file is missing" >&2; exit 1; }
-  local substrate_args=()
-  case "${job}:${chart_kind}:${values_file}:${workload_name}:${repository}" in
-    edai2-rag-index:worker:infra/helm/edai2/worker/values.yaml:rag-index:edai2-rag-index|edai2-feast-offline-writer:worker:infra/helm/edai2/worker/values.yaml:feast-offline-writer:edai2-feast-offline-writer|edai2-feast-online-writer:worker:infra/helm/edai2/worker/values.yaml:feast-online-writer:edai2-feast-online-writer) ;;
-    edai2-retrieval-agent:service-agent:infra/helm/edai2/values/retrieval-agent.yaml:retrieval-agent:edai2-retrieval-agent|edai2-drift-agent:service-agent:infra/helm/edai2/values/drift-agent.yaml:drift-agent:edai2-drift-agent|edai2-coordinator:service-agent:infra/helm/edai2/values/coordinator-agent.yaml:coordinator:edai2-coordinator)
+  local substrate_args=() expected_workload_values=""
+  case "${job}:${chart_kind}:${workload_name}:${repository}" in
+    edai2-rag-index:worker:rag-index:edai2-rag-index)
+      expected_workload_values="infra/helm/edai2/workloads/rag-index.yaml"
+      ;;
+    edai2-feast-offline-writer:worker:feast-offline-writer:edai2-feast-offline-writer)
+      expected_workload_values="infra/helm/edai2/workloads/feast-offline-writer.yaml"
+      ;;
+    edai2-feast-online-writer:worker:feast-online-writer:edai2-feast-online-writer)
+      expected_workload_values="infra/helm/edai2/workloads/feast-online-writer.yaml"
+      ;;
+    edai2-retrieval-agent:service-agent:retrieval-agent:edai2-retrieval-agent)
+      expected_workload_values="infra/helm/edai2/workloads/retrieval.yaml"
+      [[ "${values_files[0]}" == "infra/helm/edai2/values/retrieval-agent.yaml" ]] || { echo "unknown chart or release metadata" >&2; exit 1; }
+      [[ "${#values_files[@]}" -le 2 ]] || { echo "unknown chart or release metadata" >&2; exit 1; }
+      [[ "${#values_files[@]}" -eq 1 || "${values_files[1]}" == "$expected_workload_values" ]] || { echo "unknown chart or release metadata" >&2; exit 1; }
+      [[ -n "${SUBSTRATE_BUCKET_NAME:-}" ]] || { echo "SUBSTRATE_BUCKET_NAME is required" >&2; exit 1; }
+      substrate_args=(--set-string "substrate.bucketName=${SUBSTRATE_BUCKET_NAME}")
+      ;;
+    edai2-drift-agent:service-agent:drift-agent:edai2-drift-agent)
+      expected_workload_values="infra/helm/edai2/workloads/drift.yaml"
+      [[ "${values_files[0]}" == "infra/helm/edai2/values/drift-agent.yaml" ]] || { echo "unknown chart or release metadata" >&2; exit 1; }
+      [[ "${#values_files[@]}" -le 2 ]] || { echo "unknown chart or release metadata" >&2; exit 1; }
+      [[ "${#values_files[@]}" -eq 1 || "${values_files[1]}" == "$expected_workload_values" ]] || { echo "unknown chart or release metadata" >&2; exit 1; }
+      [[ -n "${SUBSTRATE_BUCKET_NAME:-}" ]] || { echo "SUBSTRATE_BUCKET_NAME is required" >&2; exit 1; }
+      substrate_args=(--set-string "substrate.bucketName=${SUBSTRATE_BUCKET_NAME}")
+      ;;
+    edai2-coordinator:service-agent:coordinator:edai2-coordinator)
+      expected_workload_values="infra/helm/edai2/workloads/coordinator.yaml"
+      [[ "${values_files[0]}" == "infra/helm/edai2/values/coordinator-agent.yaml" ]] || { echo "unknown chart or release metadata" >&2; exit 1; }
+      [[ "${#values_files[@]}" -le 2 ]] || { echo "unknown chart or release metadata" >&2; exit 1; }
+      [[ "${#values_files[@]}" -eq 1 || "${values_files[1]}" == "$expected_workload_values" ]] || { echo "unknown chart or release metadata" >&2; exit 1; }
       [[ -n "${SUBSTRATE_BUCKET_NAME:-}" ]] || { echo "SUBSTRATE_BUCKET_NAME is required" >&2; exit 1; }
       substrate_args=(--set-string "substrate.bucketName=${SUBSTRATE_BUCKET_NAME}")
       ;;
     *) echo "unknown chart or release metadata" >&2; exit 1 ;;
   esac
-  helm upgrade --install "$job" "infra/helm/edai2/${chart_kind}" --atomic --wait --kubeconfig "$EDAI2_KUBECONFIG" --kube-context "$EDAI2_KUBE_CONTEXT" -f "$values_file" --set-string "image.repository=${AR_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${repository}" --set-string "image.tag=${GIT_COMMIT}" --set-string "workload.name=${workload_name}" "${substrate_args[@]}"
+  if [[ "$chart_kind" == "worker" ]]; then
+    [[ "${#values_files[@]}" -eq 1 ]] || { echo "unknown chart or release metadata" >&2; exit 1; }
+    [[ "${values_files[0]}" == "$expected_workload_values" || "${values_files[0]}" == "infra/helm/edai2/worker/values.yaml" ]] || { echo "unknown chart or release metadata" >&2; exit 1; }
+  fi
+  for values_file in "${values_files[@]}"; do
+    [[ -f "$values_file" ]] || { echo "release values file is missing" >&2; exit 1; }
+    value_args+=(-f "$values_file")
+  done
+  helm upgrade --install "$job" "infra/helm/edai2/${chart_kind}" --atomic --wait --kubeconfig "$EDAI2_KUBECONFIG" --kube-context "$EDAI2_KUBE_CONTEXT" "${value_args[@]}" --set-string "image.repository=${AR_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${repository}" --set-string "image.tag=${GIT_COMMIT}" --set-string "workload.name=${workload_name}" "${substrate_args[@]}"
 }
 
 smoke_eval() { test -s "reports/$1-remote-manifest-digest.txt"; }
 rollback_proof() { test -s "reports/$1-archive-manifest-digest.txt"; }
 
 case "${1:-}" in
-  helm_atomic) helm_atomic "${2:?job is required}" "${3:?chart kind is required}" "${4:?values file is required}" "${5:?workload name is required}" "${6:?repository is required}" ;;
+  helm_atomic) shift; helm_atomic "$@" ;;
   scan_archive|push_archive|smoke_eval|rollback_proof) "$1" "${2:?job is required}" ;;
   *) echo "usage: $0 {scan_archive|push_archive|helm_atomic|smoke_eval|rollback_proof} job" >&2; exit 2 ;;
 esac

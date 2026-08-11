@@ -14,3 +14,10 @@ spec:
   maxReplicaCount: 2
   pollingInterval: 15
   cooldownPeriod: 60
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-server.edai2.svc.cluster.local
+        metricName: edai2_pending_chat_requests
+        threshold: "1"
+        query: sum(edai2_pending_chat_requests)

@@ -118,3 +118,13 @@ All charts lint/render, Kustomize renders, platform/resource/security tests pass
 | Cleanup/runtime release | No temporary render file or runtime was created; all render/test output was transient, and no Helm/Kustomize/kubectl apply, GCP, Docker, model, or secret action occurred. |
 | Limitations | Installation/readiness, model-cache generation proof, GKE/model/registry behavior, public ingress, screenshots, and runtime rubric evidence remain deferred to successor live topics. |
 | Handoff | `tmp/edai2-plan/execution-v1/local/19-workload-charts-streaming-keda-experiments.md` |
+
+## Correction Addendum — Topic 19 WorkerPool KEDA contract
+
+This addendum preserves the `Complete` status above. The Topic 19-authored WorkerPool contract already had bounds, polling interval, and cooldown period; this narrow Topic 18 correction adds its required Prometheus pending-chat trigger.
+
+| Field | Correction evidence |
+|---|---|
+| Scope | `infra/kagent/edai2/workerpool-scaledobject.yaml` adds one Prometheus trigger with server `http://prometheus-server.edai2.svc.cluster.local`, metric `edai2_pending_chat_requests`, threshold `1`, and query `sum(edai2_pending_chat_requests)`. |
+| Fresh commands and exit codes | The focused red gate above exited 1 because `triggers` was absent; its green rerun exited 0 (`4 passed`). The full predecessor regression `rtk uv run pytest tests/unit/test_edai2_repository_contract.py tests/integration/llm/test_gke_agents.py tests/unit/test_edai2_security_static.py -q` exited 0 (`22 passed`). |
+| Limitations | Static manifest proof only; no WorkerPool, KEDA object, Prometheus query, Kubernetes API action, or scaling event was created or claimed. |

@@ -1,4 +1,5 @@
-def pipelineFor(String jobName, String target, String chartKind, String valuesFile, String workloadName, String repository) {
+def pipelineFor(String jobName, String target, String chartKind, String valuesFile, String workloadName, String repository, String workloadValuesFile = '') {
+  String workloadValuesArgument = workloadValuesFile ? " ${workloadValuesFile}" : ''
   pipeline {
     agent none
     options {
@@ -53,7 +54,7 @@ def pipelineFor(String jobName, String target, String chartKind, String valuesFi
         agent { label 'built-in' }
         steps {
           unstash "reports-${jobName}"
-          sh "ci/jenkins/scripts/release.sh helm_atomic ${jobName} ${chartKind} ${valuesFile} ${workloadName} ${repository}"
+          sh "ci/jenkins/scripts/release.sh helm_atomic ${jobName} ${chartKind} ${valuesFile} ${workloadName} ${repository}${workloadValuesArgument}"
         }
       }
       stage('smoke_eval') {
