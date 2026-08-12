@@ -28,6 +28,16 @@ LIMITS = {
 }
 RENDER_KUBECONFIG = "tests/fixtures/kubernetes/render-only-kubeconfig.yaml"
 RENDER_CONTEXT = "render-only"
+EXPECTED_RESOURCE_QUOTA = {
+    "requests.cpu": "6",
+    "requests.memory": "16Gi",
+    "limits.cpu": "10",
+    "limits.memory": "22Gi",
+    "pods": "30",
+    "persistentvolumeclaims": "8",
+    "requests.storage": "20Gi",
+    "services.loadbalancers": "0",
+}
 
 
 def _quantity(value: Any, *, cpu: bool) -> int:
@@ -160,6 +170,7 @@ def build_report(documents: Iterable[dict[str, Any]]) -> dict[str, Any]:
     service_names: list[str] = []
     keda_maxima: list[int] = []
     deployment_names: list[str] = []
+    resource_quotas: list[dict[str, Any]] = []
     for document in documents:
         kind = document.get("kind")
         if kind == "Deployment":
@@ -194,6 +205,8 @@ def build_report(documents: Iterable[dict[str, Any]]) -> dict[str, Any]:
             if not isinstance(maximum, int):
                 raise ValueError("KEDA maximum is missing")
             keda_maxima.append(maximum)
+        elif kind == "ResourceQuota":
+            resource_quotas.append(document)
     if any(service_type == "LoadBalancer" for service_type in service_types):
         raise ValueError("LoadBalancer service is forbidden")
     if any(maximum > 1 for maximum in keda_maxima):
@@ -202,6 +215,17 @@ def build_report(documents: Iterable[dict[str, Any]]) -> dict[str, Any]:
         raise ValueError("exactly one retrieval deployment is required")
     if service_names != ["edai2-retrieval-kind"]:
         raise ValueError("exactly one retrieval service is required")
+    if resource_quotas:
+        if len(resource_quotas) != 1:
+            raise ValueError("resource quota contract requires exactly one ResourceQuota")
+        quota = resource_quotas[0]
+        metadata = quota.get("metadata", {})
+        if (
+            metadata.get("name") != "edai2-lean-bounds"
+            or metadata.get("namespace") != CLUSTER_NAME
+            or quota.get("spec", {}).get("hard") != EXPECTED_RESOURCE_QUOTA
+        ):
+            raise ValueError("resource quota contract does not match the locked bounds")
     if any(totals[key] > value for key, value in LIMITS.items()):
         raise ValueError("resource limit exceeded")
     return {"totals": totals, "service_types": service_types, "keda_maxima": keda_maxima}

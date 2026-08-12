@@ -1,0 +1,7 @@
+*
+!containers/
+!containers/edai2/
+!containers/edai2/kind-retrieval-requirements.txt
+!src/
+!src/vina_bim_shop/
+!src/vina_bim_shop/**

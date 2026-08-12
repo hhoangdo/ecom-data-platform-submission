@@ -1,0 +1,10 @@
+FROM python:3.12.12-slim-bookworm@sha256:593bd06efe90efa80dc4eee3948be7c0fde4134606dd40d8dd8dbcade98e669c AS retrieval_agent_kind
+
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app/src
+RUN groupadd --gid 10001 edai2 && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin edai2
+WORKDIR /app
+COPY containers/edai2/kind-retrieval-requirements.txt containers/edai2/kind-retrieval-requirements.txt
+RUN pip install --no-cache-dir -r containers/edai2/kind-retrieval-requirements.txt
+COPY src/vina_bim_shop ./src/vina_bim_shop
+USER 10001:10001
+CMD ["uvicorn", "vina_bim_shop.llm.api.retrieval:app", "--host", "0.0.0.0", "--port", "8080"]
