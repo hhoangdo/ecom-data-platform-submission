@@ -2,3 +2,5 @@ project_id = "replace-with-operator-project-id"
 billing_account_id = "replace-with-operator-billing-account"
 bucket_name = "replace-with-unique-edai2-bucket"
 budget_notification_target = "replace-with-operator-notification-target"
+budget_currency            = "VND"
+trial_credit_vnd           = 7500000 # Example only: operator locks current VND/USD conversion before execution.

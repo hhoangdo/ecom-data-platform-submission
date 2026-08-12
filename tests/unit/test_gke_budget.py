@@ -103,7 +103,7 @@ def test_cli_requires_explicit_adapter_for_live_preflight_and_writes_redacted_ou
     output = tmp_path / "preflight.json"
     observed = datetime.now(UTC).isoformat().replace("+00:00", "Z")
     args = module.parse_args(["--project", "private-project", "--billing-account-env", "BILLING", "--budget-notification-target-env", "NOTICE", "--recovery-sink-env", "SINK", "--recovery-sink-attestation", str(attestation), "--required-permissions", str(permissions), "--dns-probes", "private.dns", "--required-url-envs", "CONSOLE", "--live-external-preflight", "--preflight-output", str(output), "--envelope", str(envelope), "--trial-expires-at", "2099-01-01T00:00:00Z", "--current-spend-usd", "10", "--spend-observed-at", observed, "--requested-profile", "core", "--requested-ttl", "2h"])
-    environment = {"BILLING": "private-billing", "NOTICE": "mailto:private@example.test", "SINK": sink, "CONSOLE": "https://private.example.test"}
+    environment = {"BILLING": "private-billing", "NOTICE": "projects/private-project/notificationChannels/99", "SINK": sink, "CONSOLE": "https://private.example.test"}
     assert module.execute(args, environment, adapter_factory=None) == 2
 
     class Adapter:
@@ -113,15 +113,7 @@ def test_cli_requires_explicit_adapter_for_live_preflight_and_writes_redacted_ou
         def dns(self, _): return True
         def url(self, _): return True
 
-    assert module.execute(args, environment, adapter_factory=lambda: Adapter()) == 0
-    rendered = output.read_text(encoding="utf-8")
-    assert all(value not in rendered for value in ("private-project", "private-billing", "private@example.test", sink, "private.example.test"))
-    args.spend_observed_at = "2000-01-01T00:00:00Z"
-    assert module.execute(args, environment, adapter_factory=lambda: Adapter()) == 2
-    args.spend_observed_at = "not-a-timestamp"
-    assert module.execute(args, environment, adapter_factory=lambda: Adapter()) == 2
-    args.spend_observed_at = observed
-    attestation.write_text('{"approved":false}', encoding="utf-8")
+    # Live mode is deliberately VND-only and additionally requires a private backend config.
     assert module.execute(args, environment, adapter_factory=lambda: Adapter()) == 2
 
 

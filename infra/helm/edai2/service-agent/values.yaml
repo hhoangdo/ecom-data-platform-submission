@@ -10,6 +10,7 @@ service:
   port: 8080
 serviceAccount:
   name: edai2-service-agent
+  annotations: {}
 autoscaling:
   enabled: false
   minReplicaCount: 1

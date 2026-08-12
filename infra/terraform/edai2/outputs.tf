@@ -1,5 +1,11 @@
 output "cluster_id" { value = module.gke.cluster_id }
+output "zone" { value = module.gke.zone }
+output "node_pool_names" { value = module.gke.node_pool_names }
 output "bucket_name" { value = module.gcs.bucket_name }
+output "bucket_prefixes" { value = module.gcs.prefixes }
 output "kms_key_id" { value = module.kms.key_id }
-output "artifact_registry_repositories" { value = module.artifact_registry.repositories }
+output "registry_uris" { value = module.artifact_registry.repositories }
+output "workload_identity_bindings" { value = module.iam.workload_identity_bindings }
 output "budget_id" { value = module.budget.budget_id }
+output "normalized_budget_usd" { value = module.budget.normalized_budget_usd }
+output "budget_amount_vnd" { value = module.budget.budget_amount_vnd }

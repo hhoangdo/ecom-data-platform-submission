@@ -4,7 +4,7 @@
 
 **Goal:** Provision only the approved EDAI2 GCP foundation after proving account, billing, IAM, trial lifetime, live spend, forecast, and Terraform inputs are safe.
 
-**Architecture:** Terraform owns a zonal Standard GKE cluster, two zero-capable node pools, Artifact Registry, one KMS-encrypted GCS bucket, KMS, Workload Identity/IAM, and a USD 240 Billing Budget. Google Cloud CLI writes credentials only to the dedicated `tmp/edai2-gcp/kubeconfig`; every later Kubernetes client call names that file and the approved context explicitly, and the default kubeconfig/current context is never read or changed. No Kubernetes application is installed here. Python 3.12/`uv` budget and evidence CLIs provide fail-closed machine records.
+**Architecture:** Terraform owns a zonal Standard GKE cluster, two zero-capable node pools, Artifact Registry, one KMS-encrypted GCS bucket, KMS, Workload Identity/IAM, and a VND-denominated Billing Budget conservatively derived from the normalized USD 240 envelope. A private-bundle helper writes credentials only to `tmp/edai2-gcp/kubeconfig`, normalizes its context to fixed alias `edai2-gke`, and writes `tmp/edai2-gcp/kube-target.json`; every later Kubernetes call names those fixed values explicitly. No Kubernetes application is installed here.
 
 **Tech Stack:** PowerShell, `rtk`, Python 3.12, `uv`, Terraform, Google Cloud CLI, GKE, Cloud Billing Budgets, Playwright, SHA-256.
 
@@ -33,15 +33,16 @@
 - Consume the completed local implementation. If a source/IaC/chart defect appears, capture it, release or suspend any owned runtime, mark this topic `Partial`, and return it to the owning local topic; do not patch implementation during a live cloud lease.
 - Execute topics serially. A later topic may not infer success from planned files or a prior dry run.
 - Stop safely before Terraform plan/apply if the GCP project, active billing link, Billing Budget notification target, required project/billing IAM permissions, trial expiry, spend observation, encrypted recovery-sink attestation, DNS/HTTPS egress, Billing-console URL, or other named external input is missing, stale, inconsistent, or unauthorized.
-- The operator-provided tfvars file is stored exactly at `tmp/edai2-gcp/coursework.auto.tfvars`. `EDAI2_TFVARS_PATH` must be an absolute path whose `Resolve-Path` equals that file; it must remain untracked and must not be copied into `infra/terraform`.
+- Raw project, billing, notification, recovery, URL, spend, and private-path values are supplied only through the ACL-restricted ignored file `tmp/edai2-gcp/operator-inputs.json`. They must never appear in shell arguments, logs, Git, or evidence. The bundle resolves the ignored tfvars, backend config, authenticated browser state, recovery attestation, gcloud config/ADC, and `TF_DATA_DIR` under `tmp/edai2-gcp/`.
+- The private backend config names the sole state bucket/prefix. On reuse, that exact selected-project bucket must already have the independently observed SHA-256 proof, US-CENTRAL1 location, UBLA, versioning, non-public IAM, and an empty exact prefix; every other bucket is unsafe. On a fresh project only, the authorized private bootstrap creates that one bucket after billing/API gates, verifies the same properties and durable redacted proof, and keeps it outside Terraform state/destroy. If creation partially succeeds but verification fails, it records only a redacted private rollback-required handoff and stops; it never deletes an existing bucket or uses local state.
 - Every GCP topic uses `check_budget.py --live-external-preflight`. That mode uses Resource Manager and Cloud Billing `testIamPermissions`, verifies project lifecycle/billing linkage/notification target, validates the non-secret recovery-sink attestation, probes the named DNS/HTTPS endpoints, and writes only booleans, timestamps, permission names/counts, and SHA-256 fingerprints. It must never emit an account ID, billing ID, principal, access token, recovery URI, notification URI, or credential.
-- The required recovery-sink attestation is the non-secret untracked file `tmp/edai2-gcp/recovery-sink-attestation.json` with `approved=true`, `encrypted=true`, `outside_workspace=true`, `custodian_count>=2`, and `sink_uri_sha256` equal to SHA-256 of `EDAI2_VAULT_RECOVERY_SINK`.
-- The only authorized Kubernetes client target is `EDAI2_GKE_KUBECONFIG=tmp/edai2-gcp/kubeconfig` plus `EDAI2_GKE_CONTEXT=gke_${GOOGLE_CLOUD_PROJECT}_us-central1-a_edai2`. Every `kubectl` call must include `--kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT`; every Helm call must include `--kubeconfig $env:EDAI2_GKE_KUBECONFIG --kube-context $env:EDAI2_GKE_CONTEXT`; scripts that query or mutate Kubernetes must receive both explicit values.
+- The required recovery-sink attestation is the bundle-referenced private file under `tmp/edai2-gcp/` with `approved=true`, `encrypted=true`, `outside_workspace=true`, `custodian_count>=2`, and a sink SHA-256 matching the private bundle.
+- The only authorized Kubernetes client target is fixed non-secret metadata: kubeconfig `tmp/edai2-gcp/kubeconfig`, context `edai2-gke`, and zone `us-central1-a`, recorded by `tmp/edai2-gcp/kube-target.json`. Every `kubectl` call must include `--kubeconfig tmp/edai2-gcp/kubeconfig --context edai2-gke`; every Helm call must include `--kubeconfig tmp/edai2-gcp/kubeconfig --kube-context edai2-gke`.
 - Never call the kubectl context-switch operation, never rely on an implicit current-context query, and never write or inspect the user's default kubeconfig.
 - The approved region/zone is `us-central1`/`us-central1-a`; the cluster is zonal Standard GKE with `COS_CONTAINERD`.
 - Node pools are `e2-highmem-4` regular platform and `e2-standard-8` Spot workload, both minimum zero; Spot maximum two.
-- Fixed envelope: USD 300 trial, USD 240 Terraform budget, USD 180 forecast ceiling, regular node-hours <=96, aggregate Spot node-hours <=72, second-Spot hours <=16, public ingress hours <=24, evidence lease <=6h, PVC <=80Gi, GCS plus Artifact Registry <=15Gi.
-- A current Cloud Billing console spend observation must be no older than 24 hours. Stop if projected total exceeds USD 180, console or ledger spend reaches 75% of USD 240, console/ledger differ by more than USD 5, or the trial expires before the requested runtime.
+- Live execution is VND-only. The bundle records a timestamped account-credit-derived rate `trial_credit_vnd / official_USD_300`; the VND budget is conservatively rounded down from normalized USD 240, and the VND forecast ceiling corresponds to normalized USD 180. Node-hour/storage caps remain unchanged.
+- A current VND Cloud Billing console spend observation must be no older than 24 hours. Stop if normalized forecast exceeds USD 180, console or ledger spend reaches 75% of normalized USD 240, the VND reconciliation difference exceeds the rate-equivalent of USD 5, or the trial expires before the requested runtime.
 - At 90% or 100% budget, suspend immediately and prohibit resume. A budget notification is not an enforcement control; `check_budget.py` is.
 - Never place credentials, service-account JSON, secret values, Terraform state, recovery shares, raw billing identifiers, principal identities, or unsanitized Terraform JSON in Git, terminal logs, screenshots, or evidence JSON.
 - The sole GCP tfstate backend/configuration is the approved Terraform design. Do not add VMs, Ansible, Cloud Build, hosted LLMs, GPUs, or a persistent public load balancer.
@@ -61,8 +62,8 @@ Run these before any mutation:
    - Expected: Topic 21 records completion, compatible local tests, the current commit/revision, and no unresolved blocker that invalidates GCP work.
 4. `rtk git ls-files --error-unmatch tmp/edai2-gcp/coursework.auto.tfvars`
    - Expected: nonzero exit because the tfvars file is not tracked. A zero exit is a safety failure: stop and remove it from version control through an explicitly authorized remediation, not in this run.
-5. `rtk powershell.exe -NoProfile -Command '$expected=(Resolve-Path -LiteralPath "tmp/edai2-gcp/coursework.auto.tfvars" -ErrorAction Stop).Path; $actual=(Resolve-Path -LiteralPath $env:EDAI2_TFVARS_PATH -ErrorAction Stop).Path; if (-not [IO.Path]::IsPathFullyQualified($env:EDAI2_TFVARS_PATH) -or $actual -ne $expected) { exit 20 }; "TFVARS_PATH_GATE=PASS"'`
-   - Expected: exit 0 and only `TFVARS_PATH_GATE=PASS`; the environment value is absolute but resolves to the exact locked untracked file.
+5. Run the live preflight command in Task 3 against only `tmp/edai2-gcp/operator-inputs.json`.
+   - Expected: its bundle validator resolves the exact ignored ACL-restricted tfvars/backend/browser/gcloud/ADC/TF_DATA_DIR paths without printing any path or raw value; missing or wrong paths stop before cloud access.
 
 If a source hash, branch, predecessor state, or file ownership differs, stop without cloud mutation and update this plan before execution.
 
@@ -100,7 +101,7 @@ If a source hash, branch, predecessor state, or file ownership differs, stop wit
 | External/untracked input | `tmp/edai2-gcp/coursework.auto.tfvars` |
 | External/non-secret attestation | `tmp/edai2-gcp/recovery-sink-attestation.json` |
 | Generate/untracked Kubernetes credentials | `tmp/edai2-gcp/kubeconfig` |
-| Temporary/untracked | `tmp/edai2-gcp/edai2.tfplan`, `tmp/edai2-gcp/terraform-show.json` |
+| Temporary/untracked | Fixed private binary plan beneath bundle-bound `TF_DATA_DIR` |
 | Generate | `evidence/04_2_llm_design/gke/cost_forecast_topic22.json` |
 | Generate | `evidence/04_2_llm_design/gke/gcp_preflight_topic22.json` |
 | Generate | `evidence/04_2_llm_design/gke/terraform_apply.json` |
@@ -116,18 +117,15 @@ Generated evidence must be created by the named commands; never hand-author a su
 
 ### Inputs
 
-- `GOOGLE_CLOUD_PROJECT`, `GOOGLE_BILLING_ACCOUNT`, `EDAI2_BUDGET_NOTIFICATION_TARGET`.
-- `EDAI2_TRIAL_EXPIRES_AT`, `EDAI2_CURRENT_SPEND_USD`, `EDAI2_SPEND_OBSERVED_AT`.
-- `EDAI2_TFVARS_PATH` is the absolute path whose repository-relative target is exactly `tmp/edai2-gcp/coursework.auto.tfvars`.
-- `EDAI2_GKE_KUBECONFIG=tmp/edai2-gcp/kubeconfig`.
-- `EDAI2_GKE_CONTEXT=gke_${GOOGLE_CLOUD_PROJECT}_us-central1-a_edai2`.
-- `EDAI2_VAULT_RECOVERY_SINK`, `EDAI2_RECOVERY_SINK_ATTESTATION=tmp/edai2-gcp/recovery-sink-attestation.json`, and `EDAI2_BILLING_CONSOLE_URL`.
+- Sole raw-input interface: ACL-restricted, ignored `tmp/edai2-gcp/operator-inputs.json`; no raw value is accepted through environment variables or argv.
+- Bundle fields cover project, billing account, exact notification target, recovery sink, Billing Console URL, public DNS probes, trial/spend/conversion timestamps, current/console/forecast/trial-credit VND amounts, backend proof, and safe allowlisted billing DOM-marker/PII-selector lists.
+- Bundle paths resolve the exact tfvars, backend config, recovery attestation, authenticated browser state, gcloud config, ADC file, and private `TF_DATA_DIR` beneath `tmp/edai2-gcp/`.
 - An authenticated principal with the least privileges required by the approved modules.
 
 ### Outputs
 
 - Sanitized Terraform outputs: project, zone, cluster name, pool names, registry URI, bucket name/prefixes, KMS resource ID, Workload Identity bindings, and budget ID; never credentials.
-- Dedicated kubeconfig `tmp/edai2-gcp/kubeconfig` containing explicit kube-context `gke_${GOOGLE_CLOUD_PROJECT}_us-central1-a_edai2`; the default kubeconfig remains untouched.
+- Dedicated kubeconfig `tmp/edai2-gcp/kubeconfig` containing fixed context `edai2-gke`, plus redacted helper `tmp/edai2-gcp/kube-target.json`; the default kubeconfig remains untouched.
 - Hash-bound cost/apply evidence and two screenshots.
 
 ### Data flow
@@ -139,7 +137,7 @@ External spend/account inputs -> fail-closed preflight -> live SKU/ledger foreca
 - Missing billing link/IAM/notification target/recovery attestation/DNS or a redaction violation: stop before plan.
 - Stale spend/trial-expiry or budget mismatch: emit failed forecast and stop.
 - Planned resource outside approved list or secret-looking value: discard plan and stop.
-- Partial apply: run read-only `rtk terraform -chdir=infra/terraform/edai2 show` and GCP inventory once, record actual resources, and do not retry apply until cause and rollback/recovery are reviewed.
+- Partial apply: capture diagnostics through the private runtime-contract helper and the redacted inventory helper only; never run a state/show command that can print raw state. Do not retry until cause and rollback/recovery are reviewed.
 - Dedicated kubeconfig is missing, contains an unexpected context, or resolves another project/cluster: stop; never fall back to the default kubeconfig and never run a `kubectl` mutation.
 - Screenshot failure: one bounded recapture after the exact selector/render cause is fixed; retain no invalid replacement.
 
@@ -150,19 +148,17 @@ External spend/account inputs -> fail-closed preflight -> live SKU/ledger foreca
 - [ ] Run `rtk uv run pytest tests/unit/test_edai2_security_static.py tests/unit/test_edai2_repository_contract.py -q`.
   - Expected: exit 0; exact zone, machine types, zero-capable pools, Workload Identity, budget thresholds, storage limits, and VM/Ansible/Cloud-Build/hosted-model exclusions pass.
 - [ ] Run `rtk uv run pytest tests/unit/test_gke_budget.py -q`.
-  - Expected: exit 0; missing/stale spend, short trial lifetime, 75/90/100% thresholds, USD 5 reconciliation, and USD 180 forecast ceiling all fail closed in tests.
-- [ ] Run `rtk powershell.exe -NoProfile -Command 'if (-not $env:GOOGLE_CLOUD_PROJECT -or -not $env:GOOGLE_BILLING_ACCOUNT -or -not $env:EDAI2_BUDGET_NOTIFICATION_TARGET -or -not $env:EDAI2_TRIAL_EXPIRES_AT -or -not $env:EDAI2_CURRENT_SPEND_USD -or -not $env:EDAI2_SPEND_OBSERVED_AT -or -not $env:EDAI2_VAULT_RECOVERY_SINK -or -not $env:EDAI2_RECOVERY_SINK_ATTESTATION -or -not $env:EDAI2_BILLING_CONSOLE_URL) { exit 17 }; $expected=(Resolve-Path -LiteralPath "tmp/edai2-gcp/coursework.auto.tfvars" -ErrorAction Stop).Path; $actual=(Resolve-Path -LiteralPath $env:EDAI2_TFVARS_PATH -ErrorAction Stop).Path; if (-not [IO.Path]::IsPathFullyQualified($env:EDAI2_TFVARS_PATH) -or $actual -ne $expected) { exit 18 }; if ($env:EDAI2_GKE_KUBECONFIG -ne "tmp/edai2-gcp/kubeconfig" -or $env:EDAI2_GKE_CONTEXT -ne ("gke_" + $env:GOOGLE_CLOUD_PROJECT + "_us-central1-a_edai2")) { exit 19 }; "EXTERNAL_PATH_GATE=PASS"'`.
+  - Expected: exit 0; missing/stale VND spend, short trial lifetime, 75/90/100% thresholds, rate-normalized USD 5 reconciliation, and normalized USD 180 forecast ceiling all fail closed in tests.
+- [ ] Validate `tmp/edai2-gcp/operator-inputs.json` through the live preflight. It is the sole raw-input interface and validates all referenced private paths as resolved, ignored, ACL/mode restricted, and beneath `tmp/edai2-gcp/`; no raw identifier is echoed.
   - Expected: exit 0 and only `EXTERNAL_PATH_GATE=PASS`. Exit 17/18/19 is a safe stop, not permission to invent values.
-- [ ] Run `rtk gcloud projects describe $env:GOOGLE_CLOUD_PROJECT --format=json`.
-  - Expected: project lifecycle is ACTIVE and project number matches the approved tfvars.
-- [ ] Run `rtk gcloud billing projects describe $env:GOOGLE_CLOUD_PROJECT --format="value(billingEnabled)"`.
-  - Expected: output is exactly `True`; no billing-account identifier is emitted. Exact account linkage is compared by hash inside the non-emitting live preflight below.
+- [ ] Run `rtk uv run python scripts/gke/check_budget.py --operator-inputs tmp/edai2-gcp/operator-inputs.json --redacted-account-summary --output evidence/04_2_llm_design/gke/gcp_account_summary_topic22.json`.
+  - Expected: the helper loads identifiers only from the private bundle, performs supported read-only REST through the private authenticated gcloud configuration, captures raw responses in memory, and atomically emits only active/linked booleans plus project-number/project-alias/billing-account SHA-256 values. Any incomplete readback emits a redacted failure and stops.
 
 ### Task 2: Validate Terraform without cloud mutation
 
 - [ ] Run `rtk terraform -chdir=infra/terraform/edai2 fmt -check -recursive`.
   - Expected: exit 0 and no rewrite.
-- [ ] Run `rtk terraform -chdir=infra/terraform/edai2 init -backend=false`.
+- [ ] For local validation only, set `TF_DATA_DIR` to a disposable ignored ACL-restricted directory under `tmp/edai2-gcp/`, then run `rtk terraform -chdir=infra/terraform/edai2 init -backend=false`.
   - Expected: exit 0; providers resolve from pinned constraints and no remote state is changed.
 - [ ] Run `rtk terraform -chdir=infra/terraform/edai2 validate`.
   - Expected: exit 0.
@@ -171,33 +167,37 @@ External spend/account inputs -> fail-closed preflight -> live SKU/ledger foreca
 
 ### Task 3: Gate live cost and capture billing authority
 
-- [ ] Run `rtk uv run python scripts/gke/check_budget.py --project $env:GOOGLE_CLOUD_PROJECT --billing-account-env GOOGLE_BILLING_ACCOUNT --budget-notification-target-env EDAI2_BUDGET_NOTIFICATION_TARGET --recovery-sink-env EDAI2_VAULT_RECOVERY_SINK --recovery-sink-attestation $env:EDAI2_RECOVERY_SINK_ATTESTATION --required-permissions configs/gke/required_permissions.json --dns-probes acme-staging-v02.api.letsencrypt.org,huggingface.co,storage.googleapis.com --required-url-envs EDAI2_BILLING_CONSOLE_URL --live-external-preflight --preflight-output evidence/04_2_llm_design/gke/gcp_preflight_topic22.json --trial-expires-at $env:EDAI2_TRIAL_EXPIRES_AT --current-spend-usd $env:EDAI2_CURRENT_SPEND_USD --spend-observed-at $env:EDAI2_SPEND_OBSERVED_AT --usage-ledger evidence/04_2_llm_design/gke/usage_ledger.json --envelope configs/gke/cost_envelope.yaml --requested-profile suspended --requested-ttl 0h --output evidence/04_2_llm_design/gke/cost_forecast_topic22.json`.
-  - Expected: exit 0; project lifecycle and billing hash match; every required project/billing permission is returned by `testIamPermissions`; notification, encrypted out-of-workspace sink attestation, DNS/HTTPS probes, URL shape, spend age <=24h, forecast <=USD 180, trial lifetime, USD 5 reconciliation, and every cap pass. `gcp_preflight_topic22.json` contains only redacted booleans/counts/names/timestamps/hashes and is immutable after this Completion Record hashes it.
-- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --capture billing --url $env:EDAI2_BILLING_CONSOLE_URL --viewport 1600x1000 --output evidence/04_2_llm_design/screenshots/gcp_billing_spend.png --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --machine-evidence evidence/04_2_llm_design/gke/cost_forecast_topic22.json --strict`.
+- [ ] Before normal project-scoped Terraform authorization, dispatch `rtk uv run python scripts/gke/check_budget.py --operator-inputs tmp/edai2-gcp/operator-inputs.json --private-bootstrap`. The fixed private bootstrap authorization record must be current for the immutable revision and durable forecast evidence. Its optional parent is either `folders/<number>`/`organizations/<number>` or the explicit `none` mode for a personal trial; `none` omits the v3 parent field and skips any parent IAM assertion, leaving project-create API enforcement definitive. The helper uses a private token environment and in-memory fixed REST calls, exact scoped `testIamPermissions` gates (billing association, project billing assignment, Resource Manager-tested Service Usage read/enable/LRO, and every Service Management bind), then creates-or-reads the project, polls each owning-API LRO, and only then links billing/enables services.
+  - Expected: a reused ACTIVE project first proves its exact selected-project backend bucket's metadata/IAM/empty prefix, then passes a paginated fail-closed empty-resource gate across Compute, GKE, Artifact Registry, GCS, KMS, IAM, budgets, and project IAM; only that bucket is allowed and a disabled/ambiguous API is not treated as empty. A fresh project creates only the private-config backend bucket after those gates, reads it back at US-CENTRAL1 with UBLA/versioning/non-public IAM and an empty exact prefix, and records a durable redacted proof before init. After a successful fresh project-create request, every later failure writes exactly one private redacted handoff with requested/completed phase booleans, owned rollback guidance, do-not-delete-existing, a zero upper-bound cost, and operator-review resume condition; it is never auto-deleted. Project creation/billing linkage is not claimed by a project-scoped permission check before that project exists.
+- [ ] Run `rtk uv run python scripts/gke/check_budget.py --operator-inputs tmp/edai2-gcp/operator-inputs.json --required-permissions configs/gke/required_permissions.json --live-external-preflight --preflight-output evidence/04_2_llm_design/gke/gcp_preflight_topic22.json --usage-ledger evidence/04_2_llm_design/gke/usage_ledger.json --envelope configs/gke/cost_envelope.yaml --requested-profile suspended --requested-ttl 0h --output evidence/04_2_llm_design/gke/cost_forecast_topic22.json`.
+  - Expected: exit 0; every account and external gate passes; VND spend/forecast values normalize through the locked timestamped rate to the USD 240 budget/USD 180 forecast ceilings. Evidence contains only redacted booleans/counts/names/timestamps/hashes plus VND and normalized USD amounts and is immutable.
+- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --capture billing --operator-inputs tmp/edai2-gcp/operator-inputs.json --viewport 1600x1000 --output evidence/04_2_llm_design/screenshots/gcp_billing_spend.png --manifest evidence/04_2_llm_design/screenshots/ui_manifest.json --machine-evidence evidence/04_2_llm_design/gke/cost_forecast_topic22.json --strict`.
   - Expected: contextual spend/budget page, observation time and project alias visible, account numbers and PII redacted, final PNG decoded and atomically installed, manifest hash/dimensions/selectors recorded.
 - [ ] Inspect `gcp_billing_spend.png` with the image viewer at original resolution.
   - Expected: no login/home/error state, clipping, loading overlay, secret, account number, or stale timestamp.
 
 ### Task 4: Produce and review the immutable plan
 
-- [ ] Run `rtk terraform -chdir=infra/terraform/edai2 plan -var-file="$env:EDAI2_TFVARS_PATH" -out=../../../tmp/edai2-gcp/edai2.tfplan`.
-  - Expected: exit 0; because `EDAI2_TFVARS_PATH` is an already-verified absolute path, `-chdir` cannot rebase it beneath `infra/terraform/edai2`; approved resources only.
-- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --sanitize-terraform-show tmp/edai2-gcp/edai2.tfplan --output tmp/edai2-gcp/terraform-show.json --require-resources gke,node-pools,artifact-registry,gcs,kms,iam,budget --forbid-resources vm,cloud-build,load-balancer --strict`.
-  - Expected: the capture process invokes `terraform show -json` with stdout/stderr captured in memory, sends it directly through the sanitizer, zeroes the raw buffer, and emits only sanitized JSON; no raw plan JSON reaches the terminal or evidence. Budget USD 240 with 0.50/0.75/0.90/1.00 thresholds, correct zone/pools, zero minima, lifecycle/prefix IAM, and no secret-bearing outputs pass.
+- [ ] Confirm the redacted preflight includes `serviceusage.services.enable`; the Terraform root enables the exact Topic 22 APIs before every foundation module and sets `disable_on_destroy = false` so a reused project is never deconfigured during cleanup. The durable private GCS backend proof remains a hard stop before `init`.
+  - Expected: fresh projects can create the declared foundation after the plan, reused projects retain their enabled services, and no API is disabled by Topic 22 cleanup.
+- [ ] Dispatch `rtk uv run python scripts/gke/check_budget.py --operator-inputs tmp/edai2-gcp/operator-inputs.json --verify-private-backend bootstrap` before init. The helper uses only private gcloud/ADC configuration and writes a redacted proof for the exact bootstrap-created or reuse-validated GCS bucket/prefix, selected project, US-CENTRAL1, UBLA, versioning, non-public IAM, and an empty state prefix. Stop if it fails.
+- [ ] Dispatch `rtk uv run python scripts/gke/check_budget.py --operator-inputs tmp/edai2-gcp/operator-inputs.json --private-terraform-action init`, then the same fixed command with `plan`. The helper reads its ignored private runtime contract, credential paths, and TF_DATA_DIR only from the bundle; it captures process output in memory and emits only fixed status.
+- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --private-plan-sanitize --operator-inputs tmp/edai2-gcp/operator-inputs.json --output evidence/04_2_llm_design/gke/terraform-show.json --strict`.
+  - Expected: the bundle-only sanitizer reads the fixed private plan in process, binds its SHA-256 with the forecast evidence and current revision, and atomically writes only sanitized authorization evidence. It rejects secret-bearing output, forbidden resources, and replay.
 
 ### Task 5: Apply once and bind the kube context
 
-- [ ] Obtain explicit operator authorization for the sanitized plan hash recorded in the Completion Record.
-  - Expected: authorization references the exact plan SHA-256, project alias, forecast hash, and current branch revision. Absence means stop.
-- [ ] Run `rtk terraform -chdir=infra/terraform/edai2 apply ../../../tmp/edai2-gcp/edai2.tfplan`.
-  - Expected: exit 0 on the first attempt. One retry is allowed only for a documented transient provider/API error after confirming no conflicting partial resource.
-- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --terraform-inventory --project $env:GOOGLE_CLOUD_PROJECT --zone us-central1-a --output evidence/04_2_llm_design/gke/terraform_apply.json --strict`.
+- [ ] After reviewing only the redacted authorization evidence, the operator writes the ignored fixed private approval record with `operator_approved: true` and its plan, forecast, and revision hashes. Do not modify any public evidence record at this point.
+- [ ] Dispatch `rtk uv run python scripts/gke/check_budget.py --operator-inputs tmp/edai2-gcp/operator-inputs.json --private-terraform-action apply`.
+  - Expected: the helper rederives its private contract, verifies the fresh bootstrap proof and fixed approval record, runs once with private credentials, captures output in memory, then requires and persists the initialized backend proof. It rejects a changed or unapproved plan.
+- [ ] Run `rtk uv run python scripts/qa/capture_edai2_evidence.py --terraform-inventory --operator-inputs tmp/edai2-gcp/operator-inputs.json --authorization-evidence evidence/04_2_llm_design/gke/terraform-show.json --output evidence/04_2_llm_design/gke/terraform_apply.json --strict`.
   - Expected: sanitized inventory contains the cluster, zero-capable pools, registry, bucket/prefix policies, KMS, Workload Identity/IAM, and budget; no application/Vault claim.
-- [ ] Run `rtk powershell.exe -NoProfile -Command '$env:KUBECONFIG=$env:EDAI2_GKE_KUBECONFIG; & rtk gcloud container clusters get-credentials edai2 --zone us-central1-a --project $env:GOOGLE_CLOUD_PROJECT; exit $LASTEXITCODE'`.
-  - Expected: credentials are written only to `tmp/edai2-gcp/kubeconfig` for the approved cluster; the default kubeconfig is untouched.
-- [ ] Run `rtk kubectl --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT config view --minify --output jsonpath='{.current-context}{\"`n\"}{.clusters[0].name}{\"`n\"}'`.
-  - Expected: the dedicated file's selected view is exactly the approved context and cluster; this does not change either kubeconfig.
-- [ ] Run `rtk kubectl --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT cluster-info`.
+- [ ] Dispatch `rtk uv run python scripts/gke/check_budget.py --operator-inputs tmp/edai2-gcp/operator-inputs.json --write-private-wi-values`; it runs the fixed private `terraform output -json workload_identity_bindings` command under the bundle-bound private environment, validates the four bindings only in memory, atomically writes the one fixed ignored private Helm-values record, then internally materializes ephemeral ignored per-workload values to lint and render retrieval, drift, coordinator, and workers. It validates every rendered KSA/GSA annotation, captures outputs in memory, deletes the temporary values, and emits only fixed status. Checked-in empty annotations alone are not sufficient evidence.
+- [ ] Run `rtk uv run python scripts/gke/check_budget.py --operator-inputs tmp/edai2-gcp/operator-inputs.json --prepare-kube-target`.
+  - Expected: the helper supplies project and credential paths only through its private child environment, invokes fixed identifier-free argv internally with stdout/stderr captured, writes only `tmp/edai2-gcp/kubeconfig`, normalizes its context to `edai2-gke`, and atomically writes redacted `tmp/edai2-gcp/kube-target.json`. The default kubeconfig is untouched.
+- [ ] Run `rtk kubectl --kubeconfig tmp/edai2-gcp/kubeconfig --context edai2-gke config view --minify --output name`.
+  - Expected: the dedicated file selects only the fixed alias; this does not change either kubeconfig.
+- [ ] Run `rtk kubectl --kubeconfig tmp/edai2-gcp/kubeconfig --context edai2-gke cluster-info`.
   - Expected: API server responds; this is connectivity only, not application readiness.
 
 ### Task 6: Capture Terraform proof
@@ -222,7 +222,7 @@ Topic 31 audits these files but does not become their primary owner.
 
 ## Cleanup and Runtime Release
 
-- Delete only the untracked temporary plan/show files after their hashes and sanitized evidence are durable: `tmp/edai2-gcp/edai2.tfplan` and `tmp/edai2-gcp/terraform-show.json`.
+- Delete only the fixed private binary plan beneath bundle-bound `TF_DATA_DIR` after its hash and sanitized evidence are durable; never print its path or contents.
 - Keep `tmp/edai2-gcp/coursework.auto.tfvars` untracked and access-controlled for later Terraform operations.
 - Do not destroy persistent Terraform resources.
 - Verify both node pools remain at zero immediately after apply and no forwarding rule/load balancer exists.

@@ -1,4 +1,7 @@
 namespace: edai2
+serviceAccount:
+  name: edai2-drift-agent
+  annotations: {}
 proxy:
   url: http://agentgateway-proxy.edai2.svc.cluster.local:15000
 substrate:

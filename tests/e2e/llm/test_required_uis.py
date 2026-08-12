@@ -26,9 +26,10 @@ def _load_capture_module():
 def test_required_views_are_exactly_the_locked_inventory() -> None:
     """Renaming, dropping, or adding a required capture breaks later evidence binding."""
     capture = _load_capture_module()
-    assert len(capture.REQUIRED_VIEWS) == 32
+    assert len(capture.REQUIRED_VIEWS) == 33
     assert set(capture.REQUIRED_VIEWS) == set(capture.LOCKED_FILENAMES)
     assert capture.REQUIRED_VIEWS["grafana_http.png"] == ["Grafana title", "dashboard EDAI2 HTTP", "RPS/count/failure panels", "time range"]
+    assert capture.REQUIRED_VIEWS["gcp_billing_spend.png"] == ["Google Cloud Billing", "Budget and spend context", "fresh observation time", "redacted project alias"]
     assert capture.REQUIRED_VIEWS["tempo_trace.png"][-1] == "gateway/coordinator/specialist/MCP dependency chain"
 
 
@@ -37,6 +38,8 @@ def test_record_capture_validates_decodes_and_atomically_replaces(tmp_path: Path
     capture = _load_capture_module()
     final = tmp_path / "grafana_http.png"
     manifest = tmp_path / "ui_manifest.json"
+    machine = tmp_path / "telemetry.json"
+    machine.write_text('{}\n', encoding="utf-8")
 
     def writer(path: Path) -> None:
         image = Image.new("RGB", (1600, 1000), color=(24, 80, 160))
@@ -46,8 +49,8 @@ def test_record_capture_validates_decodes_and_atomically_replaces(tmp_path: Path
     entry = capture.record_capture(
         final_path=final, root=tmp_path, writer=writer, source="https://grafana.example.test",
         revision="a" * 40, visible_selectors=capture.REQUIRED_VIEWS["grafana_http.png"],
-        machine_evidence=["evidence/telemetry.json"], proves="Grafana HTTP dashboard context is visible.",
-        does_not_prove="It does not prove live alert firing.", manifest_path=manifest,
+        machine_evidence=[str(machine)], proves="Grafana HTTP dashboard context is visible.",
+            does_not_prove="It does not prove live alert firing.", manifest_path=manifest, workspace=tmp_path,
     )
     assert final.is_file() and entry["sha256"] == hashlib.sha256(final.read_bytes()).hexdigest()
     assert set(entry) == set(capture.MANIFEST_FIELDS)
@@ -107,13 +110,15 @@ def test_failed_manifest_validation_preserves_existing_final_and_manifest(tmp_pa
     final.write_bytes(b"old-final")
     manifest = tmp_path / "ui_manifest.json"
     manifest.write_text(json.dumps([{"path": "other.png", "sha256": "x" * 64}]), encoding="utf-8")
+    machine = tmp_path / "telemetry.json"
+    machine.write_text('{}\n', encoding="utf-8")
     before_final, before_manifest = final.read_bytes(), manifest.read_bytes()
     with pytest.raises(ValueError, match="manifest"):
         capture.record_capture(
             final_path=final, root=tmp_path, writer=lambda path: Image.effect_noise((1600, 1000), 100).save(path, "PNG"),
             source="https://grafana.example.test", revision="a" * 40,
-            visible_selectors=capture.REQUIRED_VIEWS["grafana_http.png"], machine_evidence=["evidence/telemetry.json"],
-            proves="Grafana context is visible.", does_not_prove="No live alert proof.", manifest_path=manifest,
+            visible_selectors=capture.REQUIRED_VIEWS["grafana_http.png"], machine_evidence=[str(machine)],
+                proves="Grafana context is visible.", does_not_prove="No live alert proof.", manifest_path=manifest, workspace=tmp_path,
         )
     assert final.read_bytes() == before_final and manifest.read_bytes() == before_manifest
     assert not list(tmp_path.glob(".*.tmp*"))
@@ -155,8 +160,9 @@ def test_locked_view_anchor_table_is_literal_and_complete() -> None:
         "coverage_and_api_fixtures.png": ["Coverage report title", "total at least 91%", "API contract/fixture suite identity", "passing state"],
         "ep_bva.png": ["EP/BVA report identity", "boundary case labels", "passing totals"],
         "mutation.png": ["Mutation report identity", "classified status counts", "strict score greater than 0.80"],
-        "properties_crosshair.png": ["Hypothesis and CrossHair report identities", "bounded run details", "no counterexample/passing state"],
-        "terraform_apply.png": ["Terraform apply evidence title", "successful terminal state", "exact commit/revision", "linked machine record"],
+            "properties_crosshair.png": ["Hypothesis and CrossHair report identities", "bounded run details", "no counterexample/passing state"],
+            "gcp_billing_spend.png": ["Google Cloud Billing", "Budget and spend context", "fresh observation time", "redacted project alias"],
+            "terraform_apply.png": ["Terraform apply evidence title", "successful terminal state", "exact commit/revision", "linked machine record"],
         "design_patterns.png": ["Diagram title EDAI2 Design Patterns", "pattern names", "component relationships", "readable legend"],
         "whole_course_diagram.png": ["Whole-course architecture title", "Section 03/EDAI2 boundaries", "data/control/evidence flows", "readable legend"],
         "locust_report.png": ["Locust report title", "host/scenario", "request/failure totals", "p95 and run duration"],
@@ -313,9 +319,11 @@ def test_existing_manifest_entries_are_fully_checked_before_publish(tmp_path: Pa
     def writer(path: Path) -> None:
         Image.effect_noise((1600, 1000), 100).save(path, "PNG")
     writer(old_png)
+    old_machine = tmp_path / "airflow.json"; old_machine.write_text('{}\n', encoding="utf-8")
+    new_machine = tmp_path / "grafana.json"; new_machine.write_text('{}\n', encoding="utf-8")
     old_entry = {"path": "airflow_rag_graph.png", "width": 1600, "height": 1000, "captured_at_utc": datetime.now(UTC).isoformat(),
         "url_or_source": "https://airflow.example.test", "commit_or_revision": "a" * 40,
-        "visible_selectors": capture.REQUIRED_VIEWS["airflow_rag_graph.png"], "linked_machine_evidence": ["evidence/airflow.json"],
+        "visible_selectors": capture.REQUIRED_VIEWS["airflow_rag_graph.png"], "linked_machine_evidence": [{"path": str(old_machine), "sha256": hashlib.sha256(old_machine.read_bytes()).hexdigest()}], "approved_plan_sha256": None,
         "sha256": hashlib.sha256(old_png.read_bytes()).hexdigest(), "proves": "Airflow context is visible.", "does_not_prove": "Deployment proof is deferred."}
     mutations = [
         {"sha256": "0" * 64}, {"captured_at_utc": "2000-01-01T00:00:00+00:00"}, {"commit_or_revision": "b" * 40},
@@ -327,7 +335,7 @@ def test_existing_manifest_entries_are_fully_checked_before_publish(tmp_path: Pa
         with pytest.raises(ValueError, match="manifest"):
             capture.record_capture(final_path=final, root=tmp_path, writer=writer, source="https://grafana.example.test",
                 revision="a" * 40, visible_selectors=capture.REQUIRED_VIEWS["grafana_http.png"],
-                machine_evidence=["evidence/grafana.json"], proves="Dashboard context is visible.",
-                does_not_prove="Alert proof is deferred.", manifest_path=manifest)
+                machine_evidence=[str(new_machine)], proves="Dashboard context is visible.",
+                    does_not_prove="Alert proof is deferred.", manifest_path=manifest, workspace=tmp_path)
         assert (final.read_bytes(), manifest.read_bytes()) == before
         assert not list(tmp_path.glob(".*.tmp*")) and not list(tmp_path.glob(".*.rollback"))

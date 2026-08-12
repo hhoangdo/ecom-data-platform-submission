@@ -1,4 +1,6 @@
 .env
+*.tfstate
+*.tfstate.*
 .venv/
 .worktrees/
 __pycache__/
