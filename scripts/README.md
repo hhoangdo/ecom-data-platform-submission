@@ -43,6 +43,9 @@ Run `make help` at any time to print the full catalog.
 | `scripts/datahub/capture_evidence.py` | Referenced by the DataHub governance deliverable for official governance evidence. |
 | `scripts/datahub/restore_search_indices.py` | Restores DataHub search indices and verifies representative datasets are indexed after recovery. |
 | `scripts/datahub/restore_search_indices.py` | Replays persisted DataHub metadata through GMS to restore indexed-search evidence after a governed runtime recovery. |
+| `scripts/feast/load_section03.py` | Strict Section 03 verification and activation command required by the drift workload contract. |
+| `scripts/feast/run_offline_writer.py` | Feast offline-writer workload command mapped by the Topic 19 CI change map. |
+| `scripts/feast/run_online_writer.py` | Feast online-writer workload command mapped by the Topic 19 CI change map. |
 | `scripts/flink/capture_evidence.py` | Referenced by the Flink deliverable for streaming evidence capture. |
 | `scripts/flink/publish_smoke.py` | Referenced by the Flink deliverable for deterministic streaming smoke events. |
 | `scripts/flink/run_baseline_comparison.py` | Runs the isolated baseline or optimized Flink comparison variant and captures its evidence contract. |
@@ -58,6 +61,12 @@ Run `make help` at any time to print the full catalog.
 | `scripts/kafka/producer_smoke.py` | Kafka smoke producer referenced by the Kafka ingestion deliverable. |
 | `scripts/kafka/register_bronze_sink.py` | Bronze Kafka Connect sink command referenced by deliverables and unit tests. |
 | `scripts/kafka/register_schemas.py` | Schema Registry command referenced by the Kafka ingestion deliverable. |
+| `scripts/llm/benchmark_inference.py` | Controlled inference benchmark command for the Topic 19 workload evidence contract. |
+| `scripts/llm/build_index.py` | RAG-index workload command declared by the EDAI2 Helm workload contract. |
+| `scripts/llm/publish_agents.py` | Agent Registry publication command exercised by the registry contract tests. |
+| `scripts/llm/run_evaluation.py` | Local evaluation command verified by the Topic 15 quality suite. |
+| `scripts/llm/smoke_drift.py` | Drift-agent smoke command for the EDAI2 service contract. |
+| `scripts/llm/smoke_release.py` | Release smoke command for the Topic 19 workload evidence contract. |
 | `scripts/lakehouse/capture_bronze_evidence.py` | Bronze landing evidence command referenced by deliverables and unit tests. |
 | `scripts/lakehouse/capture_evidence.py` | Lakehouse evidence command referenced by the lakehouse deliverable. |
 | `scripts/lakehouse/land_bronze_batch.py` | Bronze batch landing command referenced by deliverables and unit tests. |
@@ -70,9 +79,12 @@ Run `make help` at any time to print the full catalog.
 | `scripts/qa/finalize_sections_01_02.py` | Final Section 01/02 package command referenced by README and tests. |
 | `scripts/qa/generate_section02_evidence.py` | Section 02 evidence command referenced by the schema deliverable and tests. |
 | `scripts/qa/capture_novel_ideas.py` | Validates the two ordered novel-idea gates and writes their machine-readable evidence package. |
+| `scripts/qa/capture_edai2_evidence.py` | Captures the Topic 20 observability evidence package and required UI anchors. |
 | `scripts/qa/audit_public_documentation.py` | AST-audits the declared deployable public API and writes hash-bound coverage evidence. |
 | `scripts/qa/build_mini_coursework_rubric_manifest.py` | Builds and verifies the fail-closed, row-ordered Mini-Coursework rubric manifest. |
 | `scripts/qa/summarize_runlog.py` | Produces compact markdown summaries from long platform run logs for post-run review. |
+| `scripts/qa/verify_edai2_mutation_score.py` | Verifies the authored Topic 15 mutation-score threshold. |
+| `scripts/qa/verify_edai2_test_scope.py` | Verifies changed EDAI2 production code is covered by the approved test scope. |
 | `scripts/spark/driver_service.py` | Runs client-mode PySpark commands inside the socket-free `spark-driver` Compose service through its internal `/health` and serialized `/run` endpoints. |
 | `scripts/spark/export_executive_mart.py` | Executive mart export command referenced by README, deliverables, and tests. |
 | `scripts/spark/job.py` | Spark submit compatibility entry point referenced by `src/vina_bim_shop/lakehouse/spark/runner.py` and tests. |
@@ -90,6 +102,7 @@ Keep them in this branch for now, but treat them as queued for a later `develop`
 | `scripts/kafka/cleanup_kafka.py` | Destructive Kafka reset helper; superseded by the documented project-level reset flow for official use. |
 | `scripts/lakehouse/cleanup_lakehouse.py` | Destructive lakehouse service/evidence cleanup helper with no official references. |
 | `scripts/pinot/capture_evidence.py` | Duplicate/manual Pinot evidence wrapper; official Pinot evidence refresh uses `scripts/pinot/refresh_evidence.py`. |
+| `scripts/gke/manage_profile.py` | Topic 17 dry-run profile renderer retained for later GKE profile operations. |
 | `scripts/qa/upload_bronze.sh` | Manual shell helper for copying local raw files into MinIO; official landing uses `scripts/lakehouse/land_bronze_batch.py`. |
 | `scripts/spark/capture_evidence.py` | Duplicate/manual Spark evidence wrapper; official batch evidence is produced through `scripts/spark/run_batch.py`. |
 
@@ -101,6 +114,9 @@ official run commands.
 | Script | Risk to resolve before moving or normalizing |
 | --- | --- |
 | `scripts/flink/cleanroom_verify.py` | Referenced by Flink and Pinot deliverables and tests, but performs clean-room reset, Docker service removal, volume removal, and image/build-cache pruning. |
+| `scripts/gke/check_budget.py` | GKE external preflight and budget gate; it needs explicit cloud credentials and targets before use. |
+| `scripts/gke/configure_evidence_ingress.py` | Temporary GKE evidence-ingress renderer/applicator; it needs an explicit context, lease, and human review. |
+| `scripts/kind/preflight_edai2_lean.py` | Dedicated Kind smoke-cluster preflight; it validates the bounded local cluster before creation. |
 | `scripts/qa/reset_all.py` | Referenced by README as the local reset command, but intentionally stops services, removes Docker volumes, and can clean gitignored local data. |
 
 ## Follow-Up

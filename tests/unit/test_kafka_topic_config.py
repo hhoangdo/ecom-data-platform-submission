@@ -19,6 +19,19 @@ DERIVED_PLACEHOLDER_TOPICS = {
     "realtime_metric_corrections",
 }
 
+ALL_TOPIC_NAMES = [
+    "commerce_events",
+    "catalog_events",
+    "fulfillment_events",
+    "ops_events",
+    "dead_letter_events",
+    "realtime_commerce_metrics_1m",
+    "realtime_ops_alerts",
+    "realtime_metric_corrections",
+    "customer_feature_updates.v1",
+    "customer_feature_updates.v1.dlq",
+]
+
 
 def test_topic_config_preserves_adr01_topic_contract() -> None:
     repo_root = Path(__file__).resolve().parents[2]
@@ -51,16 +64,7 @@ def test_topic_loader_returns_source_placeholder_and_all_topics() -> None:
 
     assert set(source_topic_names()) == SOURCE_TOPICS
     assert set(derived_placeholder_topic_names()) == DERIVED_PLACEHOLDER_TOPICS
-    assert all_topic_names() == [
-        "commerce_events",
-        "catalog_events",
-        "fulfillment_events",
-        "ops_events",
-        "dead_letter_events",
-        "realtime_commerce_metrics_1m",
-        "realtime_ops_alerts",
-        "realtime_metric_corrections",
-    ]
+    assert all_topic_names() == ALL_TOPIC_NAMES
 
 
 def test_bootstrap_topics_creates_every_topic_idempotently() -> None:
@@ -70,9 +74,10 @@ def test_bootstrap_topics_creates_every_topic_idempotently() -> None:
 
     bootstrap_topics(runner=runner)
 
-    assert runner.call_count == 8
+    assert runner.call_count == len(ALL_TOPIC_NAMES)
     commands = [call.args[0] for call in runner.call_args_list]
     joined = [" ".join(command) for command in commands]
+    assert [command[command.index("--topic") + 1] for command in commands] == ALL_TOPIC_NAMES
     assert all("--if-not-exists" in command for command in joined)
     assert all("--replication-factor 1" in command for command in joined)
     assert all("--partitions 1" in command for command in joined)
@@ -129,7 +134,8 @@ def test_cleanup_deletes_topics_then_bootstraps_again(tmp_path: Path, monkeypatc
 
     cleanup_kafka(runner=runner, bootstrap_server="kafka:29092", evidence_root=evidence_root, clean_evidence=True)
 
-    assert len(commands) == 8
+    assert len(commands) == len(ALL_TOPIC_NAMES)
+    assert [command[command.index("--topic") + 1] for command in commands] == ALL_TOPIC_NAMES
     assert all("--delete" in " ".join(command) for command in commands)
     assert all("--if-exists" in " ".join(command) for command in commands)
     assert bootstrapped == ["kafka:29092"]

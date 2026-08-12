@@ -30,6 +30,7 @@ def test_required_airflow_dags_are_declared_with_manual_or_demo_schedules() -> N
         "reconciliation_report",
         "local_evidence_build",
         "mini_coursework_pipeline",
+        "rag_index_pipeline",
     )
     assert tuple(dag_specs) == REQUIRED_DAG_IDS
 
@@ -37,6 +38,7 @@ def test_required_airflow_dags_are_declared_with_manual_or_demo_schedules() -> N
     assert dag_specs["pinot_bootstrap"].schedule == "manual"
     assert dag_specs["datahub_ingestion"].schedule == "manual"
     assert dag_specs["local_evidence_build"].schedule == "manual"
+    assert dag_specs["rag_index_pipeline"].schedule == "manual"
     assert dag_specs["hourly_batch_lakehouse"].schedule == "hourly_demo"
     assert dag_specs["reconciliation_report"].schedule == "hourly_demo"
     assert dag_specs["mini_coursework_pipeline"].schedule == "hourly_demo"

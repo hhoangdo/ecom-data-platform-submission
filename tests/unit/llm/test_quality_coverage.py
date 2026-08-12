@@ -77,9 +77,12 @@ def test_common_contract_app_exposes_probes_metrics_and_sanitized_handlers() -> 
 
 def test_topic_helpers_load_and_order_kafka_topics(tmp_path: Path) -> None:
     path = tmp_path / "topics.yaml"
-    path.write_text("source_topics: [source-a]\nderived_placeholder_topics: [derived-b]\n", encoding="utf-8")
+    path.write_text(
+        "source_topics: [source-a]\nderived_placeholder_topics: [derived-b]\nfeature_update_topics: [feature-c]\n",
+        encoding="utf-8",
+    )
     assert load_topic_config(path)["source_topics"] == ["source-a"]
-    assert all_topic_names(path) == ["source-a", "derived-b"]
+    assert all_topic_names(path) == ["source-a", "derived-b", "feature-c"]
     path.write_text("- invalid\n", encoding="utf-8")
     with pytest.raises(ValueError, match="mapping"):
         load_topic_config(path)
@@ -106,10 +109,34 @@ def test_rag_airflow_helpers_fail_closed_and_round_trip_handoff(tmp_path: Path) 
 
 @pytest.mark.asyncio
 async def test_streaming_writer_contracts_reject_live_writes() -> None:
-    with pytest.raises(NotImplementedError, match="offline writer"):
-        await OfflineWriterContract().write({"event": "offline"})
-    with pytest.raises(NotImplementedError, match="online writer"):
-        await OnlineWriterContract().write({"event": "online"})
+    class Store:
+        def __init__(self) -> None:
+            self.checkpoints: list[tuple[str, str, int, int]] = []
+            self.dlqs: list[dict[str, object]] = []
+
+        async def persist_outbox(self, consumer_group: str, event_id: str, event: dict[str, object]) -> bool:
+            raise AssertionError("invalid events must not reach the outbox")
+
+        async def acknowledge_destination(self, destination: str, event: dict[str, object]) -> None:
+            raise AssertionError("invalid events must not reach a destination")
+
+        async def advance_checkpoint(self, consumer_group: str, topic: str, partition: int, offset: int) -> None:
+            self.checkpoints.append((consumer_group, topic, partition, offset))
+
+        async def publish_dlq(self, envelope: dict[str, object]) -> None:
+            self.dlqs.append(envelope)
+
+    store = Store()
+    assert (await OfflineWriterContract(store).write({"event": "offline"})).status == "dlq"
+    assert (await OnlineWriterContract(store).write({"event": "online"})).status == "dlq"
+    assert [record["consumer_group"] for record in store.dlqs] == [
+        "edai2-feast-offline-writer-v1",
+        "edai2-feast-online-writer-v1",
+    ]
+    assert store.checkpoints == [
+        ("edai2-feast-offline-writer-v1", "customer_feature_updates.v1", 0, 0),
+        ("edai2-feast-online-writer-v1", "customer_feature_updates.v1", 0, 0),
+    ]
 
 
 def _minimal_handoff() -> dict[str, object]:
