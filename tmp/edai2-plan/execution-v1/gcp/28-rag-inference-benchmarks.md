@@ -24,7 +24,7 @@
 ## Global Constraints
 
 - Read `C:\Users\oou1hc\.codex\RTK.md`; prefix all shell commands with `rtk`.
-- Fixed hashes: Section 03 `ece171c3d400c3b16fc668cd28e3587faebe1f596dd6c0c4498ff055e3fc027f`; EDAI2 `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`; `tmp/rubic-check/Coursework Tracking (Public).xlsx` `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
+- Fixed hashes: Section 03 `3c906ae30ac0fee606e96608a7b5759cd7439ae048c4c12a84511fce5cc33ae6`; EDAI2 `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`; `tmp/rubic-check/Coursework Tracking (Public).xlsx` `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - Do not create/switch branch/worktree, stage, or commit.
 - Consume the completed local implementation. If a source/IaC/chart defect appears, capture it, release or suspend any owned runtime, mark this topic `Partial`, and return it to the owning local topic; do not patch implementation during a live cloud lease.
 - Start only from suspended pools/no forwarding rule. Acquire a fresh lease only after a redacted `check_budget.py --live-external-preflight` verifies project lifecycle, billing linkage, exact IAM permissions, trial expiry, current spend/forecast, notification target, approved recovery sink, DNS, capacity, and context. Missing external source, model cache, index source, or permission is a safe stop.
