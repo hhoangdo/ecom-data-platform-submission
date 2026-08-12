@@ -28,6 +28,22 @@ function Invoke-Rtk {
     if ($LASTEXITCODE -ne 0) { throw "command failed: rtk $($Arguments -join ' ')" }
 }
 
+function Assert-KindImageLoadOutput {
+    param([Parameter(Mandatory)] [object[]] $Output)
+    foreach ($Line in $Output) {
+        if ("$Line" -match '^\s*Error:') { throw 'kind image load emitted Error output' }
+    }
+}
+
+function Invoke-KindImageLoad {
+    param([Parameter(Mandatory)] [string] $Image, [Parameter(Mandatory)] [string] $OwnedCluster)
+    $Output = @(& rtk kind load docker-image $Image --name $OwnedCluster 2>&1)
+    $ExitCode = $LASTEXITCODE
+    $Output | Write-Output
+    if ($ExitCode -ne 0) { throw "command failed: rtk kind load docker-image $Image --name $OwnedCluster" }
+    Assert-KindImageLoadOutput -Output $Output
+}
+
 function Invoke-Probe {
     param([Parameter(Mandatory)] [string] $Path, [Parameter(Mandatory)] [string] $BodyPath, [Parameter(Mandatory)] [string] $StatusPath, [Parameter(Mandatory)] [string] $ExpectedStatus)
     $TemporaryBody = "$BodyPath.tmp"
@@ -53,7 +69,7 @@ try {
     $CurrentContext = & rtk kubectl --kubeconfig $Kubeconfig --context $Context config current-context
     if ($LASTEXITCODE -ne 0 -or $CurrentContext.Trim() -ne $Context) { throw 'Kind context verification failed' }
     Invoke-Rtk docker build --file containers/edai2/Dockerfile --target retrieval_agent --tag edai2/retrieval-agent:kind-local .
-    Invoke-Rtk kind load docker-image edai2/retrieval-agent:kind-local --name $ClusterName
+    Invoke-KindImageLoad -Image edai2/retrieval-agent:kind-local -OwnedCluster $ClusterName
     Invoke-Rtk kubectl --kubeconfig $Kubeconfig --context $Context apply -f infra/kind/edai2-lean/namespace.yaml
     Invoke-Rtk kubectl --kubeconfig $Kubeconfig --context $Context apply -f infra/kind/edai2-lean/resource-quota.yaml -f infra/kind/edai2-lean/limit-range.yaml -f infra/kind/edai2-lean/network-policy.yaml
     Invoke-Rtk helm --kubeconfig $Kubeconfig --kube-context $Context upgrade --install $Release infra/helm/edai2/service-agent --namespace $Namespace -f infra/kind/edai2-lean/retrieval-values.yaml --set-string image.repository=edai2/retrieval-agent --set-string image.tag=kind-local --set image.pullPolicy=IfNotPresent --wait --timeout 5m

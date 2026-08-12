@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -97,3 +98,33 @@ def test_kind_preflight_rejects_an_extra_cluster_ip_service() -> None:
 
     with pytest.raises(ValueError, match="exactly one retrieval service"):
         module.build_report([deployment, service, extra])
+
+
+def test_kind_runner_rejects_zero_exit_kind_load_error_before_apply() -> None:
+    runner = REPOSITORY_ROOT / "scripts/kind/run_edai2_lean.ps1"
+    command = f"""
+$tokens = $null
+$errors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile('{runner.as_posix()}', [ref]$tokens, [ref]$errors)
+$definition = $ast.Find({{ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Assert-KindImageLoadOutput' }}, $true)
+if ($null -eq $definition) {{ throw 'missing image-load output guard' }}
+. ([scriptblock]::Create($definition.Extent.Text))
+try {{
+    Assert-KindImageLoadOutput @('Image loading...', 'Error: context deadline exceeded')
+    throw 'zero-exit Kind error was accepted'
+}} catch {{
+    if ($_.Exception.Message -notmatch 'kind image load emitted Error') {{ throw }}
+}}
+exit 0
+"""
+
+    result = subprocess.run(
+        ["powershell", "-NoProfile", "-Command", command],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    text = runner.read_text(encoding="utf-8")
+    assert text.index("Invoke-KindImageLoad") < text.index("apply -f infra/kind/edai2-lean/namespace.yaml")
