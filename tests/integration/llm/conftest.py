@@ -6,13 +6,6 @@ import pytest
 import yaml
 
 
-def pytest_addoption(parser: pytest.Parser) -> None:
-    group = parser.getgroup("live-gke")
-    group.addoption("--live-gke", action="store_true", default=False)
-    group.addoption("--kubeconfig", default=None)
-    group.addoption("--context", default=None)
-
-
 def resolve_live_gke_target(
     *, live_gke: bool, kubeconfig: str | None, context: str | None
 ) -> tuple[Path, str]:
