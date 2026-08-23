@@ -31,6 +31,28 @@ _OPERATOR_PATHS = {
     "application_default_credentials": "file",
     "tf_data_dir": "dir",
 }
+_MONETARY_FIELDS = {
+    "schema_version", "billing_account_id", "trial_expires_at", "spend_observed_at",
+    "conversion_observed_at", "current_spend_vnd", "console_spend_vnd", "forecast_vnd",
+    "trial_credit_vnd", "paths",
+}
+_MONETARY_PATHS = {
+    "gcloud_config_dir": "dir",
+    "application_default_credentials": "file",
+}
+_BOOTSTRAP_FIELDS = {
+    "schema_version", "project_id", "billing_account_id", "trial_expires_at",
+    "spend_observed_at", "conversion_observed_at", "current_spend_vnd",
+    "console_spend_vnd", "forecast_vnd", "trial_credit_vnd", "requested_ttl_hours",
+    "backend_bucket_preexists", "backend_bucket_proof_sha256", "paths",
+}
+_BOOTSTRAP_PATHS = {
+    "gcloud_config_dir": "dir",
+    "application_default_credentials": "file",
+    "tf_data_dir": "dir",
+    "terraform_backend_config": "file",
+    "bootstrap_authorization": "file",
+}
 _BILLING_SELECTOR = re.compile(r"\[(aria-label|data-field|data-testid)(\*=|=)'([A-Za-z][A-Za-z0-9 -]{0,47})'\]")
 _BILLING_MARKER_VALUES = {"billing", "billing overview", "current spend", "current-spend", "budget", "cost overview"}
 _BILLING_PII_VALUES = {"billing-account-id", "billing-account-name", "project-id", "email", "user-email"}
@@ -297,4 +319,88 @@ def load_operator_inputs(
         if not isinstance(decoded, dict):
             raise ValueError(f"operator {json_name} is invalid")
         decoded = None
+    return {**payload, "resolved_paths": resolved_paths}
+
+
+def load_monetary_inputs(
+    value: str | Path,
+    workspace: Path,
+    path_validator: Callable[[Path, str], Path] | None = None,
+) -> dict[str, Any]:
+    """Load the separate minimal private bundle for the read-only bootstrap monetary phase."""
+    validator = path_validator or (lambda candidate, kind: validate_private_operator_path(candidate, kind, workspace))
+
+    def validate(candidate: Path, kind: str, *, directory: bool = False) -> Path:
+        resolved = _private_topic22_path(candidate, workspace, directory=directory)
+        checked = Path(validator(resolved, f"{kind}_dir" if directory else kind)).resolve()
+        if checked != resolved:
+            raise ValueError("private path validator changed the target")
+        return checked
+
+    bundle_path = validate(Path(value), "monetary_inputs")
+    payload = json.loads(bundle_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict) or set(payload) != _MONETARY_FIELDS or payload.get("schema_version") != 1:
+        raise ValueError("monetary input bundle schema is invalid")
+    paths = payload.get("paths")
+    if not isinstance(paths, dict) or set(paths) != set(_MONETARY_PATHS):
+        raise ValueError("monetary input path schema is invalid")
+    resolved_paths: dict[str, Path] = {}
+    for name, path_type in _MONETARY_PATHS.items():
+        relative = paths.get(name)
+        if not isinstance(relative, str) or not relative or Path(relative).is_absolute() or ".." in Path(relative).parts:
+            raise ValueError("monetary input path is invalid")
+        resolved_paths[name] = validate(bundle_path.parent / relative, name, directory=path_type == "dir")
+    strings = ("billing_account_id", "trial_expires_at", "spend_observed_at", "conversion_observed_at")
+    if any(not isinstance(payload.get(name), str) or not payload[name] for name in strings):
+        raise ValueError("monetary input value is invalid")
+    money = ("current_spend_vnd", "console_spend_vnd", "forecast_vnd", "trial_credit_vnd")
+    if any(isinstance(payload.get(name), bool) or not isinstance(payload.get(name), (int, float)) for name in money):
+        raise ValueError("monetary inputs are invalid")
+    decoded = json.loads(resolved_paths["application_default_credentials"].read_text(encoding="utf-8"))
+    if not isinstance(decoded, dict):
+        raise ValueError("monetary application_default_credentials is invalid")
+    return {**payload, "resolved_paths": resolved_paths}
+
+
+def load_bootstrap_inputs(
+    value: str | Path,
+    workspace: Path,
+    path_validator: Callable[[Path, str], Path] | None = None,
+) -> dict[str, Any]:
+    """Load the private fresh/reuse bootstrap contract before notification creation is possible."""
+    validator = path_validator or (lambda candidate, kind: validate_private_operator_path(candidate, kind, workspace))
+
+    def validate(candidate: Path, kind: str, *, directory: bool = False) -> Path:
+        resolved = _private_topic22_path(candidate, workspace, directory=directory)
+        checked = Path(validator(resolved, f"{kind}_dir" if directory else kind)).resolve()
+        if checked != resolved:
+            raise ValueError("private path validator changed the target")
+        return checked
+
+    bundle_path = validate(Path(value), "bootstrap_inputs")
+    payload = json.loads(bundle_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict) or set(payload) != _BOOTSTRAP_FIELDS or payload.get("schema_version") != 1:
+        raise ValueError("bootstrap input bundle schema is invalid")
+    paths = payload.get("paths")
+    if not isinstance(paths, dict) or set(paths) != set(_BOOTSTRAP_PATHS):
+        raise ValueError("bootstrap input path schema is invalid")
+    resolved_paths: dict[str, Path] = {}
+    for name, path_type in _BOOTSTRAP_PATHS.items():
+        relative = paths.get(name)
+        if not isinstance(relative, str) or not relative or Path(relative).is_absolute() or ".." in Path(relative).parts:
+            raise ValueError("bootstrap input path is invalid")
+        resolved_paths[name] = validate(bundle_path.parent / relative, name, directory=path_type == "dir")
+    strings = ("project_id", "billing_account_id", "trial_expires_at", "spend_observed_at", "conversion_observed_at")
+    if any(not isinstance(payload.get(name), str) or not payload[name] for name in strings):
+        raise ValueError("bootstrap input value is invalid")
+    money = ("current_spend_vnd", "console_spend_vnd", "forecast_vnd", "trial_credit_vnd", "requested_ttl_hours")
+    if any(isinstance(payload.get(name), bool) or not isinstance(payload.get(name), (int, float)) for name in money):
+        raise ValueError("bootstrap monetary inputs are invalid")
+    if not isinstance(payload.get("backend_bucket_preexists"), bool) or (payload["backend_bucket_preexists"] is True and not re.fullmatch(r"[0-9a-f]{64}", str(payload.get("backend_bucket_proof_sha256", "")))) or (payload["backend_bucket_preexists"] is False and payload.get("backend_bucket_proof_sha256") != ""):
+        raise ValueError("bootstrap backend proof is invalid")
+    backend_values(resolved_paths["terraform_backend_config"])
+    for json_name in ("application_default_credentials", "bootstrap_authorization"):
+        decoded = json.loads(resolved_paths[json_name].read_text(encoding="utf-8"))
+        if not isinstance(decoded, dict):
+            raise ValueError(f"bootstrap {json_name} is invalid")
     return {**payload, "resolved_paths": resolved_paths}

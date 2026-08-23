@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 from datetime import UTC, datetime
+import hashlib
 import importlib.util
 import json
 import os
@@ -882,7 +883,8 @@ def test_private_bootstrap_executor_uses_only_private_token_environment_and_reda
     """Catches a bootstrap implementation sending project/billing identity via CLI/public output rather than REST memory."""
     budget = _load("scripts/gke/check_budget.py", "topic22_fourth_bootstrap_executor")
     private = tmp_path / "tmp" / "edai2-gcp"; private.mkdir(parents=True)
-    operator = {"project_id": "private-project", "billing_account_id": "private-billing", "backend_bucket_preexists": True, "backend_bucket_proof_sha256": "a" * 64, "resolved_paths": {"gcloud_config_dir": private / "config", "application_default_credentials": private / "adc.json", "tf_data_dir": private / "terraform-data"}, "current_spend_vnd": 0, "console_spend_vnd": 0, "forecast_vnd": 0, "trial_credit_vnd": 6_000_000, "trial_expires_at": "2099-01-01T00:00:00Z", "conversion_observed_at": "2026-08-12T00:00:00Z", "spend_observed_at": "2026-08-12T00:00:00Z", "requested_ttl_hours": 1, "bootstrap_authorization": {"operator_approved": True, "forecast_sha256": "b" * 64, "revision": "c" * 40, "current_spend_vnd": 0, "console_spend_vnd": 0, "forecast_vnd": 0, "trial_credit_vnd": 6_000_000, "trial_expires_at": "2099-01-01T00:00:00Z", "conversion_observed_at": "2026-08-12T00:00:00Z", "spend_observed_at": "2026-08-12T00:00:00Z", "requested_ttl_hours": 1, "project_parent": "folders/123"}}
+    now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    operator = {"project_id": "private-project", "billing_account_id": "private-billing", "backend_bucket_preexists": True, "backend_bucket_proof_sha256": "a" * 64, "resolved_paths": {"gcloud_config_dir": private / "config", "application_default_credentials": private / "adc.json", "tf_data_dir": private / "terraform-data"}, "current_spend_vnd": 0, "console_spend_vnd": 0, "forecast_vnd": 0, "trial_credit_vnd": 6_000_000, "trial_expires_at": "2099-01-01T00:00:00Z", "conversion_observed_at": now, "spend_observed_at": now, "requested_ttl_hours": 1, "bootstrap_authorization": {"operator_approved": True, "forecast_sha256": "b" * 64, "revision": "c" * 40, "current_spend_vnd": 0, "console_spend_vnd": 0, "forecast_vnd": 0, "trial_credit_vnd": 6_000_000, "trial_expires_at": "2099-01-01T00:00:00Z", "conversion_observed_at": now, "spend_observed_at": now, "requested_ttl_hours": 1, "project_parent": "folders/123"}}
     (private / "terraform-data").mkdir()
     backend = private / "backend.hcl"; backend.write_text('bucket = "private-backend"\nprefix = "edai2/topic22"\n', encoding="utf-8"); operator["resolved_paths"]["terraform_backend_config"] = backend
     authorization = private / "bootstrap-authorization.json"; authorization.write_text(json.dumps(operator["bootstrap_authorization"]) + "\n", encoding="utf-8"); operator["resolved_paths"]["bootstrap_authorization"] = authorization
@@ -907,13 +909,14 @@ def test_private_bootstrap_only_creates_on_crm_404_polls_owned_apis_and_persists
     budget = _load("scripts/gke/check_budget.py", "topic22_fourth_bootstrap_owned_lro")
     private = tmp_path / "tmp" / "edai2-gcp"; private.mkdir(parents=True)
     data = private / "terraform-data"; data.mkdir()
+    now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
     operator = {
         "project_id": "private-project", "billing_account_id": "private-billing",
         "backend_bucket_preexists": False, "backend_bucket_proof_sha256": "",
         "resolved_paths": {"gcloud_config_dir": private / "config", "application_default_credentials": private / "adc.json", "tf_data_dir": data},
         "current_spend_vnd": 0, "console_spend_vnd": 0, "forecast_vnd": 0, "trial_credit_vnd": 6_000_000,
-        "trial_expires_at": "2099-01-01T00:00:00Z", "conversion_observed_at": "2026-08-12T00:00:00Z", "spend_observed_at": "2026-08-12T00:00:00Z", "requested_ttl_hours": 1,
-        "bootstrap_authorization": {"operator_approved": True, "forecast_sha256": "b" * 64, "revision": "c" * 40, "current_spend_vnd": 0, "console_spend_vnd": 0, "forecast_vnd": 0, "trial_credit_vnd": 6_000_000, "trial_expires_at": "2099-01-01T00:00:00Z", "conversion_observed_at": "2026-08-12T00:00:00Z", "spend_observed_at": "2026-08-12T00:00:00Z", "requested_ttl_hours": 1, "project_parent": "folders/123"},
+        "trial_expires_at": "2099-01-01T00:00:00Z", "conversion_observed_at": now, "spend_observed_at": now, "requested_ttl_hours": 1,
+        "bootstrap_authorization": {"operator_approved": True, "forecast_sha256": "b" * 64, "revision": "c" * 40, "current_spend_vnd": 0, "console_spend_vnd": 0, "forecast_vnd": 0, "trial_credit_vnd": 6_000_000, "trial_expires_at": "2099-01-01T00:00:00Z", "conversion_observed_at": now, "spend_observed_at": now, "requested_ttl_hours": 1, "project_parent": "folders/123"},
     }
     backend = private / "backend.hcl"; backend.write_text('bucket = "private-backend"\nprefix = "edai2/topic22"\n', encoding="utf-8"); operator["resolved_paths"]["terraform_backend_config"] = backend
     authorization = private / "bootstrap-authorization.json"; authorization.write_text(json.dumps(operator["bootstrap_authorization"]) + "\n", encoding="utf-8"); operator["resolved_paths"]["bootstrap_authorization"] = authorization
@@ -994,6 +997,388 @@ def test_authoritative_plan_exposes_only_fixed_private_plan_apply_interfaces() -
     assert "Completion Record" not in public[public.index("### Task 5"):public.index("### Task 6")]
     assert completion.startswith("## Completion Record")
     assert not any(marker in plan for marker in ("â", "Ã", "�"))
+
+
+def test_private_monetary_forecast_is_read_only_and_redacted_without_backend_or_project(
+    tmp_path: Path,
+) -> None:
+    """Catches the fresh bootstrap path depending on a backend or project before its first mutation."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_private_monetary_forecast")
+    private = tmp_path / "tmp" / "edai2-gcp"
+    private.mkdir(parents=True)
+    envelope = tmp_path / "cost-envelope.yaml"
+    envelope.write_text(
+        "terraform_budget_usd: 240\npre_deployment_forecast_ceiling_usd: 180\n",
+        encoding="utf-8",
+    )
+    now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    operator = {
+        "project_id": "private-project-id",
+        "billing_account_id": "private-billing-account",
+        "current_spend_vnd": 0,
+        "console_spend_vnd": 0,
+        "forecast_vnd": 0,
+        "trial_credit_vnd": 6_000_000,
+        "trial_expires_at": "2099-01-01T00:00:00Z",
+        "conversion_observed_at": now,
+        "spend_observed_at": now,
+        "resolved_paths": {
+            "gcloud_config_dir": private / "gcloud-config",
+            "application_default_credentials": private / "adc.json",
+        },
+    }
+    forecast = tmp_path / "cost_forecast_topic22.json"
+    ledger = tmp_path / "usage_ledger.json"
+    calls: list[tuple[str, str]] = []
+
+    def request(method: str, url: str, headers: dict[str, str], payload: dict[str, object] | None) -> dict[str, object]:
+        calls.append((method, url))
+        assert headers["Authorization"] == "Bearer private-token"
+        assert payload is None
+        return {
+            "name": "billingAccounts/private-billing-account",
+            "open": True,
+            "currencyCode": "VND",
+        }
+
+    result = budget.write_private_monetary_forecast(
+        "operator-inputs.json",
+        forecast,
+        ledger,
+        envelope,
+        "0h",
+        tmp_path,
+        operator_loader=lambda *_args: operator,
+        token_runner=lambda command, environment: (
+            "private-token"
+            if command == ["gcloud", "auth", "print-access-token"]
+            and environment["CLOUDSDK_CONFIG"] == str(private / "gcloud-config")
+            and environment["GOOGLE_APPLICATION_CREDENTIALS"] == str(private / "adc.json")
+            else pytest.fail("unexpected private token invocation")
+        ),
+        requester=request,
+    )
+
+    assert result == 0
+    assert calls == [("GET", "https://cloudbilling.googleapis.com/v1/billingAccounts/private-billing-account")]
+    report = json.loads(forecast.read_text(encoding="utf-8"))
+    assert report["ok"] is True
+    assert report["billing_account_open"] is True
+    assert report["billing_currency_vnd"] is True
+    assert report["billing_account_name_matches"] is True
+    assert report["billing_account_sha256"] == budget._hash("private-billing-account")
+    rendered = forecast.read_text(encoding="utf-8") + ledger.read_text(encoding="utf-8")
+    for private_value in ("private-project-id", "private-billing-account", "private-token", str(private)):
+        assert private_value not in rendered
+    assert not (private / "topic22-bootstrap-proof.json").exists()
+    assert not (private / "topic22-terraform-runtime.json").exists()
+
+
+def test_private_monetary_forecast_cli_dispatches_only_the_fixed_private_interface(tmp_path: Path) -> None:
+    """Catches the CLI bypassing the monetary helper or accepting an unbounded alternate action."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_private_monetary_dispatch")
+    args = budget.parse_args([
+        "--operator-inputs", "tmp/edai2-gcp/operator-inputs.json",
+        "--private-monetary-forecast",
+        "--usage-ledger", "evidence/04_2_llm_design/gke/usage_ledger.json",
+        "--envelope", "configs/gke/cost_envelope.yaml",
+        "--requested-ttl", "0h",
+        "--output", "evidence/04_2_llm_design/gke/bootstrap_forecast_topic22.json",
+    ])
+    seen: list[tuple[object, ...]] = []
+
+    def writer(*values: object) -> int:
+        seen.append(values)
+        return 0
+
+    assert budget.dispatch_private_helper(args, tmp_path, monetary_writer=writer) == 0
+    assert seen == [(
+        "tmp/edai2-gcp/operator-inputs.json",
+        "evidence/04_2_llm_design/gke/bootstrap_forecast_topic22.json",
+        "evidence/04_2_llm_design/gke/usage_ledger.json",
+        "configs/gke/cost_envelope.yaml",
+        "0h",
+        tmp_path,
+    )]
+
+
+def test_private_monetary_forecast_dispatch_loads_only_a_minimal_acl_restricted_bundle(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Catches the forecast dispatcher loading the full project/Terraform operator bundle before its Billing GET."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_minimal_monetary_dispatch")
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    subprocess.run(["git", "init", "--quiet"], cwd=workspace, check=True)
+    (workspace / ".gitignore").write_text("tmp/edai2-gcp/\n", encoding="utf-8")
+    private = workspace / "tmp" / "edai2-gcp"
+    config = private / "gcloud-config"
+    config.mkdir(parents=True)
+    adc = config / "application_default_credentials.json"
+    adc.write_text("{}\n", encoding="utf-8")
+    now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    bundle = private / "monetary-inputs.json"
+    bundle.write_text(json.dumps({
+        "schema_version": 1,
+        "billing_account_id": "private-billing-account",
+        "trial_expires_at": "2099-01-01T00:00:00Z",
+        "spend_observed_at": now,
+        "conversion_observed_at": now,
+        "current_spend_vnd": 0,
+        "console_spend_vnd": 0,
+        "forecast_vnd": 0,
+        "trial_credit_vnd": 6_000_000,
+        "paths": {
+            "gcloud_config_dir": "gcloud-config",
+            "application_default_credentials": "gcloud-config/application_default_credentials.json",
+        },
+    }) + "\n", encoding="utf-8")
+    if os.name == "nt":
+        current_user = subprocess.run(["whoami"], check=True, capture_output=True, text=True, encoding="utf-8").stdout.strip()
+        for path in (private, config, adc, bundle):
+            grant = f"{current_user}:(OI)(CI)(F)" if path.is_dir() else f"{current_user}:(F)"
+            subprocess.run(["icacls", str(path), "/inheritance:r", "/grant:r", grant], check=True, capture_output=True, text=True, encoding="utf-8")
+    else:
+        private.chmod(0o700); config.chmod(0o700); adc.chmod(0o600); bundle.chmod(0o600)
+    envelope = workspace / "cost-envelope.yaml"
+    envelope.write_text("terraform_budget_usd: 240\npre_deployment_forecast_ceiling_usd: 180\n", encoding="utf-8")
+    calls: list[tuple[str, str]] = []
+
+    def request(method: str, url: str, headers: dict[str, str], payload: dict[str, object] | None) -> dict[str, object]:
+        calls.append((method, url))
+        assert headers["Authorization"] == "Bearer private-token"
+        assert payload is None
+        return {"name": "billingAccounts/private-billing-account", "open": True, "currencyCode": "VND"}
+
+    monkeypatch.setattr(budget, "_run_gcloud_private", lambda command, environment: "private-token" if command == ["gcloud", "auth", "print-access-token"] and environment["CLOUDSDK_CONFIG"] == str(config) and environment["GOOGLE_APPLICATION_CREDENTIALS"] == str(adc) else pytest.fail("unexpected private authentication"))
+    monkeypatch.setattr(budget, "_shared_rest_request", request)
+    output = workspace / "evidence" / "bootstrap_forecast_topic22.json"
+    ledger = workspace / "evidence" / "usage_ledger.json"
+    args = budget.parse_args([
+        "--operator-inputs", str(bundle), "--private-monetary-forecast",
+        "--usage-ledger", str(ledger), "--envelope", str(envelope), "--requested-ttl", "0h", "--output", str(output),
+    ])
+
+    assert budget.dispatch_private_helper(args, workspace) == 0
+    assert calls == [("GET", "https://cloudbilling.googleapis.com/v1/billingAccounts/private-billing-account")]
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["ok"] is True and report["billing_account_open"] is True and report["billing_currency_vnd"] is True
+    rendered = output.read_text(encoding="utf-8") + ledger.read_text(encoding="utf-8")
+    for private_value in ("private-billing-account", "private-token", str(private)):
+        assert private_value not in rendered
+    assert not any(name in bundle.read_text(encoding="utf-8") for name in ("project_id", "notification", "recovery", "backend", "terraform", "tf_data_dir"))
+
+
+def test_private_bootstrap_dispatch_loads_only_a_minimal_acl_restricted_bundle(
+    tmp_path: Path,
+) -> None:
+    """The fresh bootstrap must not require a fabricated post-project notification bundle."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_minimal_bootstrap_dispatch")
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    subprocess.run(["git", "init", "--quiet"], cwd=workspace, check=True)
+    (workspace / ".gitignore").write_text("tmp/edai2-gcp/\n", encoding="utf-8")
+    private = workspace / "tmp" / "edai2-gcp"
+    config = private / "gcloud-config"
+    config.mkdir(parents=True)
+    adc = config / "application_default_credentials.json"
+    adc.write_text("{}\n", encoding="utf-8")
+    data_dir = private / "tf-data"
+    data_dir.mkdir()
+    backend = private / "backend.hcl"
+    backend.write_text('bucket = "private-topic22-backend"\nprefix = "topic22"\n', encoding="utf-8")
+    authorization = private / "topic22-bootstrap-authorization.json"
+    authorization.write_text("{}\n", encoding="utf-8")
+    now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    bundle = private / "bootstrap-inputs.json"
+    bundle.write_text(json.dumps({
+        "schema_version": 1,
+        "project_id": "private-project",
+        "billing_account_id": "private-billing-account",
+        "trial_expires_at": "2099-01-01T00:00:00Z",
+        "spend_observed_at": now,
+        "conversion_observed_at": now,
+        "current_spend_vnd": 0,
+        "console_spend_vnd": 0,
+        "forecast_vnd": 0,
+        "trial_credit_vnd": 6_000_000,
+        "requested_ttl_hours": 0,
+        "backend_bucket_preexists": False,
+        "backend_bucket_proof_sha256": "",
+        "paths": {
+            "gcloud_config_dir": "gcloud-config",
+            "application_default_credentials": "gcloud-config/application_default_credentials.json",
+            "tf_data_dir": "tf-data",
+            "terraform_backend_config": "backend.hcl",
+            "bootstrap_authorization": "topic22-bootstrap-authorization.json",
+        },
+    }) + "\n", encoding="utf-8")
+    if os.name == "nt":
+        current_user = subprocess.run(["whoami"], check=True, capture_output=True, text=True, encoding="utf-8").stdout.strip()
+        for path in (private, config, adc, data_dir, backend, authorization, bundle):
+            grant = f"{current_user}:(OI)(CI)(F)" if path.is_dir() else f"{current_user}:(F)"
+            subprocess.run(["icacls", str(path), "/inheritance:r", "/grant:r", grant], check=True, capture_output=True, text=True, encoding="utf-8")
+    else:
+        private.chmod(0o700); config.chmod(0o700); data_dir.chmod(0o700)
+        for path in (adc, backend, authorization, bundle):
+            path.chmod(0o600)
+    args = budget.parse_args(["--operator-inputs", str(bundle), "--private-bootstrap"])
+    received: dict[str, object] = {}
+
+    assert budget.dispatch_private_helper(
+        args,
+        workspace,
+        bootstrap_executor=lambda operator, *, workspace: received.update(operator) or {},
+    ) == 0
+    assert set(received) == {
+        "schema_version", "project_id", "billing_account_id", "trial_expires_at",
+        "spend_observed_at", "conversion_observed_at", "current_spend_vnd",
+        "console_spend_vnd", "forecast_vnd", "trial_credit_vnd", "requested_ttl_hours",
+        "backend_bucket_preexists", "backend_bucket_proof_sha256", "paths", "resolved_paths",
+    }
+    assert set(received["resolved_paths"]) == {
+        "gcloud_config_dir", "application_default_credentials", "tf_data_dir",
+        "terraform_backend_config", "bootstrap_authorization",
+    }
+    rendered = json.dumps(received, default=str)
+    for absent in ("budget_notification_target", "recovery_sink", "browser_storage_state", "terraform_tfvars", "billing_console_url", "dns_probes"):
+        assert absent not in rendered
+
+
+def test_private_bootstrap_requires_authorization_bound_to_forecast_and_current_revision(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Catches bootstrap accepting a hash-shaped approval not bound to the durable forecast and revision."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_bootstrap_forecast_binding")
+    private = tmp_path / "tmp" / "edai2-gcp"
+    private.mkdir(parents=True)
+    forecast = tmp_path / "evidence" / "04_2_llm_design" / "gke" / "bootstrap_forecast_topic22.json"
+    forecast.parent.mkdir(parents=True)
+    forecast.write_text('{"ok":true}\n', encoding="utf-8")
+    envelope = tmp_path / "configs" / "gke" / "cost_envelope.yaml"
+    envelope.parent.mkdir(parents=True)
+    envelope.write_text(
+        "terraform_budget_usd: 240\npre_deployment_forecast_ceiling_usd: 180\n",
+        encoding="utf-8",
+    )
+    revision = "a" * 40
+    monkeypatch.setattr(budget, "_private_current_revision", lambda _workspace: revision)
+    authorization = private / "bootstrap-authorization.json"
+    payload = {
+        "operator_approved": True,
+        "forecast_sha256": "0" * 64,
+        "revision": revision,
+        "trial_credit_vnd": 6_000_000,
+        "current_spend_vnd": 0,
+        "console_spend_vnd": 0,
+        "forecast_vnd": 0,
+        "trial_expires_at": "2099-01-01T00:00:00Z",
+        "conversion_observed_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "spend_observed_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "requested_ttl_hours": 0,
+        "project_parent": "none",
+    }
+    authorization.write_text(json.dumps(payload), encoding="utf-8")
+    operator = {**payload, "resolved_paths": {"bootstrap_authorization": authorization}}
+    account = {"billing_account_open": True, "billing_currency_vnd": True}
+
+    with pytest.raises(ValueError, match="bootstrap authorization"):
+        budget.validate_private_bootstrap_authorization(operator, account, workspace=tmp_path)
+
+    payload["forecast_sha256"] = hashlib.sha256(forecast.read_bytes()).hexdigest()
+    payload["revision"] = "b" * 40
+    authorization.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(ValueError, match="bootstrap authorization"):
+        budget.validate_private_bootstrap_authorization(operator, account, workspace=tmp_path)
+
+    payload["revision"] = revision
+    authorization.write_text(json.dumps(payload), encoding="utf-8")
+    assert budget.validate_private_bootstrap_authorization(operator, account, workspace=tmp_path)["operator_approved"] is True
+
+
+@pytest.mark.parametrize("defect", ("missing", "stale", "wrong_phase", "wrong_identity"))
+def test_live_preflight_rejects_unusable_fresh_backend_proof_before_any_project_request(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    defect: str,
+) -> None:
+    """Catches full preflight accepting a missing, stale, wrong-phase, or swapped backend proof."""
+    budget = _load("scripts/gke/check_budget.py", f"topic22_preflight_backend_{defect}")
+    private = tmp_path / "tmp" / "edai2-gcp"
+    private.mkdir(parents=True)
+    data = private / "terraform-data"
+    data.mkdir()
+    now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    revision = "a" * 40
+    monkeypatch.setattr(budget, "_private_current_revision", lambda _workspace: revision)
+    recovery = private / "recovery.json"
+    recovery.write_text(json.dumps({
+        "approved": True, "encrypted": True, "outside_workspace": True,
+        "sink_uri_sha256": budget._hash("private-recovery"),
+        "attestations": [
+            {"custodian_sha256": "1" * 64, "provenance_sha256": "2" * 64, "approved_at_utc": now},
+            {"custodian_sha256": "3" * 64, "provenance_sha256": "4" * 64, "approved_at_utc": now},
+        ],
+    }), encoding="utf-8")
+    backend = private / "backend.hcl"
+    backend.write_text('bucket = "private-backend"\nprefix = "edai2/topic22"\n', encoding="utf-8")
+    tfvars = private / "coursework.auto.tfvars"
+    tfvars.write_text("project_id = \"private-project\"\n", encoding="utf-8")
+    bootstrap = {
+        "ok": True, "phase": "bootstrap", "backend_bucket_proof_sha256": "b" * 64,
+        "backend_bucket_sha256": "c" * 64, "backend_prefix_sha256": "d" * 64,
+        "backend_project_number_sha256": "e" * 64, "revision": revision,
+    }
+    (data / "topic22-bootstrap-proof.json").write_text(json.dumps(bootstrap), encoding="utf-8")
+    observed = {
+        "ok": True, "phase": "bootstrap", "backend_bucket_proof_sha256": "b" * 64,
+        "observed_proof_sha256": "b" * 64, "bucket_sha256": "c" * 64,
+        "prefix_sha256": "d" * 64, "project_number_sha256": "e" * 64,
+        "observed_at_utc": now, "revision": revision,
+    }
+    if defect == "stale":
+        observed["observed_at_utc"] = "2000-01-01T00:00:00Z"
+    elif defect == "wrong_phase":
+        observed["phase"] = "initialized"
+    elif defect == "wrong_identity":
+        observed["bucket_sha256"] = "f" * 64
+    if defect != "missing":
+        (data / "topic22-backend-bootstrap-proof.json").write_text(json.dumps(observed), encoding="utf-8")
+    envelope = tmp_path / "envelope.yaml"
+    envelope.write_text("terraform_budget_usd: 240\npre_deployment_forecast_ceiling_usd: 180\n", encoding="utf-8")
+    required_permissions = tmp_path / "permissions.json"
+    required_permissions.write_text('{"project": [], "billing_account": []}\n', encoding="utf-8")
+    operator = {
+        "project_id": "private-project", "billing_account_id": "private-billing",
+        "recovery_sink": "private-recovery", "current_spend_vnd": 0, "console_spend_vnd": 0,
+        "forecast_vnd": 0, "trial_credit_vnd": 6_000_000,
+        "trial_expires_at": "2099-01-01T00:00:00Z", "conversion_observed_at": now,
+        "spend_observed_at": now, "backend_bucket_preexists": False, "backend_bucket_proof_sha256": "",
+        "resolved_paths": {
+            "recovery_sink_attestation": recovery, "terraform_backend_config": backend,
+            "terraform_tfvars": tfvars, "tf_data_dir": data,
+            "gcloud_config_dir": private / "gcloud-config",
+            "application_default_credentials": private / "adc.json",
+        },
+    }
+    monkeypatch.setattr(budget, "load_operator_inputs", lambda *_args: operator)
+    args = budget.parse_args([
+        "--operator-inputs", "operator-inputs.json", "--required-permissions", str(required_permissions),
+        "--live-external-preflight", "--preflight-output", str(tmp_path / "preflight.json"),
+        "--usage-ledger", str(tmp_path / "ledger.json"), "--envelope", str(envelope),
+        "--requested-profile", "suspended", "--requested-ttl", "0h", "--output", str(tmp_path / "forecast.json"),
+    ])
+
+    result = budget.execute(
+        args,
+        adapter_factory=lambda: pytest.fail("project request must not occur before backend proof validation"),
+        workspace=tmp_path,
+        private_path_validator=lambda path, _kind: path,
+    )
+
+    assert result == 2
 
 
 def test_plan_inventory_consumes_the_exact_public_sanitized_authorization_artifact() -> None:

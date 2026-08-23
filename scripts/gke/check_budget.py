@@ -23,6 +23,8 @@ import yaml
 from vina_bim_shop.topic22_private import (
     _private_topic22_path as _shared_private_topic22_path,
     backend_values as _shared_backend_values,
+    load_bootstrap_inputs as _shared_load_bootstrap_inputs,
+    load_monetary_inputs as _shared_load_monetary_inputs,
     load_operator_inputs as _shared_load_operator_inputs,
     resource_manager_project_number,
     rest_request as _shared_rest_request,
@@ -422,6 +424,7 @@ def parse_args(arguments: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--terraform-backend-config")
     parser.add_argument("--operator-inputs")
     parser.add_argument("--redacted-account-summary", action="store_true")
+    parser.add_argument("--private-monetary-forecast", action="store_true")
     parser.add_argument("--prepare-kube-target", action="store_true")
     parser.add_argument("--private-terraform-action", choices=("init", "plan", "apply"))
     parser.add_argument("--verify-private-backend", choices=("bootstrap", "initialized"))
@@ -480,8 +483,102 @@ def append_usage_ledger(path: Path, observation: dict[str, Any]) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def write_private_monetary_forecast(
+    operator_inputs: str | Path,
+    output: str | Path,
+    usage_ledger: str | Path,
+    envelope_path: str | Path,
+    requested_ttl: str,
+    workspace: Path,
+    *,
+    operator_loader: Callable[..., dict[str, Any]] | None = None,
+    token_runner: Callable[[list[str], dict[str, str]], str] | None = None,
+    requester: Callable[[str, str, dict[str, str], dict[str, object] | None], dict[str, object]] = _rest_request,
+    path_validator: Callable[[Path, str], Path] | None = None,
+) -> int:
+    """Write a redacted, read-only VND forecast before fresh bootstrap has a project or backend proof."""
+    destination = Path(output)
+    try:
+        loader = load_monetary_inputs if operator_loader is None else operator_loader
+        runner = _run_gcloud_private if token_runner is None else token_runner
+        operator = loader(operator_inputs, workspace, path_validator)
+        paths = operator.get("resolved_paths")
+        billing = operator.get("billing_account_id")
+        if not isinstance(paths, dict) or not isinstance(billing, str):
+            raise ValueError("monetary forecast is invalid")
+        config, adc = paths.get("gcloud_config_dir"), paths.get("application_default_credentials")
+        if not isinstance(config, Path) or not isinstance(adc, Path):
+            raise ValueError("monetary forecast is invalid")
+        environment = {**os.environ, "CLOUDSDK_CONFIG": str(config), "GOOGLE_APPLICATION_CREDENTIALS": str(adc)}
+        token = runner(["gcloud", "auth", "print-access-token"], environment).strip()
+        if not token:
+            raise ValueError("monetary forecast is invalid")
+        account = requester(
+            "GET",
+            f"https://cloudbilling.googleapis.com/v1/billingAccounts/{quote(billing, safe='')}",
+            {"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            None,
+        )
+        if not isinstance(account, dict) or account.get("name") != f"billingAccounts/{billing}" or account.get("open") is not True or account.get("currencyCode") != "VND":
+            raise ValueError("monetary forecast is invalid")
+        envelope = yaml.safe_load(Path(envelope_path).read_text(encoding="utf-8"))
+        if not isinstance(envelope, dict):
+            raise ValueError("monetary forecast is invalid")
+        budget = evaluate_live_budget(
+            envelope,
+            current_spend_vnd=float(operator["current_spend_vnd"]),
+            console_spend_vnd=float(operator["console_spend_vnd"]),
+            forecast_vnd=float(operator["forecast_vnd"]),
+            trial_credit_vnd=float(operator["trial_credit_vnd"]),
+            conversion_observed_at=str(operator["conversion_observed_at"]),
+            spend_observed_at=str(operator["spend_observed_at"]),
+            requested_ttl_hours=parse_ttl(requested_ttl),
+            trial_expires_at=str(operator["trial_expires_at"]),
+        )
+        append_usage_ledger(Path(usage_ledger), {
+            key: budget[key] for key in (
+                "budget_currency", "conversion_rate_vnd_per_usd", "conversion_rate_source",
+                "conversion_observed_at_utc", "spend_observed_at_utc", "official_trial_credit_usd",
+                "trial_credit_vnd", "trial_expires_at_utc", "trial_remaining_hours", "requested_ttl_hours",
+                "current_spend_vnd", "console_spend_vnd", "forecast_vnd",
+                "normalized_current_spend_usd", "normalized_console_spend_usd", "normalized_forecast_usd",
+                "normalized_budget_usd", "budget_amount_vnd", "normalized_forecast_ceiling_usd", "forecast_ceiling_vnd",
+            )
+        } | {"monetary_gate_ok": budget["ok"], "monetary_failures": budget["failures"]})
+        write_immutable_json(destination, {
+            **budget,
+            "billing_account_open": True,
+            "billing_currency_vnd": True,
+            "billing_account_name_matches": True,
+            "billing_account_sha256": _hash(billing),
+        })
+        return 0 if budget["ok"] else 2
+    except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError, yaml.YAMLError, subprocess.SubprocessError, FileExistsError):
+        if not destination.exists():
+            write_immutable_json(destination, {"ok": False, "failures": ["monetary_account"]})
+        return 2
+
+
 def _private_topic22_path(value: str | Path, workspace: Path, *, directory: bool = False) -> Path:
     return _shared_private_topic22_path(value, workspace, directory=directory)
+
+
+def load_monetary_inputs(
+    value: str | Path,
+    workspace: Path,
+    path_validator: Callable[[Path, str], Path] | None = None,
+) -> dict[str, Any]:
+    """Delegate the independent read-only monetary-bundle contract for both standalone CLIs."""
+    return _shared_load_monetary_inputs(value, workspace, path_validator)
+
+
+def load_bootstrap_inputs(
+    value: str | Path,
+    workspace: Path,
+    path_validator: Callable[[Path, str], Path] | None = None,
+) -> dict[str, Any]:
+    """Delegate the narrow pre-notification bootstrap bundle contract."""
+    return _shared_load_bootstrap_inputs(value, workspace, path_validator)
 
 
 def validate_private_operator_path(path: Path, kind: str, workspace: Path) -> Path:
@@ -668,24 +765,52 @@ def _bootstrap_backend_binding(operator: dict[str, object], data_dir: Path) -> t
     return True, binding
 
 
-def _backend_proof_record(data_dir: Path, operator: dict[str, object], phase: str) -> dict[str, object]:
+def _backend_proof_record(data_dir: Path, operator: dict[str, object], phase: str, *, workspace: Path | None = None) -> dict[str, object]:
     """Read the immutable phase proof written by the private backend verifier, never a bundle assertion alone."""
     try:
         record = json.loads((data_dir / f"topic22-backend-{phase}-proof.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise ValueError("private backend proof is required") from error
-    if not isinstance(record, dict) or not {"ok", "phase", "backend_bucket_proof_sha256", "observed_proof_sha256", "observed_at_utc", "revision"} <= set(record) or record.get("ok") is not True:
+    required = {"ok", "phase", "backend_bucket_proof_sha256", "observed_proof_sha256", "bucket_sha256", "prefix_sha256", "project_number_sha256", "observed_at_utc", "revision"}
+    if not isinstance(record, dict) or not required <= set(record) or record.get("ok") is not True:
         raise ValueError("private backend proof is required")
     try:
         observed = _parse_timestamp(str(record["observed_at_utc"]))
     except ValueError as error:
         raise ValueError("private backend proof is required") from error
-    if abs((datetime.now(UTC) - observed).total_seconds()) > 900 or not re.fullmatch(r"[0-9a-f]{40}", str(record.get("revision", ""))):
+    if abs((datetime.now(UTC) - observed).total_seconds()) > 900 or not re.fullmatch(r"[0-9a-f]{40}", str(record.get("revision", ""))) or (workspace is not None and record["revision"] != _private_current_revision(workspace)):
         raise ValueError("private backend proof is required")
     try:
-        return validate_private_backend_gate(operator, {"phase": record["phase"], "state_object_present": phase == "initialized", "proof_sha256": record["observed_proof_sha256"]}, phase=phase)
+        gate = validate_private_backend_gate(operator, {"phase": record["phase"], "state_object_present": phase == "initialized", "proof_sha256": record["observed_proof_sha256"]}, phase=phase)
     except (KeyError, ValueError) as error:
         raise ValueError("private backend proof is required") from error
+    identity = {key: record[key] for key in ("bucket_sha256", "prefix_sha256", "project_number_sha256")}
+    if any(not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value) for value in identity.values()):
+        raise ValueError("private backend proof is required")
+    return {**gate, **identity, "observed_at_utc": record["observed_at_utc"], "revision": record["revision"]}
+
+
+def require_fresh_backend_preflight_proof(data_dir: Path, operator: dict[str, object], workspace: Path) -> dict[str, object]:
+    """Require a current observed bootstrap proof for the exact identity bootstrap recorded."""
+    try:
+        bootstrap = json.loads((data_dir / "topic22-bootstrap-proof.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("private backend proof is required") from error
+    required = {"ok", "phase", "backend_bucket_proof_sha256", "backend_bucket_sha256", "backend_prefix_sha256", "backend_project_number_sha256", "revision"}
+    if not isinstance(bootstrap, dict) or not required <= set(bootstrap) or bootstrap.get("ok") is not True or bootstrap.get("phase") != "bootstrap" or bootstrap.get("revision") != _private_current_revision(workspace):
+        raise ValueError("private backend proof is required")
+    expected = {
+        "backend_bucket_proof_sha256": bootstrap["backend_bucket_proof_sha256"],
+        "bucket_sha256": bootstrap["backend_bucket_sha256"],
+        "prefix_sha256": bootstrap["backend_prefix_sha256"],
+        "project_number_sha256": bootstrap["backend_project_number_sha256"],
+    }
+    if any(not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value) for value in expected.values()):
+        raise ValueError("private backend proof is required")
+    observed = _backend_proof_record(data_dir, operator, "bootstrap", workspace=workspace)
+    if any(observed.get(key) != value for key, value in expected.items()):
+        raise ValueError("private backend proof is required")
+    return observed
 
 
 def validate_initialized_backend_record(data_dir: Path, initialized: dict[str, object]) -> dict[str, object]:
@@ -865,7 +990,7 @@ def validate_private_bootstrap_authorization(operator: dict[str, object], accoun
     if not isinstance(authorization.get("forecast_sha256"), str) or not re.fullmatch(r"[0-9a-f]{64}", authorization["forecast_sha256"]) or not isinstance(authorization.get("revision"), str) or not re.fullmatch(r"[0-9a-f]{40}", authorization["revision"]):
         raise ValueError("bootstrap authorization is invalid")
     if workspace is not None:
-        forecast = workspace / "evidence" / "04_2_llm_design" / "gke" / "cost_forecast_topic22.json"
+        forecast = workspace / "evidence" / "04_2_llm_design" / "gke" / "bootstrap_forecast_topic22.json"
         if not forecast.is_file() or hashlib.sha256(forecast.read_bytes()).hexdigest() != authorization["forecast_sha256"] or authorization["revision"] != _private_current_revision(workspace):
             raise ValueError("bootstrap authorization is invalid")
     try:
@@ -1046,15 +1171,27 @@ def execute_private_bootstrap(
             ensure_partial_handoff(data_dir, phase="api_enable", completed=completed)
         raise ValueError("bootstrap contract is invalid") from error
     if mode == "fresh":
-        proof = create_private_backend_bucket(call, bucket=backend_config["bucket"], prefix=backend_config["prefix"], project_number=project_number, data_dir=data_dir, completed=completed)
+        backend_proof = create_private_backend_bucket(call, bucket=backend_config["bucket"], prefix=backend_config["prefix"], project_number=project_number, data_dir=data_dir, completed=completed)
     else:
-        proof = preexisting_backend
-    readback = {"mode": mode, "project": project, "billing_linked": True, "enabled_services": services, "backend": proof, **reuse_proof}
+        backend_proof = preexisting_backend
+    readback = {"mode": mode, "project": project, "billing_linked": True, "enabled_services": services, "backend": backend_proof, **reuse_proof}
     if lro is not None:
         readback["project_lro"] = lro
-    bootstrap_binding = proof.get("proof_sha256") if mode == "fresh" else operator.get("backend_bucket_proof_sha256")
+    bootstrap_binding = backend_proof.get("proof_sha256") if mode == "fresh" else operator.get("backend_bucket_proof_sha256")
     proof = validate_private_bootstrap_contract(readback, project_id, str(bootstrap_binding))
-    durable_proof = {**proof, "forecast_sha256": authorization["forecast_sha256"], "revision": authorization["revision"]}
+    identity = {
+        "backend_bucket_sha256": backend_proof.get("bucket_sha256"),
+        "backend_prefix_sha256": backend_proof.get("prefix_sha256"),
+        "backend_project_number_sha256": backend_proof.get("project_number_sha256"),
+    }
+    durable_proof = {
+        **proof,
+        "phase": "bootstrap",
+        "backend_bucket_proof_sha256": str(bootstrap_binding),
+        "forecast_sha256": authorization["forecast_sha256"],
+        "revision": authorization["revision"],
+        **{key: value for key, value in identity.items() if isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value)},
+    }
     write_immutable_json(data_dir / "topic22-bootstrap-proof.json", durable_proof)
     return durable_proof
 
@@ -1370,8 +1507,10 @@ def dispatch_private_helper(
     workspace: Path,
     *,
     account_writer: Callable[..., int] = write_redacted_account_summary,
+    monetary_writer: Callable[..., int] = write_private_monetary_forecast,
     kube_preparer: Callable[..., dict[str, object]] = prepare_private_kube_target,
     operator_loader: Callable[..., dict[str, Any]] = load_operator_inputs,
+    bootstrap_loader: Callable[..., dict[str, Any]] = load_bootstrap_inputs,
     terraform_executor: Callable[..., dict[str, object]] = execute_private_terraform_action,
     backend_verifier: Callable[..., dict[str, object]] = verify_private_backend_bundle,
     bootstrap_executor: Callable[..., dict[str, object]] = execute_private_bootstrap,
@@ -1380,7 +1519,7 @@ def dispatch_private_helper(
     helm_runner: Callable[[list[str]], str] | None = None,
 ) -> int | None:
     """Dispatch exactly one private helper mode without invoking budget evaluation."""
-    selected = int(bool(args.redacted_account_summary)) + int(bool(args.prepare_kube_target)) + int(bool(args.private_terraform_action)) + int(bool(args.verify_private_backend)) + int(bool(args.private_bootstrap)) + int(bool(args.write_private_wi_values))
+    selected = int(bool(args.redacted_account_summary)) + int(bool(args.private_monetary_forecast)) + int(bool(args.prepare_kube_target)) + int(bool(args.private_terraform_action)) + int(bool(args.verify_private_backend)) + int(bool(args.private_bootstrap)) + int(bool(args.write_private_wi_values))
     if selected == 0:
         return None
     if selected != 1 or not args.operator_inputs:
@@ -1389,10 +1528,24 @@ def dispatch_private_helper(
         if not args.output:
             return 2
         return account_writer(args.operator_inputs, args.output, workspace)
+    if args.private_monetary_forecast:
+        if not all((args.output, args.usage_ledger, args.envelope, args.requested_ttl)):
+            return 2
+        return monetary_writer(
+            args.operator_inputs,
+            args.output,
+            args.usage_ledger,
+            args.envelope,
+            args.requested_ttl,
+            workspace,
+        )
     if args.output:
         return 2
     if args.prepare_kube_target:
         kube_preparer(args.operator_inputs, workspace)
+        return 0
+    if args.private_bootstrap:
+        bootstrap_executor(bootstrap_loader(args.operator_inputs, workspace), workspace=workspace)
         return 0
     operator = operator_loader(args.operator_inputs, workspace)
     if args.write_private_wi_values:
@@ -1403,9 +1556,6 @@ def dispatch_private_helper(
         writer = write_private_workload_identity_helm_values if wi_writer is None else wi_writer
         combined = writer(bindings, workspace / "tmp" / "edai2-gcp" / "topic22-workload-identity-values.yaml", workspace)
         validate_private_wi_helm_consumers(bindings, combined, workspace, runner=helm_runner)
-        return 0
-    if args.private_bootstrap:
-        bootstrap_executor(operator, workspace=workspace)
         return 0
     if args.verify_private_backend:
         proof = backend_verifier(operator, phase=args.verify_private_backend)
@@ -1615,6 +1765,7 @@ def execute(
         attestation = json.loads(paths["recovery_sink_attestation"].read_text(encoding="utf-8"))
         attestation_ok = recovery_attestation_ok(attestation, operator["recovery_sink"])
         backend_preexists, backend_binding = _bootstrap_backend_binding(operator, paths["tf_data_dir"])
+        require_fresh_backend_preflight_proof(paths["tf_data_dir"], operator, workspace)
         runtime = build_terraform_runtime_contract(
             backend_config=paths["terraform_backend_config"],
             tfvars=paths["terraform_tfvars"],

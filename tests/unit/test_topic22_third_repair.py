@@ -78,6 +78,18 @@ def test_live_success_uses_one_private_bundle_and_writes_three_redacted_immutabl
     preflight = workspace / "evidence" / "preflight.json"
     forecast = workspace / "evidence" / "forecast.json"
     ledger = workspace / "evidence" / "usage-ledger.json"
+    revision = "0" * 40
+    (tf_data_dir / "topic22-bootstrap-proof.json").write_text(json.dumps({
+        "ok": True, "phase": "bootstrap", "backend_bucket_proof_sha256": "a" * 64,
+        "backend_bucket_sha256": "b" * 64, "backend_prefix_sha256": "c" * 64,
+        "backend_project_number_sha256": "d" * 64, "revision": revision,
+    }) + "\n", encoding="utf-8")
+    (tf_data_dir / "topic22-backend-bootstrap-proof.json").write_text(json.dumps({
+        "ok": True, "phase": "bootstrap", "backend_bucket_proof_sha256": "a" * 64,
+        "observed_proof_sha256": "a" * 64, "bucket_sha256": "b" * 64,
+        "prefix_sha256": "c" * 64, "project_number_sha256": "d" * 64,
+        "observed_at_utc": observed.isoformat().replace("+00:00", "Z"), "revision": revision,
+    }) + "\n", encoding="utf-8")
 
     validated: set[Path] = set()
     def private_policy(path: Path, _kind: str) -> Path:
