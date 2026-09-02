@@ -254,15 +254,15 @@ Topic 31 audits these files but does not become their primary owner.
 
 ## Completion Record
 
-Initial state is factual and must be replaced/extended only with observed execution results.
+Observed execution state is factual and limited to the pre-provisioning gates below.
 
-- **Status:** Not started; no GCP mutation or rubric point is claimed.
-- **Branch / revision:** Record exact `rtk git status --short --branch` and `rtk git rev-parse HEAD`; none recorded.
-- **Operator authorization:** No apply authorization recorded.
-- **Affected files:** None at plan-authoring time.
-- **Command / exit-code log:** No execution commands recorded.
-- **Evidence / SHA-256 log:** No generated evidence recorded.
-- **Screenshot QA:** `gcp_billing_spend.png` and `terraform_apply.png` not captured.
-- **Cleanup / runtime release:** No lease held; cloud state not inspected by this plan artifact.
-- **Limitations:** Workspace dependency and external account state must be revalidated at execution.
-- **Handoff:** Block Topics 23-31 until this record contains successful apply/context evidence; Topic 32 may only report a truthful partial result if Topic 22 stops.
+- **Status:** Partial — stopped before authentication, cloud read, or GCP mutation because the required ignored private `tmp/edai2-gcp/operator-inputs.json` bundle is absent. No rubric point is claimed.
+- **Branch / revision:** `feature/implement-edai2...origin/feature/implement-edai2`, clean before generated failure evidence, at `ed1e8c490ec6f2a3fba3d1adbc8c8f3406a3a1e4`.
+- **Operator authorization:** No bootstrap or apply authorization record was present or consumed; no apply was attempted.
+- **Affected files:** Generated only `evidence/04_2_llm_design/gke/gcp_preflight_topic22.json` and `evidence/04_2_llm_design/gke/cost_forecast_topic22.json`, each containing the fixed redacted failure result. This Completion Record is the only edited tracked file.
+- **Command / exit-code log:** `rtk uv run pytest tests/unit/test_edai2_security_static.py tests/unit/test_edai2_repository_contract.py -q` exited 0 (15 passed). `rtk uv run pytest tests/unit/test_gke_budget.py -q` exited 0 (20 passed). The full `rtk uv run python scripts/gke/check_budget.py --operator-inputs tmp/edai2-gcp/operator-inputs.json --required-permissions configs/gke/required_permissions.json --live-external-preflight --preflight-output evidence/04_2_llm_design/gke/gcp_preflight_topic22.json --usage-ledger evidence/04_2_llm_design/gke/usage_ledger.json --envelope configs/gke/cost_envelope.yaml --requested-profile suspended --requested-ttl 0h --output evidence/04_2_llm_design/gke/cost_forecast_topic22.json` stopped at the absent bundle with its fixed `preflight_error` result and exit 2. Terraform, private monetary forecast, bootstrap, plan, apply, Helm, kubectl, browser, and screenshot commands were not run.
+- **Evidence / SHA-256 log:** `gcp_preflight_topic22.json` and `cost_forecast_topic22.json` both SHA-256 `843404ae2e369c8b29b8417371d737b0a87a3afa32633c1d4db15828254a98e2`, each exactly `{"failures":["preflight_error"],"ok":false}`. No usage ledger, authorization evidence, apply inventory, or successful forecast exists.
+- **Screenshot QA:** `gcp_billing_spend.png` and `terraform_apply.png` were not captured; no screenshot claim is made.
+- **Cleanup / runtime release:** No lease was acquired; no cloud, Terraform, Kubernetes, or browser runtime was created. The two failed preflight artifacts are retained as truthful diagnostics. No destroy/rollback action is applicable.
+- **Limitations:** Required private project, billing, notification, recovery, browser/DNS, tfvars/backend, gcloud/ADC, and `TF_DATA_DIR` inputs remain unavailable. The full account/IAM/trial/spend/forecast and target-context gates therefore remain unverified.
+- **Handoff:** Block Topics 23-31. Resume only after the operator supplies the ACL-restricted ignored private bundles and all referenced paths, then restart at the locked hash/index/static-test gates and re-run the full external preflight. Topic 32 may report only this truthful partial result.
