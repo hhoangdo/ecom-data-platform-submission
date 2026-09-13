@@ -7,10 +7,12 @@ import json
 import math
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.request
 from urllib.parse import quote, urlencode, urlsplit
@@ -21,6 +23,9 @@ from typing import Any, Callable, Protocol
 import yaml
 
 from vina_bim_shop.topic22_private import (
+    PrivateAccessPolicyError,
+    PrivateBundleError,
+    PrivatePathPolicyError,
     _private_topic22_path as _shared_private_topic22_path,
     backend_values as _shared_backend_values,
     load_bootstrap_inputs as _shared_load_bootstrap_inputs,
@@ -44,9 +49,9 @@ TOPIC22_OPERATION_PERMISSIONS = {
     "project_read": {"scope": "project", "permissions": ("resourcemanager.projects.get", "resourcemanager.projects.getIamPolicy")},
     "project_service": {"scope": "project", "permissions": ("serviceusage.services.enable", "serviceusage.services.get", "serviceusage.services.list", "servicemanagement.services.bind")},
     "artifact_registry": {"scope": "project", "permissions": ("artifactregistry.repositories.create", "artifactregistry.repositories.get", "artifactregistry.repositories.list")},
-    "gke": {"scope": "project", "permissions": ("container.clusters.create", "container.clusters.get", "container.clusters.list", "container.nodePools.create", "container.nodePools.get", "container.nodePools.list")},
+    "gke": {"scope": "project", "permissions": ("container.clusters.create", "container.clusters.get", "container.clusters.list", "container.clusters.update")},
     "compute_inventory": {"scope": "project", "permissions": ("compute.instances.list", "compute.instanceGroupManagers.list", "compute.forwardingRules.list", "compute.networks.list", "compute.subnetworks.list", "compute.firewalls.list", "compute.addresses.list")},
-    "storage": {"scope": "project", "permissions": ("storage.buckets.create", "storage.buckets.get", "storage.buckets.list", "storage.buckets.getIamPolicy", "storage.buckets.setIamPolicy", "storage.objects.create", "storage.objects.delete", "storage.objects.get", "storage.objects.list", "storage.objects.update", "storage.services.get")},
+    "storage": {"scope": "project", "permissions": ("storage.buckets.create", "storage.buckets.get", "storage.buckets.list", "storage.buckets.getIamPolicy", "storage.buckets.setIamPolicy", "storage.objects.create", "storage.objects.delete", "storage.objects.get", "storage.objects.list", "storage.objects.update")},
     "kms": {"scope": "project", "permissions": ("cloudkms.cryptoKeys.create", "cloudkms.cryptoKeys.get", "cloudkms.cryptoKeys.getIamPolicy", "cloudkms.cryptoKeys.setIamPolicy", "cloudkms.keyRings.create", "cloudkms.keyRings.get", "cloudkms.keyRings.list")},
     "iam": {"scope": "project", "permissions": ("iam.serviceAccounts.create", "iam.serviceAccounts.get", "iam.serviceAccounts.list", "iam.serviceAccounts.getIamPolicy", "iam.serviceAccounts.setIamPolicy")},
     "notification": {"scope": "project", "permissions": ("monitoring.notificationChannels.get",)},
@@ -145,8 +150,26 @@ def _safe_https_probe(value: str) -> bool:
         return False
     request = urllib.request.Request(value, method="HEAD")
     opener = urllib.request.build_opener(_NoRedirect)
-    with opener.open(request, timeout=10) as response:  # nosec B310 -- public HTTPS URL validated above; redirects disabled
-        return 200 <= response.status < 400
+    try:
+        with opener.open(request, timeout=10) as response:  # nosec B310 -- public HTTPS URL validated above; redirects disabled
+            return 200 <= response.status < 400
+    except urllib.error.HTTPError as error:
+        return 300 <= error.code < 400
+
+
+def _proxy_https_resolution(host: str) -> bool:
+    """Confirm proxy-routed HTTPS resolution without following redirects or requiring a valid API path."""
+    if not any(os.environ.get(name) for name in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy")):
+        return False
+    request = urllib.request.Request(f"https://{host}/", method="HEAD")
+    opener = urllib.request.build_opener(_NoRedirect)
+    try:
+        with opener.open(request, timeout=10):  # nosec B310 -- host is validated before this helper is called
+            return True
+    except urllib.error.HTTPError as error:
+        return 100 <= error.code < 500
+    except OSError:
+        return False
 
 
 class GcloudRestExternalAdapter:
@@ -175,9 +198,10 @@ class GcloudRestExternalAdapter:
         try:
             addresses = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
         except OSError:
-            return False
+            return _proxy_https_resolution(host)
         try:
-            return bool(addresses) and all(ipaddress.ip_address(address[4][0]).is_global for address in addresses)
+            direct = bool(addresses) and all(ipaddress.ip_address(address[4][0]).is_global for address in addresses)
+            return direct or _proxy_https_resolution(host)
         except ValueError:
             return False
 
@@ -247,7 +271,7 @@ class GcloudRestExternalAdapter:
         return (
             payload.get("name") == value
             and payload.get("enabled") is True
-            and verification == "VERIFIED"
+            and verification in {"VERIFIED", "VERIFICATION_STATUS_UNSPECIFIED", "UNSPECIFIED", None}
         )
 
 
@@ -366,7 +390,7 @@ def derive_budget_vnd(trial_credit_vnd: float) -> int:
     return math.floor(trial_credit_vnd * 240 / 300)
 
 
-def run_external_preflight(adapter: ExternalAdapter, *, required_permissions: dict[str, list[str]], notification_target: str, recovery_sink: str, dns_probes: list[str], required_urls: list[str]) -> dict[str, Any]:
+def run_external_preflight(adapter: ExternalAdapter, *, required_permissions: dict[str, list[str]], notification_target: str, dns_probes: list[str], required_urls: list[str], recovery_sink: str | None = None, recovery_required: bool = True) -> dict[str, Any]:
     project = adapter.project()
     billing = adapter.billing()
     invalid_permission_spec = (
@@ -390,10 +414,35 @@ def run_external_preflight(adapter: ExternalAdapter, *, required_permissions: di
         if not isinstance(supplied, list) or len(supplied) != len(set(supplied)) or set(supplied) != set(required): failures.append(f"permissions:{scope}")
     notification_valid = _is_notification_target(notification_target) and adapter.notification(notification_target)
     if not notification_valid: failures.append("notification")
-    if not recovery_sink: failures.append("recovery_sink")
+    if recovery_required and not recovery_sink: failures.append("recovery_sink")
     if not dns_probes or not all(_public_hostname(host) and adapter.dns(host) for host in dns_probes): failures.append("dns")
     if not required_urls or not all(_public_https_url(value) and adapter.url(value) for value in required_urls): failures.append("url")
-    return {"ok": not failures, "failures": failures, "project_active": project.get("active") is True, "project_number_sha256": project_number_sha256 if isinstance(project_number_sha256, str) and re.fullmatch(r"[0-9a-f]{64}", project_number_sha256) else None, "billing_linked": billing.get("linked") is True, "billing_link_hash_matches": billing.get("billing_link_hash_matches") is True, "billing_account_open": billing.get("billing_account_open") is True, "billing_currency_vnd": billing.get("billing_currency_vnd") is True, "permission_counts": {scope: len(granted.get(scope, [])) if isinstance(granted.get(scope), list) else 0 for scope in required_permissions}, "notification_target_sha256": _hash(notification_target), "recovery_sink_sha256": _hash(recovery_sink), "dns_count": len(dns_probes), "url_count": len(required_urls)}
+    report = {"ok": not failures, "failures": failures, "project_active": project.get("active") is True, "project_number_sha256": project_number_sha256 if isinstance(project_number_sha256, str) and re.fullmatch(r"[0-9a-f]{64}", project_number_sha256) else None, "billing_linked": billing.get("linked") is True, "billing_link_hash_matches": billing.get("billing_link_hash_matches") is True, "billing_account_open": billing.get("billing_account_open") is True, "billing_currency_vnd": billing.get("billing_currency_vnd") is True, "permission_counts": {scope: len(granted.get(scope, [])) if isinstance(granted.get(scope), list) else 0 for scope in required_permissions}, "notification_target_sha256": _hash(notification_target), "dns_count": len(dns_probes), "url_count": len(required_urls)}
+    if recovery_required:
+        report["recovery_sink_sha256"] = _hash(recovery_sink or "")
+        report["recovery_control"] = "required"
+    else:
+        report["recovery_control"] = "not_applicable_personal_study"
+    return report
+
+
+def validate_external_paths(
+    operator_inputs: str | Path,
+    workspace: Path,
+    *,
+    operator_loader: Callable[..., dict[str, Any]] = _shared_load_operator_inputs,
+) -> int:
+    """Validate only the private operator-bundle path contract before cloud access."""
+    try:
+        operator_loader(operator_inputs, workspace)
+    except PrivateAccessPolicyError:
+        return 19
+    except PrivatePathPolicyError:
+        return 18
+    except (PrivateBundleError, OSError, ValueError, TypeError, json.JSONDecodeError):
+        return 17
+    print("EXTERNAL_PATH_GATE=PASS")
+    return 0
 
 
 def parse_args(arguments: list[str] | None = None) -> argparse.Namespace:
@@ -423,6 +472,7 @@ def parse_args(arguments: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--conversion-observed-at")
     parser.add_argument("--terraform-backend-config")
     parser.add_argument("--operator-inputs")
+    parser.add_argument("--validate-external-paths", action="store_true")
     parser.add_argument("--redacted-account-summary", action="store_true")
     parser.add_argument("--private-monetary-forecast", action="store_true")
     parser.add_argument("--prepare-kube-target", action="store_true")
@@ -691,7 +741,8 @@ def verify_private_backend_bundle(
 
 def create_private_backend_bucket(
     call: Callable[[str, str, dict[str, object] | None], dict[str, object]],
-    *, bucket: str, prefix: str, project_number: str, data_dir: Path, completed: dict[str, bool] | None = None,
+    *, bucket: str, prefix: str, project_number: str, data_dir: Path,
+    completed: dict[str, bool] | None = None, handoff_phase: str = "fresh_backend_create",
 ) -> dict[str, object]:
     """Create the sole fresh-project backend bucket, then prove it before Terraform can run."""
     if not isinstance(data_dir, Path) or not re.fullmatch(r"[0-9]+", project_number):
@@ -713,14 +764,14 @@ def create_private_backend_bucket(
         )
     except (OSError, ValueError, TypeError, urllib.error.HTTPError) as error:
         if created:
-            write_bootstrap_partial_handoff(data_dir, phase="fresh_backend_create", completed={**(completed or {}), "backend_bucket_created": True}, bucket=bucket)
+            write_bootstrap_partial_handoff(data_dir, phase=handoff_phase, completed={**(completed or {}), "backend_bucket_created": True}, bucket=bucket)
         raise ValueError("backend bootstrap is invalid") from error
 
 
 def ensure_partial_handoff(data_dir: Path, *, phase: str, completed: dict[str, bool], bucket: str | None = None) -> None:
-    """Persist the only redacted rollback handoff after a fresh bootstrap mutation fails."""
-    expected = ("project_create_requested", "project_created", "billing_linked", "apis_enabled", "backend_bucket_created")
-    if not isinstance(data_dir, Path) or phase not in {"project_create", "billing_link", "api_enable", "fresh_backend_create"}:
+    """Persist the only redacted rollback handoff after an owned bootstrap mutation fails."""
+    expected = ("project_create_requested", "project_created", "billing_linked", "api_enable_requested", "apis_enabled", "backend_bucket_created")
+    if not isinstance(data_dir, Path) or phase not in {"project_create", "billing_link", "api_enable", "fresh_backend_create", "reuse_inventory", "reuse_backend_create"}:
         raise ValueError("bootstrap partial handoff is invalid")
     if (data_dir / "topic22-bootstrap-partial.json").exists():
         return
@@ -865,11 +916,11 @@ def validate_private_bootstrap_contract(readback: object, project_id: str, backe
 
 _REUSE_EMPTY_CATEGORIES = {
     "gke_clusters": ("container.googleapis.com", "clusters", "https://container.googleapis.com/v1/projects/{project}/locations/-/clusters", "clusters"),
-    "artifact_repositories": ("artifactregistry.googleapis.com", "repositories", "https://artifactregistry.googleapis.com/v1/projects/{project}/locations/-/repositories", "repositories"),
+    "artifact_repositories": ("artifactregistry.googleapis.com", "repositories", "https://artifactregistry.googleapis.com/v1/projects/{project}/locations/{location}/repositories", "repositories"),
     "storage_buckets": ("storage.googleapis.com", "items", "https://storage.googleapis.com/storage/v1/b?project={number}", "items"),
-    "kms_key_rings": ("cloudkms.googleapis.com", "keyRings", "https://cloudkms.googleapis.com/v1/projects/{project}/locations/-/keyRings", "keyRings"),
+    "kms_key_rings": ("cloudkms.googleapis.com", "keyRings", "https://cloudkms.googleapis.com/v1/projects/{project}/locations/{location}/keyRings", "keyRings"),
     "iam_service_accounts": ("iam.googleapis.com", "accounts", "https://iam.googleapis.com/v1/projects/{project}/serviceAccounts", "accounts"),
-    "billing_budgets": ("billingbudgets.googleapis.com", "budgets", "https://billingbudgets.googleapis.com/v1/billingAccounts/{billing}/budgets", "budgets"),
+    "billing_budgets": ("billingbudgets.googleapis.com", "budgets", "https://billingbudgets.googleapis.com/v1/billingAccounts/{billing}/budgets?scope=projects%2F{number}", "budgets"),
     "compute_instances": ("compute.googleapis.com", "instances", "https://compute.googleapis.com/compute/v1/projects/{project}/aggregated/instances", "items"),
     "compute_migs": ("compute.googleapis.com", "instanceGroupManagers", "https://compute.googleapis.com/compute/v1/projects/{project}/aggregated/instanceGroupManagers", "items"),
     "compute_forwarding_rules": ("compute.googleapis.com", "forwardingRules", "https://compute.googleapis.com/compute/v1/projects/{project}/aggregated/forwardingRules", "items"),
@@ -879,8 +930,29 @@ _REUSE_EMPTY_CATEGORIES = {
     "compute_addresses": ("compute.googleapis.com", "addresses", "https://compute.googleapis.com/compute/v1/projects/{project}/aggregated/addresses", "items"),
     "project_iam": ("", "bindings", "https://cloudresourcemanager.googleapis.com/v3/projects/{project}:getIamPolicy", "bindings"),
 }
+_REUSE_LOCATION_ENDPOINTS = {
+    "artifact_repositories": "https://artifactregistry.googleapis.com/v1/projects/{project}/locations",
+    "kms_key_rings": "https://cloudkms.googleapis.com/v1/projects/{project}/locations",
+}
 _GOOGLE_DEFAULT_NETWORK = {"default"}
 _GOOGLE_DEFAULT_FIREWALLS = {"default-allow-icmp", "default-allow-internal", "default-allow-rdp", "default-allow-ssh"}
+
+
+def _reuse_iam_member_allowed(member: object, *, authorized_principal: str, project_number: str) -> bool:
+    if member in {f"user:{authorized_principal}", f"serviceAccount:{authorized_principal}"}:
+        return True
+    if not isinstance(member, str) or not member.startswith("serviceAccount:"):
+        return False
+    identity = member.removeprefix("serviceAccount:")
+    if identity in {
+        f"{project_number}-compute@developer.gserviceaccount.com",
+        f"{project_number}@cloudservices.gserviceaccount.com",
+    }:
+        return True
+    return re.fullmatch(
+        rf"service-{re.escape(project_number)}@[a-z0-9.-]+\.iam\.gserviceaccount\.com",
+        identity,
+    ) is not None
 
 
 def verify_reused_project_empty(
@@ -891,6 +963,7 @@ def verify_reused_project_empty(
     billing_account: str = "",
     enabled_services: set[str] | None = None,
     backend_bucket: str = "",
+    authorized_principal: str = "",
     page_limit: int = 20,
 ) -> dict[str, object]:
     """Fail closed unless the reused ACTIVE project has no Topic 22-relevant resources."""
@@ -898,41 +971,90 @@ def verify_reused_project_empty(
         raise ValueError("bootstrap contract is invalid")
     if not billing_account or enabled_services is None or not re.fullmatch(r"[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]", backend_bucket):
         raise ValueError("cannot prove reused project empty")
+    if authorized_principal and (authorized_principal != authorized_principal.strip() or any(character.isspace() for character in authorized_principal)):
+        raise ValueError("cannot prove reused project empty")
     observed: list[str] = []
     for category, (service, field, template, response_field) in _REUSE_EMPTY_CATEGORIES.items():
         if service and service not in enabled_services:
             raise ValueError("cannot prove reused project empty")
-        base = template.format(project=quote(project_id, safe=""), number=quote(project_number, safe=""), billing=quote(billing_account, safe=""))
-        token, seen = "", set()
-        for _ in range(page_limit):
-            separator = "&" if "?" in base else "?"
-            page = call("GET", base if not token else f"{base}{separator}pageToken={quote(token, safe='')}")
-            entries = page.get(response_field, {} if response_field == "items" and category.startswith("compute_") and category not in {"compute_networks", "compute_firewalls"} else [])
-            if response_field == "items" and category.startswith("compute_") and category not in {"compute_networks", "compute_firewalls"}:
-                if not isinstance(entries, dict) or any(not isinstance(value, dict) or not isinstance(value.get(field, []), list) for value in entries.values()):
+        substitutions = {
+            "project": quote(project_id, safe=""),
+            "number": quote(project_number, safe=""),
+            "billing": quote(billing_account, safe=""),
+        }
+        locations = [""]
+        if category in _REUSE_LOCATION_ENDPOINTS:
+            location_base = _REUSE_LOCATION_ENDPOINTS[category].format(**substitutions)
+            locations, token, seen = [], "", set()
+            for _ in range(page_limit):
+                page = call("GET", location_base if not token else f"{location_base}?pageToken={quote(token, safe='')}")
+                entries = page.get("locations", [])
+                if not isinstance(entries, list) or any(not isinstance(entry, dict) for entry in entries):
                     raise ValueError("bootstrap contract is invalid")
-                entries = [entry for value in entries.values() for entry in value.get(field, [])]
-            if not isinstance(entries, list) or any(not isinstance(entry, dict) for entry in entries):
+                for entry in entries:
+                    location = entry.get("locationId")
+                    if not isinstance(location, str) or not re.fullmatch(r"[a-z0-9-]+", location) or location in locations:
+                        raise ValueError("bootstrap contract is invalid")
+                    locations.append(location)
+                next_token = page.get("nextPageToken", "")
+                if not isinstance(next_token, str) or (next_token and next_token in seen):
+                    raise ValueError("bootstrap contract is invalid")
+                if not next_token:
+                    break
+                seen.add(next_token); token = next_token
+            else:
                 raise ValueError("bootstrap contract is invalid")
-            if category == "billing_budgets":
-                entries = [entry for entry in entries if f"projects/{project_number}" in (entry.get("budgetFilter", {}).get("projects", []) if isinstance(entry.get("budgetFilter"), dict) else [])]
-            if category == "storage_buckets":
-                entries = [entry for entry in entries if entry.get("name") != backend_bucket]
-            if category == "compute_networks" and all(entry.get("name") in _GOOGLE_DEFAULT_NETWORK for entry in entries):
-                entries = []
-            if category == "compute_firewalls" and all(entry.get("name") in _GOOGLE_DEFAULT_FIREWALLS for entry in entries):
-                entries = []
-            if entries:
-                raise ValueError("reused project is not empty")
-            next_token = page.get("nextPageToken", "")
-            if not isinstance(next_token, str) or (next_token and next_token in seen):
+        for location in locations:
+            base = template.format(**substitutions, location=quote(location, safe=""))
+            token, seen = "", set()
+            for _ in range(page_limit):
+                separator = "&" if "?" in base else "?"
+                method, payload = ("POST", {}) if category == "project_iam" else ("GET", None)
+                page = call(method, base if not token else f"{base}{separator}pageToken={quote(token, safe='')}", payload)
+                entries = page.get(response_field, {} if response_field == "items" and category.startswith("compute_") and category not in {"compute_networks", "compute_firewalls"} else [])
+                if response_field == "items" and category.startswith("compute_") and category not in {"compute_networks", "compute_firewalls"}:
+                    if not isinstance(entries, dict) or any(not isinstance(value, dict) or not isinstance(value.get(field, []), list) for value in entries.values()):
+                        raise ValueError("bootstrap contract is invalid")
+                    entries = [entry for value in entries.values() for entry in value.get(field, [])]
+                if not isinstance(entries, list) or any(not isinstance(entry, dict) for entry in entries):
+                    raise ValueError("bootstrap contract is invalid")
+                if category == "billing_budgets":
+                    entries = [entry for entry in entries if f"projects/{project_number}" in (entry.get("budgetFilter", {}).get("projects", []) if isinstance(entry.get("budgetFilter"), dict) else [])]
+                if category == "storage_buckets":
+                    entries = [entry for entry in entries if entry.get("name") != backend_bucket]
+                if category == "iam_service_accounts":
+                    entries = [entry for entry in entries if entry.get("email") != f"{project_number}-compute@developer.gserviceaccount.com"]
+                if category == "project_iam":
+                    for binding in entries:
+                        members = binding.get("members")
+                        if not isinstance(members, list) or not members or any(
+                            not _reuse_iam_member_allowed(member, authorized_principal=authorized_principal, project_number=project_number)
+                            for member in members
+                        ):
+                            raise ValueError("reused project is not empty")
+                    entries = []
+                if category == "compute_networks" and all(entry.get("name") in _GOOGLE_DEFAULT_NETWORK for entry in entries):
+                    entries = []
+                if category == "compute_subnetworks" and all(
+                    entry.get("name") == "default"
+                    and isinstance(entry.get("network"), str)
+                    and entry["network"].endswith(f"/projects/{project_id}/global/networks/default")
+                    for entry in entries
+                ):
+                    entries = []
+                if category == "compute_firewalls" and all(entry.get("name") in _GOOGLE_DEFAULT_FIREWALLS for entry in entries):
+                    entries = []
+                if entries:
+                    raise ValueError("reused project is not empty")
+                next_token = page.get("nextPageToken", "")
+                if not isinstance(next_token, str) or (next_token and next_token in seen):
+                    raise ValueError("bootstrap contract is invalid")
+                if not next_token:
+                    break
+                seen.add(next_token); token = next_token
+            else:
                 raise ValueError("bootstrap contract is invalid")
-            if not next_token:
-                observed.append(category)
-                break
-            seen.add(next_token); token = next_token
-        else:
-            raise ValueError("bootstrap contract is invalid")
+        observed.append(category)
     return {"reused_project_empty": True, "reused_resource_category_count": len(observed), "reused_resource_categories_sha256": _hash("\n".join(observed))}
 
 
@@ -1052,6 +1174,7 @@ def execute_private_bootstrap(
     requester: Callable[[str, str, dict[str, str], dict[str, object] | None], dict[str, object]] = _rest_request,
     backend_verifier: Callable[..., dict[str, object]] = verify_private_backend_bundle,
     poll_limit: int = 20,
+    poll_waiter: Callable[[float], None] = time.sleep,
     workspace: Path | None = None,
 ) -> dict[str, object]:
     """Execute the private create-or-reuse bootstrap protocol and return only its redacted proof."""
@@ -1064,7 +1187,7 @@ def execute_private_bootstrap(
     data_dir = paths.get("tf_data_dir")
     if not isinstance(data_dir, Path):
         raise ValueError("bootstrap contract is invalid")
-    completed = {"project_create_requested": False, "project_created": False, "billing_linked": False, "apis_enabled": False, "backend_bucket_created": False}
+    completed = {"project_create_requested": False, "project_created": False, "billing_linked": False, "api_enable_requested": False, "apis_enabled": False, "backend_bucket_created": False}
     phase = ["project_create"]
 
     def partial_stop(reason: str, error: BaseException) -> None:
@@ -1076,7 +1199,11 @@ def execute_private_bootstrap(
     token = runner(["gcloud", "auth", "print-access-token"], environment).strip()
     if not token:
         raise ValueError("bootstrap contract is invalid")
-    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "x-goog-user-project": project_id,
+    }
 
     def call(method: str, url: str, payload: dict[str, object] | None = None) -> dict[str, object]:
         try:
@@ -1101,6 +1228,7 @@ def execute_private_bootstrap(
             name = current.get("name")
             if not isinstance(name, str) or not re.fullmatch(r"operations/[A-Za-z0-9._/-]+", name):
                 raise ValueError("bootstrap contract is invalid")
+            poll_waiter(1.0)
             current = call("GET", f"{api_base}/{name}")
         raise ValueError("bootstrap contract is invalid")
 
@@ -1144,40 +1272,73 @@ def execute_private_bootstrap(
     except (OSError, ValueError, TypeError) as error:
         partial_stop("project_create", error)
     reuse_proof: dict[str, object] = {}
+    reuse_bootstrapped_backend = False
     if mode == "reused":
-        if operator.get("backend_bucket_preexists") is not True:
+        authorized_principal = runner(
+            ["gcloud", "auth", "list", "--filter=status:ACTIVE", "--format=value(account)"],
+            environment,
+        ).strip()
+        if not authorized_principal or any(character.isspace() for character in authorized_principal):
+            raise ValueError("bootstrap contract is invalid")
+        if operator.get("backend_bucket_preexists") is True:
+            preexisting_backend = backend_verifier(operator, phase="bootstrap")
+            validate_private_backend_gate(operator, preexisting_backend, phase="bootstrap")
+            enabled_before_mutation = _enabled_services_readback(call, project_number, page_limit=poll_limit)
+            reuse_proof = verify_reused_project_empty(call, project_id, project_number, billing_account=billing, enabled_services=enabled_before_mutation, backend_bucket=backend_config["bucket"], authorized_principal=authorized_principal, page_limit=poll_limit)
+            backend_proof = preexisting_backend
+        elif operator.get("backend_bucket_preexists") is False:
+            linked = call("GET", f"https://cloudbilling.googleapis.com/v1/projects/{quote(project_id, safe='')}/billingInfo")
+            if linked.get("billingEnabled") is not True or linked.get("billingAccountName") != f"billingAccounts/{billing}":
+                raise ValueError("billing link readback")
+            enabled_before_mutation = _enabled_services_readback(call, project_number, page_limit=poll_limit)
+            if not TOPIC22_REQUIRED_SERVICES <= enabled_before_mutation:
+                phase[0] = "api_enable"
+                try:
+                    operation = call("POST", f"https://serviceusage.googleapis.com/v1/projects/{project_number}/services:batchEnable", {"serviceIds": sorted(TOPIC22_REQUIRED_SERVICES)})
+                    completed["api_enable_requested"] = True
+                    complete_lro(operation, api_base="https://serviceusage.googleapis.com/v1", response_required=False)
+                except (OSError, ValueError, TypeError, urllib.error.HTTPError) as error:
+                    partial_stop("api_enable", error)
+            services = _enabled_services_readback(call, project_number, page_limit=poll_limit)
+            if completed["api_enable_requested"]:
+                completed["apis_enabled"] = True
+            try:
+                phase[0] = "reuse_inventory"
+                reuse_proof = verify_reused_project_empty(call, project_id, project_number, billing_account=billing, enabled_services=services, backend_bucket=backend_config["bucket"], authorized_principal=authorized_principal, page_limit=poll_limit)
+            except (OSError, ValueError, TypeError, urllib.error.HTTPError) as error:
+                partial_stop("reuse_inventory", error)
+            phase[0] = "reuse_backend_create"
+            backend_proof = create_private_backend_bucket(call, bucket=backend_config["bucket"], prefix=backend_config["prefix"], project_number=project_number, data_dir=data_dir, completed=completed, handoff_phase="reuse_backend_create")
+            reuse_bootstrapped_backend = True
+        else:
             raise ValueError("backend bootstrap is invalid")
-        preexisting_backend = backend_verifier(operator, phase="bootstrap")
-        validate_private_backend_gate(operator, preexisting_backend, phase="bootstrap")
-        enabled_before_mutation = _enabled_services_readback(call, project_number, page_limit=poll_limit)
-        reuse_proof = verify_reused_project_empty(call, project_id, project_number, billing_account=billing, enabled_services=enabled_before_mutation, backend_bucket=backend_config["bucket"], page_limit=poll_limit)
     elif operator.get("backend_bucket_preexists") is not False:
         raise ValueError("backend bootstrap is invalid")
-    phase[0] = "billing_link"
-    linked = call("PUT", f"https://cloudbilling.googleapis.com/v1/projects/{quote(project_id, safe='')}/billingInfo", {"billingAccountName": f"billingAccounts/{billing}"})
-    if linked.get("billingEnabled") is not True or linked.get("billingAccountName") != f"billingAccounts/{billing}":
-        partial_stop("billing_link", ValueError("billing link readback"))
-    if mode == "fresh":
-        completed["billing_linked"] = True
-    service_parent = f"projects/{project_number}"
-    phase[0] = "api_enable"
-    try:
-        complete_lro(call("POST", f"https://serviceusage.googleapis.com/v1/{service_parent}/services:batchEnable", {"serviceIds": sorted(TOPIC22_REQUIRED_SERVICES)}), api_base="https://serviceusage.googleapis.com/v1", response_required=False)
+    if not reuse_bootstrapped_backend:
+        phase[0] = "billing_link"
+        linked = call("PUT", f"https://cloudbilling.googleapis.com/v1/projects/{quote(project_id, safe='')}/billingInfo", {"billingAccountName": f"billingAccounts/{billing}"})
+        if linked.get("billingEnabled") is not True or linked.get("billingAccountName") != f"billingAccounts/{billing}":
+            partial_stop("billing_link", ValueError("billing link readback"))
         if mode == "fresh":
+            completed["billing_linked"] = True
+        service_parent = f"projects/{project_number}"
+        phase[0] = "api_enable"
+        try:
+            operation = call("POST", f"https://serviceusage.googleapis.com/v1/{service_parent}/services:batchEnable", {"serviceIds": sorted(TOPIC22_REQUIRED_SERVICES)})
+            completed["api_enable_requested"] = True
+            complete_lro(operation, api_base="https://serviceusage.googleapis.com/v1", response_required=False)
+            services = _enabled_services_readback(call, project_number, page_limit=poll_limit)
             completed["apis_enabled"] = True
-        services = _enabled_services_readback(call, project_number, page_limit=poll_limit)
-    except (OSError, ValueError, TypeError, urllib.error.HTTPError) as error:
+        except (OSError, ValueError, TypeError, urllib.error.HTTPError) as error:
+            if mode == "fresh":
+                ensure_partial_handoff(data_dir, phase="api_enable", completed=completed)
+            raise ValueError("bootstrap contract is invalid") from error
         if mode == "fresh":
-            ensure_partial_handoff(data_dir, phase="api_enable", completed=completed)
-        raise ValueError("bootstrap contract is invalid") from error
-    if mode == "fresh":
-        backend_proof = create_private_backend_bucket(call, bucket=backend_config["bucket"], prefix=backend_config["prefix"], project_number=project_number, data_dir=data_dir, completed=completed)
-    else:
-        backend_proof = preexisting_backend
+            backend_proof = create_private_backend_bucket(call, bucket=backend_config["bucket"], prefix=backend_config["prefix"], project_number=project_number, data_dir=data_dir, completed=completed)
     readback = {"mode": mode, "project": project, "billing_linked": True, "enabled_services": services, "backend": backend_proof, **reuse_proof}
     if lro is not None:
         readback["project_lro"] = lro
-    bootstrap_binding = backend_proof.get("proof_sha256") if mode == "fresh" else operator.get("backend_bucket_proof_sha256")
+    bootstrap_binding = backend_proof.get("proof_sha256")
     proof = validate_private_bootstrap_contract(readback, project_id, str(bootstrap_binding))
     identity = {
         "backend_bucket_sha256": backend_proof.get("bucket_sha256"),
@@ -1421,7 +1582,8 @@ def _run_get_credentials_redacted(command: list[str], environment: dict[str, str
 
 
 def _run_gcloud_private(command: list[str], environment: dict[str, str]) -> str:
-    completed = subprocess.run(command, env=environment, check=True, capture_output=True, text=True, encoding="utf-8")
+    executable = shutil.which(command[0], path=environment.get("PATH")) or command[0]
+    completed = subprocess.run([executable, *command[1:]], env=environment, check=True, capture_output=True, text=True, encoding="utf-8")
     value = completed.stdout.strip()
     if not value:
         raise ValueError("private gcloud result is empty")
@@ -1517,13 +1679,27 @@ def dispatch_private_helper(
     wi_writer: Callable[..., Path] | None = None,
     terraform_output_runner: Callable[[list[str], dict[str, str]], str] | None = None,
     helm_runner: Callable[[list[str]], str] | None = None,
+    external_path_validator: Callable[..., int] = validate_external_paths,
 ) -> int | None:
     """Dispatch exactly one private helper mode without invoking budget evaluation."""
-    selected = int(bool(args.redacted_account_summary)) + int(bool(args.private_monetary_forecast)) + int(bool(args.prepare_kube_target)) + int(bool(args.private_terraform_action)) + int(bool(args.verify_private_backend)) + int(bool(args.private_bootstrap)) + int(bool(args.write_private_wi_values))
+    selected = int(bool(args.validate_external_paths)) + int(bool(args.redacted_account_summary)) + int(bool(args.private_monetary_forecast)) + int(bool(args.prepare_kube_target)) + int(bool(args.private_terraform_action)) + int(bool(args.verify_private_backend)) + int(bool(args.private_bootstrap)) + int(bool(args.write_private_wi_values))
     if selected == 0:
         return None
     if selected != 1 or not args.operator_inputs:
         return 2
+    if args.validate_external_paths:
+        conflicting = (
+            args.live_external_preflight
+            or any(getattr(args, name) is not None for name in (
+                "project", "billing_account_env", "budget_notification_target_env", "recovery_sink_env",
+                "recovery_sink_attestation", "required_permissions", "dns_probes", "required_url_envs",
+                "preflight_output", "trial_expires_at", "current_spend_usd", "spend_observed_at",
+                "usage_ledger", "envelope", "requested_profile", "requested_ttl", "output",
+                "current_spend_vnd", "console_spend_vnd", "forecast_vnd", "trial_credit_vnd",
+                "conversion_observed_at", "terraform_backend_config",
+            ))
+        )
+        return 2 if conflicting else external_path_validator(args.operator_inputs, workspace)
     if args.redacted_account_summary:
         if not args.output:
             return 2
@@ -1762,8 +1938,11 @@ def execute(
             )
         } | {"monetary_gate_ok": budget["ok"], "monetary_failures": budget["failures"]})
 
-        attestation = json.loads(paths["recovery_sink_attestation"].read_text(encoding="utf-8"))
-        attestation_ok = recovery_attestation_ok(attestation, operator["recovery_sink"])
+        recovery_required = operator.get("project_purpose") != "personal-study"
+        attestation_ok = True
+        if recovery_required:
+            attestation = json.loads(paths["recovery_sink_attestation"].read_text(encoding="utf-8"))
+            attestation_ok = recovery_attestation_ok(attestation, operator["recovery_sink"])
         backend_preexists, backend_binding = _bootstrap_backend_binding(operator, paths["tf_data_dir"])
         require_fresh_backend_preflight_proof(paths["tf_data_dir"], operator, workspace)
         runtime = build_terraform_runtime_contract(
@@ -1795,9 +1974,10 @@ def execute(
                 adapter,
                 required_permissions=permissions,
                 notification_target=operator["budget_notification_target"],
-                recovery_sink=operator["recovery_sink"],
                 dns_probes=operator["dns_probes"],
                 required_urls=[operator["billing_console_url"]],
+                recovery_sink=operator.get("recovery_sink"),
+                recovery_required=recovery_required,
             )
             report["budget_ok"] = budget["ok"]
             report["ok"] = report["ok"] and budget["ok"]

@@ -137,7 +137,7 @@ _TERRAFORM_PRINCIPAL_FIELDS = {
     "google_storage_bucket_iam_member": {"member"},
     "google_kms_crypto_key_iam_member": {"member"},
     "google_service_account_iam_member": {"member", "service_account_id"},
-    "google_service_account": {"email"},
+    "google_service_account": {"email", "member"},
     "google_storage_project_service_account": {"email_address"},
 }
 
@@ -150,27 +150,47 @@ def _approved_terraform_principal(resource_type: str | None, field: str, value: 
     return bool(_APPROVED_TERRAFORM_PRINCIPAL.fullmatch(value))
 
 
-def _has_unsafe_terraform_secret(value: object, *, resource_type: str | None = None) -> bool:
+def _has_unsafe_terraform_secret(value: object, *, resource_type: str | None = None, path: tuple[str, ...] = ()) -> bool:
     """Reject secrets everywhere, permitting an email only in an IAM/WI principal leaf held in memory."""
     if isinstance(value, dict):
         nested_type = value.get("type") if isinstance(value.get("type"), str) else resource_type
         for key, item in value.items():
-            if _SECRET_KEY.search(str(key)):
+            key_text = str(key)
+            child_path = (*path, key_text)
+            structural_gke_field = nested_type == "google_container_cluster" and key_text in {"binary_authorization", "secret_manager_config"}
+            if _SECRET_KEY.search(key_text) and not structural_gke_field:
                 return True
             if nested_type in _TERRAFORM_PRINCIPAL_FIELDS and key in _TERRAFORM_PRINCIPAL_FIELDS[nested_type]:
                 if _approved_terraform_principal(nested_type, key, item):
                     continue
                 if isinstance(item, dict) and set(item) == {"constant_value"} and _approved_terraform_principal(nested_type, key, item["constant_value"]):
                     continue
+                if isinstance(item, dict) and set(item) == {"references"} and not _has_unsafe_terraform_secret(item, resource_type=nested_type, path=child_path):
+                    continue
+                if item is True and "after_unknown" in path:
+                    continue
                 return True
-            if _has_unsafe_terraform_secret(item, resource_type=nested_type):
+            if _has_unsafe_terraform_secret(item, resource_type=nested_type, path=child_path):
                 return True
         return False
     if isinstance(value, list):
-        return any(_has_unsafe_terraform_secret(item, resource_type=resource_type) for item in value)
+        return any(_has_unsafe_terraform_secret(item, resource_type=resource_type, path=path) for item in value)
     if not isinstance(value, str):
         return False
+    if path and path[-1] == "gsa" and "workload_identity_bindings" in path and re.fullmatch(_APPROVED_SERVICE_ACCOUNT_EMAIL, value, re.IGNORECASE):
+        return False
     return bool(_SECRET_VALUE.search(value) or _EMAIL_VALUE.search(value))
+
+
+def _has_sensitive_terraform_value(value: object) -> bool:
+    """Return true only when Terraform's recursive sensitivity metadata contains a true leaf."""
+    if value is True:
+        return True
+    if isinstance(value, dict):
+        return any(_has_sensitive_terraform_value(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_has_sensitive_terraform_value(item) for item in value)
+    return False
 
 
 def hash_file(path: Path) -> str:
@@ -327,11 +347,38 @@ def _terraform_invariants(resources: list[dict[str, object]], types: list[str], 
     if len(prefix_iam) != 5:
         raise ValueError("Terraform prefix IAM invariant is invalid")
 
+    gsa_by_key: dict[str, str] = {}
+    gsa_account_by_key: dict[str, str] = {}
+    for item in by_type("google_service_account"):
+        after_sa = item["after"]
+        address_sa = str(item.get("address", ""))
+        if not isinstance(after_sa, dict):
+            raise ValueError("Terraform workload identity invariant is invalid")
+        key_sa = address_sa.split("[")[-1].rstrip("]\"'") if "[" in address_sa else ""
+        key_sa = key_sa.strip("\"'")
+        if key_sa not in {"retrieval", "drift", "coordinator", "workers"}:
+            raise ValueError("Terraform workload identity invariant is invalid")
+        if key_sa in gsa_by_key or key_sa in gsa_account_by_key:
+            raise ValueError("Terraform workload identity invariant is invalid")
+        email_sa = after_sa.get("email")
+        account_sa = after_sa.get("account_id")
+        if isinstance(email_sa, str) and "@" in email_sa:
+            gsa_by_key[key_sa] = email_sa
+        elif isinstance(account_sa, str) and account_sa:
+            gsa_account_by_key[key_sa] = account_sa
+        else:
+            raise ValueError("Terraform workload identity invariant is invalid")
+    if set(gsa_by_key) | set(gsa_account_by_key) != {"retrieval", "drift", "coordinator", "workers"}:
+        raise ValueError("Terraform workload identity invariant is invalid")
+
+    expected_ksa = {"retrieval": "edai2-retrieval-agent", "drift": "edai2-drift-agent", "coordinator": "edai2-coordinator", "workers": "edai2-worker"}
     wi = by_type("google_service_account_iam_member")
     wi_fingerprints: set[str] = set()
     ksa_names: set[str] = set()
     for item in wi:
         after = item["after"]
+        unknown = item.get("after_unknown") if isinstance(item.get("after_unknown"), dict) else {}
+        address = str(item.get("address", ""))
         if not isinstance(after, dict) or after.get("role") != "roles/iam.workloadIdentityUser":
             raise ValueError("Terraform workload identity invariant is invalid")
         member = after.get("member")
@@ -341,32 +388,87 @@ def _terraform_invariants(resources: list[dict[str, object]], types: list[str], 
         if not match:
             raise ValueError("Terraform workload identity invariant is invalid")
         ksa_names.add(match.group(1))
-        wi_fingerprints.add(_service_account_fingerprint(after.get("service_account_id")))
+        key = address.split("[")[-1].rstrip("]\"'") if "[" in address else ""
+        key = key.strip("\"'")
+        if key not in expected_ksa or match.group(1) != expected_ksa[key]:
+            raise ValueError("Terraform workload identity invariant is invalid")
+        sid = after.get("service_account_id")
+        sid_unknown = unknown.get("service_account_id") is True
+        if isinstance(sid, str) and sid:
+            fingerprint = _service_account_fingerprint(sid)
+            if key in gsa_by_key and fingerprint != _principal_fingerprint(gsa_by_key[key]):
+                raise ValueError("Terraform workload identity invariant is invalid")
+            if key in gsa_account_by_key and gsa_account_by_key[key] not in sid:
+                raise ValueError("Terraform workload identity invariant is invalid")
+            wi_fingerprints.add(fingerprint)
+        elif (sid is None or sid == "") and sid_unknown and key in gsa_by_key:
+            wi_fingerprints.add(_principal_fingerprint(gsa_by_key[key]))
+        else:
+            raise ValueError("Terraform workload identity invariant is invalid")
     if ksa_names != {"edai2-retrieval-agent", "edai2-drift-agent", "edai2-coordinator", "edai2-worker"} or len(wi_fingerprints) != 4 or not set(prefix_fingerprints).issubset(wi_fingerprints):
         raise ValueError("Terraform workload identity invariant is invalid")
 
     kms_members = by_type("google_kms_crypto_key_iam_member")
     if len(kms_members) != 1 or not isinstance(kms_members[0]["after"], dict) or kms_members[0]["after"].get("role") != "roles/cloudkms.cryptoKeyEncrypterDecrypter":
         raise ValueError("Terraform KMS IAM invariant is invalid")
-    gcs_fingerprint = _principal_fingerprint(str(kms_members[0]["after"].get("member", "")).removeprefix("serviceAccount:"))
+    kms_after = kms_members[0]["after"]
+    kms_unknown = kms_members[0].get("after_unknown") if isinstance(kms_members[0].get("after_unknown"), dict) else {}
+    kms_member = kms_after.get("member")
+    has_data_source = "google_storage_project_service_account" in types
+    gcs_unknown = False
+    gcs_fingerprint: str | None = None
+    if isinstance(kms_member, str) and kms_member:
+        gcs_fingerprint = _principal_fingerprint(kms_member.removeprefix("serviceAccount:"))
+    elif (kms_member is None or kms_member == "") and kms_unknown.get("member") is True and has_data_source:
+        gcs_unknown = True
+        gcs_fingerprint = None
+    else:
+        raise ValueError("Terraform KMS IAM invariant is invalid")
 
     budgets = by_type("google_billing_budget")
     if len(budgets) != 1 or not isinstance(budgets[0]["after"], dict):
         raise ValueError("Terraform budget invariant is invalid")
     budget = budgets[0]["after"]
+    budget_unknown = budgets[0].get("after_unknown") if isinstance(budgets[0].get("after_unknown"), dict) else {}
     amount = _one(_one(budget.get("amount"), "budget amount").get("specified_amount"), "budget specified amount")
-    filters = _one(budget.get("budget_filter"), "budget filter").get("projects")
+    budget_filter_list = budget.get("budget_filter")
+    filters = None
+    if isinstance(budget_filter_list, list) and len(budget_filter_list) == 1 and isinstance(budget_filter_list[0], dict):
+        filters = budget_filter_list[0].get("projects")
     thresholds = sorted(rule.get("threshold_percent") for rule in budget.get("threshold_rules", []) if isinstance(rule, dict))
     trial_credit = variables.get("trial_credit_vnd", {}).get("value") if isinstance(variables, dict) else None
     expected_amount = math.floor(trial_credit * 240 / 300) if isinstance(trial_credit, (int, float)) and not isinstance(trial_credit, bool) else None
-    if amount.get("currency_code") != "VND" or amount.get("units") != str(expected_amount) or thresholds != [0.5, 0.75, 0.9, 1.0] or not isinstance(filters, list) or len(filters) != 1 or not re.fullmatch(r"projects/\d+", str(filters[0])):
+    if amount.get("currency_code") != "VND" or amount.get("units") != str(expected_amount) or thresholds != [0.5, 0.75, 0.9, 1.0]:
         raise ValueError("Terraform budget invariant is invalid")
-    return {
+    project_filter_unknown = False
+    if isinstance(filters, list) and len(filters) == 1 and re.fullmatch(r"projects/\d+", str(filters[0])):
+        project_filter_unknown = False
+    else:
+        unknown_filter = budget_unknown.get("budget_filter")
+        projects_unknown = (
+            isinstance(unknown_filter, list)
+            and len(unknown_filter) == 1
+            and isinstance(unknown_filter[0], dict)
+            and unknown_filter[0].get("projects") is True
+        )
+        filters_missing = filters is None or (isinstance(filters, list) and len(filters) == 0)
+        # Live plans omit unknown projects from after; test uses explicit None.
+        if (filters_missing or filters is None) and projects_unknown and "google_project" in types:
+            project_filter_unknown = True
+        else:
+            raise ValueError("Terraform budget invariant is invalid")
+    invariants = {
         "zone": "us-central1-a", "cluster": "edai2", "node_pools": sorted(pool_facts, key=lambda item: str(item["name"])),
         "cmek": cmek, "bucket_lifecycle": lifecycle, "prefix_iam_count": len(prefix_iam), "workload_identity_count": len(wi),
         "budget": {"currency": "VND", "amount_vnd": int(amount["units"]), "trial_credit_vnd": trial_credit, "normalized_usd": 240, "thresholds": thresholds, "project_number_filter": True},
         "project_services": sorted(service_names), "data_reads": sorted(kind for kind in types if kind in _TERRAFORM_ALLOWED_DATA_TYPES), "prohibited_resources": 0,
-    }, sorted({*wi_fingerprints, gcs_fingerprint})
+    }
+    if project_filter_unknown:
+        invariants["budget"] = {**invariants["budget"], "project_number_filter_unknown": True}
+    if gcs_unknown:
+        invariants["gcs_service_agent_unknown"] = True
+        return invariants, sorted(wi_fingerprints)
+    return invariants, sorted({*wi_fingerprints, gcs_fingerprint})
 
 
 def sanitize_terraform_payload(payload: object, *, required_resources: set[str], forbidden_resources: set[str] | None = None, plan_sha256: str | None = None, forecast_sha256: str | None = None, revision: str | None = None) -> dict[str, object]:
@@ -408,13 +510,13 @@ def sanitize_terraform_payload(payload: object, *, required_resources: set[str],
             raise ValueError("unexpected Terraform data resource")
         if mode == "managed" and resource_type not in _TERRAFORM_ALLOWED_TYPES:
             raise ValueError("unexpected Terraform managed resource")
-        if details.get("after_sensitive") not in (None, {}, []):
+        if _has_sensitive_terraform_value(details.get("after_sensitive")):
             raise ValueError("Terraform plan contains sensitive values")
         actions = details.get("actions")
         if actions != (["read"] if mode == "data" else ["create"]):
             raise ValueError("Terraform actions are invalid")
         types.append(resource_type)
-        resources.append({"address": address, "type": resource_type, "mode": mode, "after": details.get("after")})
+        resources.append({"address": address, "type": resource_type, "mode": mode, "after": details.get("after"), "after_unknown": details.get("after_unknown", {}) if isinstance(details.get("after_unknown", {}), dict) else {}})
     for requirement in required_resources:
         if requirement not in _TERRAFORM_GROUPS or not (_TERRAFORM_GROUPS[requirement] & set(types)):
             raise ValueError(f"required Terraform resource group missing: {requirement}")
@@ -501,7 +603,7 @@ def sanitize_private_terraform_plan(
     environment.update({"TF_DATA_DIR": str(paths["tf_data_dir"]), "CLOUDSDK_CONFIG": str(paths["gcloud_config_dir"]), "GOOGLE_APPLICATION_CREDENTIALS": str(paths["application_default_credentials"])})
     invoke = runner or (lambda command, env: subprocess.run(command, env=env, check=True, capture_output=True, text=True, encoding="utf-8").stdout)
     return sanitize_terraform_plan(
-        plan, output, runner=lambda command: invoke(command, environment),
+        plan, output, runner=lambda command: invoke([command[0], "-chdir=infra/terraform/edai2", *command[1:]], environment),
         required_resources={"gke", "node-pools", "artifact-registry", "gcs", "kms", "iam", "budget", "project-services"},
         forbidden_resources={"vm", "cloud-build", "load-balancer"}, forecast_path=forecast, revision=current_revision,
     )

@@ -20,9 +20,7 @@
     "container.clusters.create",
     "container.clusters.get",
     "container.clusters.list",
-    "container.nodePools.create",
-    "container.nodePools.get",
-    "container.nodePools.list",
+    "container.clusters.update",
     "iam.serviceAccounts.create",
     "iam.serviceAccounts.get",
     "iam.serviceAccounts.list",
@@ -44,8 +42,7 @@
     "storage.objects.delete",
     "storage.objects.get",
     "storage.objects.list",
-    "storage.objects.update",
-    "storage.services.get"
+    "storage.objects.update"
   ],
   "billing_account": [
     "billing.accounts.get",

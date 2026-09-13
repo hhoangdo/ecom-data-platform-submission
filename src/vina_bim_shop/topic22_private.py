@@ -31,6 +31,11 @@ _OPERATOR_PATHS = {
     "application_default_credentials": "file",
     "tf_data_dir": "dir",
 }
+_PERSONAL_STUDY_OPERATOR_FIELDS = (_OPERATOR_FIELDS - {"recovery_sink"}) | {"project_purpose"}
+_PERSONAL_STUDY_OPERATOR_PATHS = {
+    name: path_type for name, path_type in _OPERATOR_PATHS.items()
+    if name != "recovery_sink_attestation"
+}
 _MONETARY_FIELDS = {
     "schema_version", "billing_account_id", "trial_expires_at", "spend_observed_at",
     "conversion_observed_at", "current_spend_vnd", "console_spend_vnd", "forecast_vnd",
@@ -56,6 +61,18 @@ _BOOTSTRAP_PATHS = {
 _BILLING_SELECTOR = re.compile(r"\[(aria-label|data-field|data-testid)(\*=|=)'([A-Za-z][A-Za-z0-9 -]{0,47})'\]")
 _BILLING_MARKER_VALUES = {"billing", "billing overview", "current spend", "current-spend", "budget", "cost overview"}
 _BILLING_PII_VALUES = {"billing-account-id", "billing-account-name", "project-id", "email", "user-email"}
+
+
+class PrivateBundleError(ValueError):
+    """The private bundle or one of its local contents is unreadable or malformed."""
+
+
+class PrivatePathPolicyError(ValueError):
+    """A private path violates Topic 22 containment, type, symlink, or ignore policy."""
+
+
+class PrivateAccessPolicyError(ValueError):
+    """A private path's owner, ACL, or mode is too broad for Topic 22."""
 
 
 def rest_request(
@@ -140,16 +157,20 @@ def _private_topic22_path(value: str | Path, workspace: Path, *, directory: bool
     try:
         relative = absolute.relative_to(workspace)
     except ValueError as error:
-        raise ValueError("private Topic 22 path is invalid") from error
+        raise PrivatePathPolicyError("private Topic 22 path is invalid") from error
     cursor = workspace
     for component in relative.parts:
         cursor = cursor / component
         if cursor.is_symlink():
-            raise ValueError("private Topic 22 path is invalid")
+            raise PrivatePathPolicyError("private Topic 22 path is invalid")
     resolved = absolute.resolve()
+    if (resolved != root and root not in resolved.parents) or (resolved == root and not directory):
+        raise PrivatePathPolicyError("private Topic 22 path is invalid")
+    if not resolved.exists():
+        raise PrivateBundleError("private Topic 22 path is missing")
     expected_type = resolved.is_dir() if directory else resolved.is_file()
-    if (resolved != root and root not in resolved.parents) or not expected_type or (resolved == root and not directory):
-        raise ValueError("private Topic 22 path is invalid")
+    if not expected_type:
+        raise PrivatePathPolicyError("private Topic 22 path type is invalid")
     return resolved
 
 
@@ -194,13 +215,16 @@ def windows_owner_for_path(
     """Read a Windows ACL owner without treating the private path as PowerShell source text."""
     environment = dict(os.environ)
     environment["TOPIC22_OWNER_PATH"] = str(path)
-    result = runner(
-        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "try { (Get-Acl -LiteralPath $env:TOPIC22_OWNER_PATH).Owner } catch { (Get-Item -LiteralPath $env:TOPIC22_OWNER_PATH).GetAccessControl().Owner }"],
-        env=environment, capture_output=True, text=True, encoding="utf-8", check=True,
-    )
+    try:
+        result = runner(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "try { (Get-Acl -LiteralPath $env:TOPIC22_OWNER_PATH).Owner } catch { (Get-Item -LiteralPath $env:TOPIC22_OWNER_PATH).GetAccessControl().Owner }"],
+            env=environment, capture_output=True, text=True, encoding="utf-8", check=True,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise PrivateAccessPolicyError("private Topic 22 path owner is unavailable") from error
     owner = result.stdout.strip()
     if not owner:
-        raise ValueError("private Topic 22 path owner is invalid")
+        raise PrivateAccessPolicyError("private Topic 22 path owner is invalid")
     return owner
 
 
@@ -228,24 +252,49 @@ def private_unix_tree_modes_ok(
 def validate_private_operator_path(path: Path, kind: str, workspace: Path) -> Path:
     """Require a real ignored path whose ACL/mode does not grant broad access."""
     resolved = _private_topic22_path(path, workspace, directory=kind.endswith("_dir"))
-    ignored = subprocess.run(["git", "check-ignore", "--quiet", "--", str(resolved)], cwd=workspace, capture_output=True, check=False)
+    try:
+        ignored = subprocess.run(
+            ["git", "check-ignore", "--quiet", "--", str(resolved)],
+            cwd=workspace,
+            capture_output=True,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise PrivatePathPolicyError(
+            "private Topic 22 path ignore check is unavailable"
+        ) from error
     if ignored.returncode != 0:
-        raise ValueError("private Topic 22 path is not ignored")
+        raise PrivatePathPolicyError("private Topic 22 path is not ignored")
     if os.name == "nt":
-        current_user = subprocess.run(["whoami"], capture_output=True, text=True, encoding="utf-8", check=True).stdout.strip()
+        try:
+            current_user = subprocess.run(["whoami"], capture_output=True, text=True, encoding="utf-8", check=True).stdout.strip()
+        except (OSError, subprocess.SubprocessError) as error:
+            raise PrivateAccessPolicyError("private Topic 22 path owner is unavailable") from error
+        if not current_user:
+            raise PrivateAccessPolicyError("private Topic 22 path owner is invalid")
         components = [resolved, *resolved.parents]
         root = (workspace / "tmp" / "edai2-gcp").resolve()
         for component in components:
-            owner = windows_owner_for_path(component)
+            try:
+                owner = windows_owner_for_path(component)
+                acl = subprocess.run(["icacls", str(component)], capture_output=True, text=True, encoding="utf-8", check=True).stdout
+            except PrivateAccessPolicyError:
+                raise
+            except (OSError, subprocess.SubprocessError) as error:
+                raise PrivateAccessPolicyError("private Topic 22 path access is unavailable") from error
             if owner.casefold() != current_user.casefold():
-                raise ValueError("private Topic 22 path owner is invalid")
-            acl = subprocess.run(["icacls", str(component)], capture_output=True, text=True, encoding="utf-8", check=True).stdout
+                raise PrivateAccessPolicyError("private Topic 22 path owner is invalid")
             if not windows_private_acl_ok(acl, current_user):
-                raise ValueError("private Topic 22 path ACL is too broad")
+                raise PrivateAccessPolicyError("private Topic 22 path ACL is too broad")
             if component == root:
                 break
-    elif not private_unix_tree_modes_ok(resolved, (workspace / "tmp" / "edai2-gcp")):
-        raise ValueError("private Topic 22 path mode is too broad")
+    else:
+        try:
+            modes_ok = private_unix_tree_modes_ok(resolved, (workspace / "tmp" / "edai2-gcp"))
+        except (OSError, ValueError) as error:
+            raise PrivateAccessPolicyError("private Topic 22 path mode is unavailable") from error
+        if not modes_ok:
+            raise PrivateAccessPolicyError("private Topic 22 path mode is too broad")
     return resolved
 
 
@@ -265,7 +314,7 @@ def backend_values(path: Path) -> dict[str, str]:
     return values
 
 
-def load_operator_inputs(
+def _load_operator_inputs(
     value: str | Path,
     workspace: Path,
     path_validator: Callable[[Path, str], Path] | None = None,
@@ -282,20 +331,25 @@ def load_operator_inputs(
 
     bundle_path = validate(Path(value), "operator_inputs")
     payload = json.loads(bundle_path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict) or set(payload) != _OPERATOR_FIELDS or payload.get("schema_version") != 1:
+    personal_study = isinstance(payload, dict) and payload.get("project_purpose") == "personal-study"
+    operator_fields = _PERSONAL_STUDY_OPERATOR_FIELDS if personal_study else _OPERATOR_FIELDS
+    operator_paths = _PERSONAL_STUDY_OPERATOR_PATHS if personal_study else _OPERATOR_PATHS
+    if not isinstance(payload, dict) or set(payload) != operator_fields or payload.get("schema_version") != 1:
         raise ValueError("operator input bundle schema is invalid")
     paths = payload.get("paths")
     optional_paths = {"bootstrap_authorization": "file"}
-    if not isinstance(paths, dict) or set(paths) not in (set(_OPERATOR_PATHS), set(_OPERATOR_PATHS) | set(optional_paths)):
+    if not isinstance(paths, dict) or set(paths) not in (set(operator_paths), set(operator_paths) | set(optional_paths)):
         raise ValueError("operator input path schema is invalid")
     resolved_paths: dict[str, Path] = {}
-    for name, path_type in {**_OPERATOR_PATHS, **({"bootstrap_authorization": "file"} if "bootstrap_authorization" in paths else {})}.items():
+    for name, path_type in {**operator_paths, **({"bootstrap_authorization": "file"} if "bootstrap_authorization" in paths else {})}.items():
         relative = paths.get(name)
         if not isinstance(relative, str) or not relative or Path(relative).is_absolute() or ".." in Path(relative).parts:
             raise ValueError("operator input path is invalid")
         resolved_paths[name] = validate(bundle_path.parent / relative, name, directory=path_type == "dir")
 
-    strings = ("project_id", "billing_account_id", "recovery_sink", "trial_expires_at", "spend_observed_at", "conversion_observed_at")
+    strings = ("project_id", "billing_account_id", "trial_expires_at", "spend_observed_at", "conversion_observed_at")
+    if not personal_study:
+        strings += ("recovery_sink",)
     if any(not isinstance(payload.get(name), str) or not payload[name] for name in strings):
         raise ValueError("operator input value is invalid")
     notification = payload.get("budget_notification_target")
@@ -320,6 +374,20 @@ def load_operator_inputs(
             raise ValueError(f"operator {json_name} is invalid")
         decoded = None
     return {**payload, "resolved_paths": resolved_paths}
+
+
+def load_operator_inputs(
+    value: str | Path,
+    workspace: Path,
+    path_validator: Callable[[Path, str], Path] | None = None,
+) -> dict[str, Any]:
+    """Load the full operator bundle with typed errors for the local-only pre-cloud gate."""
+    try:
+        return _load_operator_inputs(value, workspace, path_validator)
+    except (PrivatePathPolicyError, PrivateAccessPolicyError):
+        raise
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as error:
+        raise PrivateBundleError("operator input bundle is invalid") from error
 
 
 def load_monetary_inputs(

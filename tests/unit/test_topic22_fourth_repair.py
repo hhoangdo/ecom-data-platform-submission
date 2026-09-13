@@ -8,10 +8,12 @@ import json
 import os
 import subprocess
 import sys
+import urllib.error
 from pathlib import Path
 
 import pytest
 import yaml
+from vina_bim_shop import topic22_private as private_inputs
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -67,6 +69,113 @@ def _typed_readbacks() -> dict[str, object]:
         "backend": {"bucket_sha256": "4" * 64, "prefix_sha256": "f" * 64, "remote_state_present": True},
         "forwarding_rules": [],
     }
+
+
+def _write_local_topic22_operator_bundle(workspace: Path) -> Path:
+    """Create a schema-valid local bundle for the no-network path-gate test."""
+    private = workspace / "tmp" / "edai2-gcp"
+    config, data = private / "gcloud", private / "terraform-data"
+    private.mkdir(parents=True)
+    config.mkdir()
+    data.mkdir()
+    (private / "recovery.json").write_text("{}\n", encoding="utf-8")
+    (private / "coursework.auto.tfvars").write_text("\n", encoding="utf-8")
+    (private / "backend.hcl").write_text('bucket = "topic22-state-bucket"\nprefix = "topic22/state"\n', encoding="utf-8")
+    (private / "browser.json").write_text("{}\n", encoding="utf-8")
+    (config / "application_default_credentials.json").write_text("{}\n", encoding="utf-8")
+    bundle = private / "operator-inputs.json"
+    bundle.write_text(json.dumps({
+        "schema_version": 1,
+        "project_id": "topic22-test-project",
+        "billing_account_id": "TEST-BILLING",
+        "budget_notification_target": "projects/topic22-test-project/notificationChannels/test",
+        "recovery_sink": "gs://topic22-test-recovery",
+        "billing_console_url": "https://console.cloud.google.com/billing",
+        "dns_probes": ["storage.googleapis.com"],
+        "trial_expires_at": "2099-01-01T00:00:00Z",
+        "spend_observed_at": "2026-08-12T00:00:00Z",
+        "conversion_observed_at": "2026-08-12T00:00:00Z",
+        "current_spend_vnd": 1,
+        "console_spend_vnd": 1,
+        "forecast_vnd": 1,
+        "trial_credit_vnd": 1,
+        "backend_bucket_preexists": False,
+        "backend_bucket_proof_sha256": "",
+        "billing_required_markers": ["[aria-label*='Billing']"],
+        "billing_pii_selectors": ["[data-field='billing-account-id']"],
+        "paths": {
+            "recovery_sink_attestation": "recovery.json",
+            "terraform_tfvars": "coursework.auto.tfvars",
+            "terraform_backend_config": "backend.hcl",
+            "browser_storage_state": "browser.json",
+            "gcloud_config_dir": "gcloud",
+            "application_default_credentials": "gcloud/application_default_credentials.json",
+            "tf_data_dir": "terraform-data",
+        },
+    }, sort_keys=True) + "\n", encoding="utf-8")
+    return bundle
+
+
+def test_personal_study_operator_omits_recovery_without_weakening_external_checks(tmp_path: Path) -> None:
+    """Catches a personal-study exception accidentally bypassing non-recovery preflight gates."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_personal_study")
+    bundle = _write_local_topic22_operator_bundle(tmp_path)
+    payload = json.loads(bundle.read_text(encoding="utf-8"))
+    payload["project_purpose"] = "personal-study"
+    payload.pop("recovery_sink")
+    payload["paths"].pop("recovery_sink_attestation")
+    (bundle.parent / "recovery.json").unlink()
+    bundle.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+
+    operator = budget.load_operator_inputs(bundle, tmp_path, path_validator=lambda path, _kind: path.resolve())
+    assert operator["project_purpose"] == "personal-study"
+    assert "recovery_sink" not in operator
+    assert "recovery_sink_attestation" not in operator["resolved_paths"]
+
+    class Adapter:
+        def project(self): return {"active": True, "project_number_sha256": "1" * 64}
+        def billing(self): return {"linked": True, "billing_link_hash_matches": True, "billing_account_name_matches": True, "billing_account_open": True, "billing_currency_vnd": True}
+        def permissions(self, _project, _billing, required): return required
+        def notification(self, _target): return True
+        def dns(self, _host): return True
+        def url(self, _url): return True
+
+    report = budget.run_external_preflight(
+        Adapter(),
+        required_permissions={"project": ["read"], "billing_account": ["write"]},
+        notification_target="projects/topic22-test-project/notificationChannels/test",
+        dns_probes=["storage.googleapis.com"],
+        required_urls=["https://console.cloud.google.com/billing"],
+        recovery_required=False,
+    )
+    assert report["ok"] is True
+    assert report["recovery_control"] == "not_applicable_personal_study"
+    assert "recovery_sink_sha256" not in report
+
+
+def test_required_permission_manifest_uses_api_authorization_permissions() -> None:
+    """Catches REST method names entering testIamPermissions and causing an HTTP 400."""
+    manifest = json.loads((ROOT / "configs/gke/required_permissions.json").read_text(encoding="utf-8"))
+    project_permissions = set(manifest["project"])
+    assert "container.clusters.update" in project_permissions
+    assert {
+        "container.nodePools.create",
+        "container.nodePools.get",
+        "container.nodePools.list",
+        "storage.services.get",
+    }.isdisjoint(project_permissions)
+
+
+def test_safe_https_probe_accepts_redirect_without_following_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Catches a disabled-redirect availability probe mistaking HTTP 302 for an outage."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_https_redirect")
+
+    class Opener:
+        def open(self, request, timeout):
+            raise urllib.error.HTTPError(request.full_url, 302, "Found", {}, None)
+
+    monkeypatch.setattr(budget.urllib.request, "build_opener", lambda _handler: Opener())
+    assert budget._safe_https_probe("https://console.cloud.google.com/billing") is True
 
 
 def test_billing_writer_loads_by_file_path_without_repository_package_importability(tmp_path: Path) -> None:
@@ -420,6 +529,137 @@ def test_private_helper_cli_dispatches_account_and_kube_modes_without_legacy_bud
     assert calls == ["account", "kube"]
 
 
+def test_external_path_gate_is_local_only_and_classifies_private_input_failures(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Catches a pre-cloud gate that performs I/O beyond private bundle validation."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_external_path_gate")
+    bundle = _write_local_topic22_operator_bundle(tmp_path)
+    before = sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*"))
+    def external_boundary(*_args, **_kwargs):
+        pytest.fail("the local-only path gate must not use an external boundary")
+
+    monkeypatch.setattr(budget, "_run_gcloud_private", external_boundary)
+    monkeypatch.setattr(budget, "GcloudRestExternalAdapter", external_boundary)
+    monkeypatch.setattr(budget, "_rest_request", external_boundary)
+    monkeypatch.setattr(budget, "_safe_https_probe", external_boundary)
+    monkeypatch.setattr(budget.socket, "getaddrinfo", external_boundary)
+    assert budget.validate_external_paths(
+        bundle, tmp_path,
+        operator_loader=lambda value, workspace: budget.load_operator_inputs(
+            value, workspace, path_validator=lambda path, _kind: path.resolve(),
+        ),
+    ) == 0
+    captured = capsys.readouterr()
+    assert captured.out == "EXTERNAL_PATH_GATE=PASS\n"
+    assert captured.err == ""
+    assert sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*")) == before
+
+    for error, expected in (
+        (budget.PrivateBundleError("bundle"), 17),
+        (budget.PrivatePathPolicyError("path"), 18),
+        (budget.PrivateAccessPolicyError("access"), 19),
+    ):
+        def failing_loader(*_args, failure=error, **_kwargs):
+            raise failure
+
+        assert budget.validate_external_paths(bundle, tmp_path, operator_loader=failing_loader) == expected
+        assert capsys.readouterr().out == ""
+
+    private_root = tmp_path / "tmp" / "edai2-gcp"
+    private_root.mkdir(parents=True, exist_ok=True)
+    assert budget.validate_external_paths(private_root / "missing-operator-inputs.json", tmp_path) == 17
+    assert capsys.readouterr().out == ""
+    malformed = private_root / "operator-inputs.json"
+    malformed.write_text("{}\n", encoding="utf-8")
+    with pytest.raises(budget.PrivateBundleError):
+        budget.load_operator_inputs(malformed, tmp_path, path_validator=lambda path, _kind: path.resolve())
+
+
+def test_access_inspection_failures_fail_closed_as_exit_19(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Catches an unprovable owner or ACL from escaping the local-only gate."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_access_failure_gate")
+    root = tmp_path / "tmp" / "edai2-gcp"
+    root.mkdir(parents=True)
+    target = root / "operator-inputs.json"
+    target.write_text("{}\n", encoding="utf-8")
+
+    def fake_run(command, **_kwargs):
+        if command[0] == "git":
+            return subprocess.CompletedProcess(command, 0)
+        if command[0] == "whoami":
+            return subprocess.CompletedProcess(command, 0, stdout="test-owner\n")
+        pytest.fail(f"unexpected access command: {command[0]}")
+
+    def owner_failure(*_args, **_kwargs):
+        raise subprocess.CalledProcessError(1, ["powershell.exe"])
+
+    original_owner = private_inputs.windows_owner_for_path
+    monkeypatch.setattr(private_inputs.subprocess, "run", fake_run)
+    monkeypatch.setattr(private_inputs, "windows_owner_for_path", owner_failure)
+    assert budget.validate_external_paths(
+        target, tmp_path,
+        operator_loader=lambda *_args: private_inputs.validate_private_operator_path(target, "operator_inputs", tmp_path),
+    ) == 19
+    monkeypatch.setattr(private_inputs, "windows_owner_for_path", original_owner)
+    with pytest.raises(private_inputs.PrivateAccessPolicyError):
+        private_inputs.windows_owner_for_path(
+            target,
+            runner=lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, stdout=""),
+        )
+
+
+@pytest.mark.parametrize("failure", [OSError("git unavailable"), subprocess.CalledProcessError(1, ["git"])])
+def test_ignore_check_execution_failure_is_path_policy_exit_18(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: BaseException,
+) -> None:
+    """Catches an unavailable Git-ignore verifier being misclassified as bundle content."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_ignore_check_failure")
+    root = tmp_path / "tmp" / "edai2-gcp"
+    root.mkdir(parents=True)
+    target = root / "operator-inputs.json"
+    target.write_text("{}\n", encoding="utf-8")
+
+    def ignore_failure(command, **_kwargs):
+        assert command[:3] == ["git", "check-ignore", "--quiet"]
+        raise failure
+
+    monkeypatch.setattr(private_inputs.subprocess, "run", ignore_failure)
+    assert budget.validate_external_paths(
+        target, tmp_path,
+        operator_loader=lambda *_args: private_inputs.validate_private_operator_path(target, "operator_inputs", tmp_path),
+    ) == 18
+
+
+def test_external_path_gate_is_mutually_exclusive_and_never_dispatches_cloud_helpers(tmp_path: Path) -> None:
+    """Catches combining the local-only gate with an account or live-preflight operation."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_external_path_gate_cli")
+    bundle = tmp_path / "operator-inputs.json"
+    bundle.write_text("{}\n", encoding="utf-8")
+    local = budget.parse_args(["--operator-inputs", str(bundle), "--validate-external-paths"])
+    assert budget.dispatch_private_helper(
+        local, tmp_path,
+        external_path_validator=lambda *_args, **_kwargs: 0,
+        account_writer=lambda *_args, **_kwargs: pytest.fail("account helper must not run"),
+        kube_preparer=lambda *_args, **_kwargs: pytest.fail("kube helper must not run"),
+    ) == 0
+    conflicting = budget.parse_args([
+        "--operator-inputs", str(bundle), "--validate-external-paths", "--redacted-account-summary",
+    ])
+    assert budget.dispatch_private_helper(
+        conflicting, tmp_path,
+        external_path_validator=lambda *_args, **_kwargs: pytest.fail("local gate must not run"),
+        account_writer=lambda *_args, **_kwargs: pytest.fail("account helper must not run"),
+    ) == 2
+    live_conflict = budget.parse_args([
+        "--operator-inputs", str(bundle), "--validate-external-paths", "--live-external-preflight",
+    ])
+    assert budget.dispatch_private_helper(
+        live_conflict, tmp_path,
+        external_path_validator=lambda *_args, **_kwargs: pytest.fail("local gate must not run"),
+    ) == 2
+
+
 def test_private_helper_dispatches_backend_gate_and_apply_without_public_plan_or_approval_argv(tmp_path: Path) -> None:
     """Catches the executable gate being bypassed or an apply approval/plan path entering public CLI arguments."""
     budget = _load("scripts/gke/check_budget.py", "topic22_fourth_runtime_dispatch")
@@ -532,6 +772,18 @@ def test_private_bundle_backend_helper_uses_private_gcloud_environment(tmp_path:
     assert environments[0]["CLOUDSDK_CONFIG"] == str(private)
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Windows command shims are platform-specific")
+def test_private_gcloud_runner_resolves_windows_cmd_shim(tmp_path: Path) -> None:
+    """Catches invoking a gcloud.cmd installation as an extensionless native executable."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_windows_gcloud_shim")
+    (tmp_path / "gcloud.cmd").write_text("@echo private-token\r\n", encoding="utf-8")
+    environment = {**os.environ, "PATH": str(tmp_path), "PATHEXT": ".CMD"}
+
+    assert budget._run_gcloud_private(
+        ["gcloud", "auth", "print-access-token"], environment
+    ) == "private-token"
+
+
 def test_aggregated_forwarding_rules_follow_page_tokens_and_reject_cycles() -> None:
     """Catches a forbidden forwarding rule hidden after the first aggregated Compute page."""
     capture = _load("scripts/qa/capture_edai2_evidence.py", "topic22_fourth_forwarding_pagination")
@@ -610,6 +862,37 @@ def test_private_root_directory_is_a_valid_private_directory_not_a_file_or_escap
         private._private_topic22_path(root, tmp_path, directory=False)
 
 
+def test_shared_private_path_primitive_preserves_missing_type_and_escape_classes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Catches weakening the direct containment helper used outside the bundle loaders."""
+    root = tmp_path / "tmp" / "edai2-gcp"
+    root.mkdir(parents=True)
+    directory, file_path = root / "directory", root / "bundle.json"
+    directory.mkdir()
+    file_path.write_text("{}\n", encoding="utf-8")
+    with pytest.raises(private_inputs.PrivateBundleError):
+        private_inputs._private_topic22_path(root / "missing.json", tmp_path)
+    with pytest.raises(private_inputs.PrivatePathPolicyError):
+        private_inputs._private_topic22_path(directory, tmp_path, directory=False)
+    with pytest.raises(private_inputs.PrivatePathPolicyError):
+        private_inputs._private_topic22_path(file_path, tmp_path, directory=True)
+    outside = tmp_path / "outside.json"
+    outside.write_text("{}\n", encoding="utf-8")
+    with pytest.raises(private_inputs.PrivatePathPolicyError):
+        private_inputs._private_topic22_path(outside, tmp_path)
+    link = root / "link.json"
+    link.write_text("{}\n", encoding="utf-8")
+    original_is_symlink = Path.is_symlink
+    monkeypatch.setattr(
+        private_inputs.Path,
+        "is_symlink",
+        lambda candidate: candidate == link or original_is_symlink(candidate),
+    )
+    with pytest.raises(private_inputs.PrivatePathPolicyError):
+        private_inputs._private_topic22_path(link, tmp_path)
+
+
 def test_budget_cli_reports_fixed_error_without_echoing_private_argv(capsys: pytest.CaptureFixture[str]) -> None:
     """Catches argparse reflecting an operator's secret path back to stderr."""
     budget = _load("scripts/gke/check_budget.py", "topic22_fourth_redacted_cli")
@@ -648,18 +931,33 @@ def test_wi_values_writer_rejects_noncanonical_or_unvalidated_destination(tmp_pa
         budget.write_private_workload_identity_helm_values(bindings, tmp_path / "outside.yaml", tmp_path, path_validator=lambda path, _kind: path.resolve(), ignore_checker=lambda _path: True)
 
 
-def test_notification_requires_exact_verified_status() -> None:
-    """Catches accepted non-UNVERIFIED channel states that are not the official verified value."""
+def test_notification_accepts_status_not_requiring_verification_and_rejects_unverified() -> None:
+    """Catches rejecting Google's not-applicable status or accepting a nonfunctional channel."""
     budget = _load("scripts/gke/check_budget.py", "topic22_fourth_notification_verified")
     target = "projects/private-project/notificationChannels/private-channel"
-    def requester(_method, _url, _headers, _body):
-        return {"name": target, "enabled": True, "verificationStatus": "VERIFIED"}
-    adapter = budget.GcloudRestExternalAdapter("private-project", "billingAccounts/private", token_supplier=lambda: "token", requester=requester)
-    assert adapter.notification(target) is True
-    for status in ("UNVERIFIED", "PENDING", None):
+    for status in ("VERIFIED", "VERIFICATION_STATUS_UNSPECIFIED", "UNSPECIFIED", None):
+        def requester(_method, _url, _headers, _body, status=status):
+            return {"name": target, "enabled": True, "verificationStatus": status}
+        adapter = budget.GcloudRestExternalAdapter("private-project", "billingAccounts/private", token_supplier=lambda: "token", requester=requester)
+        assert adapter.notification(target) is True
+    for status in ("UNVERIFIED", "PENDING"):
         def response(_method, _url, _headers, _body, status=status):
             return {"name": target, "enabled": True, "verificationStatus": status}
         assert budget.GcloudRestExternalAdapter("private-project", "billingAccounts/private", token_supplier=lambda: "token", requester=response).notification(target) is False
+
+
+def test_dns_probe_uses_configured_https_proxy_when_direct_resolution_is_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Catches corporate proxy routing being misreported as total DNS failure."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_fourth_proxy_dns")
+    monkeypatch.setenv("HTTPS_PROXY", "http://proxy.example.test")
+    monkeypatch.setattr(budget.socket, "getaddrinfo", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("unavailable")))
+
+    class Opener:
+        def open(self, request, timeout):
+            raise urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)
+
+    monkeypatch.setattr(budget.urllib.request, "build_opener", lambda _handler: Opener())
+    assert budget.GcloudRestExternalAdapter._dns("storage.googleapis.com") is True
 
 
 def test_backend_proof_pages_all_objects_and_rejects_cycle_or_second_page_extra_object() -> None:
@@ -889,9 +1187,12 @@ def test_private_bootstrap_executor_uses_only_private_token_environment_and_reda
     backend = private / "backend.hcl"; backend.write_text('bucket = "private-backend"\nprefix = "edai2/topic22"\n', encoding="utf-8"); operator["resolved_paths"]["terraform_backend_config"] = backend
     authorization = private / "bootstrap-authorization.json"; authorization.write_text(json.dumps(operator["bootstrap_authorization"]) + "\n", encoding="utf-8"); operator["resolved_paths"]["bootstrap_authorization"] = authorization
     calls: list[tuple[str, str]] = []
+    quota_projects: list[str | None] = []
     def request(method, url, _headers, _body):
         calls.append((method, url))
+        quota_projects.append(_headers.get("x-goog-user-project"))
         if url.endswith(":testIamPermissions"): return {"permissions": _body["permissions"]}
+        if url.endswith(":getIamPolicy") and method == "POST": return {"bindings": []}
         if "/billingAccounts/" in url: return {"name": "billingAccounts/private-billing", "open": True, "currencyCode": "VND"}
         if "cloudresourcemanager" in url and method == "GET": return {"name": "projects/123", "projectId": "private-project", "state": "ACTIVE"}
         if any(name in url for name in ("container.googleapis.com", "artifactregistry.googleapis.com", "storage.googleapis.com/storage", "cloudkms.googleapis.com", "iam.googleapis.com", "compute.googleapis.com")): return {}
@@ -899,9 +1200,177 @@ def test_private_bootstrap_executor_uses_only_private_token_environment_and_reda
         if "batchEnable" in url: return {"done": True, "response": {"enabled": True}}
         if "serviceusage" in url: return {"services": [{"state": "ENABLED", "config": {"name": service}} for service in budget.TOPIC22_REQUIRED_SERVICES]}
         raise AssertionError(url)
-    proof = budget.execute_private_bootstrap(operator, token_runner=lambda command, environment: "memory-token" if command == ["gcloud", "auth", "print-access-token"] and environment["CLOUDSDK_CONFIG"] == str(private / "config") else pytest.fail("bad token environment"), requester=request, backend_verifier=lambda _operator, phase: {"phase": phase, "state_object_present": False, "proof_sha256": "a" * 64})
+    def private_auth(command, environment):
+        assert environment["CLOUDSDK_CONFIG"] == str(private / "config")
+        if command == ["gcloud", "auth", "print-access-token"]:
+            return "memory-token"
+        if command == ["gcloud", "auth", "list", "--filter=status:ACTIVE", "--format=value(account)"]:
+            return "active@example.test"
+        pytest.fail("bad private auth invocation")
+
+    proof = budget.execute_private_bootstrap(operator, token_runner=private_auth, requester=request, backend_verifier=lambda _operator, phase: {"phase": phase, "state_object_present": False, "proof_sha256": "a" * 64})
     assert proof["ok"] is True and proof["mode"] == "reused" and proof["project_number_sha256"] == budget._hash("123")
     assert all("memory-token" not in url for _method, url in calls)
+    assert set(quota_projects) == {"private-project"}
+
+
+def test_reused_empty_project_bootstraps_missing_apis_then_private_backend(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Catches a user-selected empty project being rejected solely because its APIs and state bucket are new."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_reused_empty_bootstrap")
+    private = tmp_path / "tmp" / "edai2-gcp"
+    data = private / "terraform-data"
+    data.mkdir(parents=True)
+    now = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    authorization_payload = {
+        "operator_approved": True,
+        "forecast_sha256": "b" * 64,
+        "revision": "c" * 40,
+        "current_spend_vnd": 0,
+        "console_spend_vnd": 0,
+        "forecast_vnd": 0,
+        "trial_credit_vnd": 6_000_000,
+        "trial_expires_at": "2099-01-01T00:00:00Z",
+        "conversion_observed_at": now,
+        "spend_observed_at": now,
+        "requested_ttl_hours": 0,
+        "project_parent": "none",
+    }
+    authorization = private / "bootstrap-authorization.json"
+    authorization.write_text(json.dumps(authorization_payload) + "\n", encoding="utf-8")
+    backend = private / "backend.hcl"
+    backend.write_text('bucket = "private-backend"\nprefix = "edai2/topic22"\n', encoding="utf-8")
+    operator = {
+        "project_id": "private-project",
+        "billing_account_id": "private-billing",
+        "backend_bucket_preexists": False,
+        "backend_bucket_proof_sha256": "",
+        "resolved_paths": {
+            "gcloud_config_dir": private / "config",
+            "application_default_credentials": private / "adc.json",
+            "tf_data_dir": data,
+            "terraform_backend_config": backend,
+            "bootstrap_authorization": authorization,
+        },
+        **{key: value for key, value in authorization_payload.items() if key not in {"operator_approved", "forecast_sha256", "revision", "project_parent"}},
+    }
+    order: list[str] = []
+    service_reads = iter((set(budget.TOPIC22_REQUIRED_SERVICES) - {"compute.googleapis.com"}, set(budget.TOPIC22_REQUIRED_SERVICES)))
+    monkeypatch.setattr(budget, "validate_private_bootstrap_authorities", lambda *_args, **_kwargs: order.append("authorities"))
+    monkeypatch.setattr(budget, "_enabled_services_readback", lambda *_args, **_kwargs: order.append("services") or next(service_reads))
+    monkeypatch.setattr(
+        budget,
+        "verify_reused_project_empty",
+        lambda _call, _project, _number, **kwargs: order.append("empty")
+        or ({"reused_project_empty": True, "reused_resource_category_count": 14, "reused_resource_categories_sha256": "d" * 64}
+            if kwargs["enabled_services"] == set(budget.TOPIC22_REQUIRED_SERVICES)
+            else pytest.fail("emptiness checked before required APIs were enabled")),
+    )
+    backend_proof = {
+        "phase": "bootstrap",
+        "state_object_present": False,
+        "proof_sha256": "a" * 64,
+        "bucket_sha256": "e" * 64,
+        "prefix_sha256": "f" * 64,
+        "project_number_sha256": budget._hash("123"),
+    }
+    monkeypatch.setattr(
+        budget,
+        "create_private_backend_bucket",
+        lambda *_args, **kwargs: order.append("backend") or backend_proof,
+    )
+
+    def request(method, url, _headers, body):
+        if "/billingAccounts/" in url:
+            return {"name": "billingAccounts/private-billing", "open": True, "currencyCode": "VND"}
+        if "cloudresourcemanager" in url:
+            return {"name": "projects/123", "projectId": "private-project", "state": "ACTIVE"}
+        if url.endswith("/billingInfo") and method == "GET":
+            return {"billingEnabled": True, "billingAccountName": "billingAccounts/private-billing"}
+        if "batchEnable" in url:
+            order.append("enable")
+            return {"done": True, "response": {}}
+        pytest.fail(f"unexpected request: {method} {url} {body}")
+
+    proof = budget.execute_private_bootstrap(
+        operator,
+        token_runner=lambda *_args: "private-token",
+        requester=request,
+    )
+
+    assert proof["ok"] is True and proof["mode"] == "reused"
+    assert proof["backend_bucket_proof_sha256"] == "a" * 64
+    assert order == ["authorities", "services", "enable", "services", "empty", "backend"]
+
+
+def test_reuse_api_enable_lro_waits_and_records_request_accepted_before_timeout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Catches hot-loop polling and a missing partial handoff after batchEnable was accepted."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_reuse_lro_wait_and_partial")
+    private = tmp_path / "tmp" / "edai2-gcp"
+    data = private / "terraform-data"
+    data.mkdir(parents=True)
+    operator = {
+        "project_id": "private-project",
+        "billing_account_id": "private-billing",
+        "backend_bucket_preexists": False,
+        "backend_bucket_proof_sha256": "",
+        "resolved_paths": {
+            "gcloud_config_dir": private / "config",
+            "application_default_credentials": private / "adc.json",
+            "tf_data_dir": data,
+            "terraform_backend_config": private / "backend.hcl",
+        },
+    }
+    monkeypatch.setattr(
+        budget,
+        "validate_private_bootstrap_authorization",
+        lambda *_args, **_kwargs: {"project_parent": "none"},
+    )
+    monkeypatch.setattr(budget, "validate_private_bootstrap_authorities", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        budget,
+        "_enabled_services_readback",
+        lambda *_args, **_kwargs: set(budget.TOPIC22_REQUIRED_SERVICES) - {"compute.googleapis.com"},
+    )
+    monkeypatch.setattr(
+        budget,
+        "_shared_backend_values",
+        lambda _path: {"bucket": "private-backend", "prefix": "edai2/topic22"},
+    )
+    waits: list[float] = []
+
+    def request(method, url, _headers, _payload):
+        if "/billingAccounts/" in url:
+            return {"name": "billingAccounts/private-billing", "open": True, "currencyCode": "VND"}
+        if "cloudresourcemanager" in url:
+            return {"name": "projects/123", "projectId": "private-project", "state": "ACTIVE"}
+        if url.endswith("/billingInfo"):
+            return {"billingEnabled": True, "billingAccountName": "billingAccounts/private-billing"}
+        if "batchEnable" in url:
+            return {"name": "operations/enable"}
+        if url.endswith("/operations/enable"):
+            return {"name": "operations/enable"}
+        pytest.fail(f"unexpected request: {method} {url}")
+
+    with pytest.raises(ValueError, match="bootstrap"):
+        budget.execute_private_bootstrap(
+            operator,
+            token_runner=lambda *_args: "private-token",
+            requester=request,
+            poll_limit=2,
+            poll_waiter=waits.append,
+        )
+
+    assert waits == [1.0, 1.0]
+    handoff = json.loads((data / "topic22-bootstrap-partial.json").read_text(encoding="utf-8"))
+    assert handoff["phase"] == "api_enable"
+    assert handoff["api_enable_requested"] is True
+    assert handoff["apis_enabled"] is False
+    assert handoff["owned_rollback_actions"] == ["api_enable_requested"]
 
 
 def test_private_bootstrap_only_creates_on_crm_404_polls_owned_apis_and_persists_redacted_proof(tmp_path: Path) -> None:
@@ -1484,6 +1953,186 @@ def test_reused_project_empty_gate_covers_all_material_surfaces_and_never_treats
         budget.verify_reused_project_empty(unsafe_iam, "private-project", "123", billing_account="private-billing", enabled_services=enabled, backend_bucket="private-backend")
 
 
+def test_reuse_inventory_uses_documented_location_iam_and_project_budget_requests() -> None:
+    """Catches wildcard regional requests, GET getIamPolicy, or account-wide budget listing."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_reuse_documented_requests")
+    calls: list[tuple[str, str, dict[str, object] | None]] = []
+
+    def empty(method, url, payload=None):
+        calls.append((method, url, payload))
+        if url.endswith("/locations"):
+            return {
+                "locations": [
+                    {
+                        "name": "projects/private-project/locations/us-central1",
+                        "locationId": "us-central1",
+                    }
+                ]
+            }
+        if url.endswith(":getIamPolicy"):
+            return {
+                "bindings": [
+                    {"role": "roles/storage.admin", "members": ["user:active@example.test"]},
+                    {
+                        "role": "roles/compute.serviceAgent",
+                        "members": ["serviceAccount:service-123@compute-system.iam.gserviceaccount.com"],
+                    },
+                ]
+            }
+        return {}
+
+    enabled = {
+        "container.googleapis.com",
+        "artifactregistry.googleapis.com",
+        "storage.googleapis.com",
+        "cloudkms.googleapis.com",
+        "iam.googleapis.com",
+        "billingbudgets.googleapis.com",
+        "compute.googleapis.com",
+    }
+    proof = budget.verify_reused_project_empty(
+        empty,
+        "private-project",
+        "123",
+        billing_account="private-billing",
+        enabled_services=enabled,
+        backend_bucket="private-backend",
+        authorized_principal="active@example.test",
+    )
+
+    assert proof["reused_project_empty"] is True
+    artifact_urls = [url for _method, url, _payload in calls if "artifactregistry.googleapis.com" in url]
+    kms_urls = [url for _method, url, _payload in calls if "cloudkms.googleapis.com" in url]
+    assert artifact_urls == [
+        "https://artifactregistry.googleapis.com/v1/projects/private-project/locations",
+        "https://artifactregistry.googleapis.com/v1/projects/private-project/locations/us-central1/repositories",
+    ]
+    assert kms_urls == [
+        "https://cloudkms.googleapis.com/v1/projects/private-project/locations",
+        "https://cloudkms.googleapis.com/v1/projects/private-project/locations/us-central1/keyRings",
+    ]
+    assert (
+        "GET",
+        "https://billingbudgets.googleapis.com/v1/billingAccounts/private-billing/budgets?scope=projects%2F123",
+        None,
+    ) in calls
+    assert (
+        "POST",
+        "https://cloudresourcemanager.googleapis.com/v3/projects/private-project:getIamPolicy",
+        {},
+    ) in calls
+
+
+def test_reuse_inventory_checks_every_location_and_rejects_unrelated_iam_members() -> None:
+    """Catches only checking the first region or treating an unrelated principal as bootstrap-safe."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_reuse_all_locations_and_iam")
+    enabled = {
+        "container.googleapis.com",
+        "artifactregistry.googleapis.com",
+        "storage.googleapis.com",
+        "cloudkms.googleapis.com",
+        "iam.googleapis.com",
+        "billingbudgets.googleapis.com",
+        "compute.googleapis.com",
+    }
+
+    def second_location_resource(_method, url, _payload=None):
+        if url.endswith("/locations"):
+            return {
+                "locations": [
+                    {"name": "projects/private-project/locations/us-central1", "locationId": "us-central1"},
+                    {"name": "projects/private-project/locations/us-east1", "locationId": "us-east1"},
+                ]
+            }
+        if url.endswith("/locations/us-east1/repositories"):
+            return {"repositories": [{"name": "unexpected"}]}
+        return {}
+
+    with pytest.raises(ValueError, match="reused project is not empty"):
+        budget.verify_reused_project_empty(
+            second_location_resource,
+            "private-project",
+            "123",
+            billing_account="private-billing",
+            enabled_services=enabled,
+            backend_bucket="private-backend",
+            authorized_principal="active@example.test",
+        )
+
+    def unrelated_member(_method, url, _payload=None):
+        if url.endswith("/locations"):
+            return {"locations": [{"name": "projects/private-project/locations/us-central1", "locationId": "us-central1"}]}
+        if url.endswith(":getIamPolicy"):
+            return {"bindings": [{"role": "roles/viewer", "members": ["user:other@example.test"]}]}
+        return {}
+
+    with pytest.raises(ValueError, match="reused project is not empty"):
+        budget.verify_reused_project_empty(
+            unrelated_member,
+            "private-project",
+            "123",
+            billing_account="private-billing",
+            enabled_services=enabled,
+            backend_bucket="private-backend",
+            authorized_principal="active@example.test",
+        )
+
+
+def test_reuse_inventory_allows_only_auto_mode_default_subnetworks() -> None:
+    """Catches Compute API bootstrap defaults blocking reuse or a custom-network subnet bypassing the gate."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_reuse_default_subnetworks")
+    enabled = {
+        "container.googleapis.com",
+        "artifactregistry.googleapis.com",
+        "storage.googleapis.com",
+        "cloudkms.googleapis.com",
+        "iam.googleapis.com",
+        "billingbudgets.googleapis.com",
+        "compute.googleapis.com",
+    }
+
+    def inventory(network_name):
+        def request(_method, url, _payload=None):
+            if url.endswith("/locations"):
+                return {"locations": [{"name": "projects/private-project/locations/us-central1", "locationId": "us-central1"}]}
+            if "/aggregated/subnetworks" in url:
+                return {
+                    "items": {
+                        "regions/us-central1": {
+                            "subnetworks": [
+                                {
+                                    "name": "default",
+                                    "network": f"https://compute.googleapis.com/compute/v1/projects/private-project/global/networks/{network_name}",
+                                }
+                            ]
+                        }
+                    }
+                }
+            return {}
+        return request
+
+    assert budget.verify_reused_project_empty(
+        inventory("default"),
+        "private-project",
+        "123",
+        billing_account="private-billing",
+        enabled_services=enabled,
+        backend_bucket="private-backend",
+        authorized_principal="active@example.test",
+    )["reused_project_empty"] is True
+
+    with pytest.raises(ValueError, match="reused project is not empty"):
+        budget.verify_reused_project_empty(
+            inventory("custom"),
+            "private-project",
+            "123",
+            billing_account="private-billing",
+            enabled_services=enabled,
+            backend_bucket="private-backend",
+            authorized_principal="active@example.test",
+        )
+
+
 def test_bootstrap_authority_gates_are_scope_specific_and_fail_closed_for_each_mutation() -> None:
     """Catches a bootstrap write/LRO path that has no supported, exact permission gate."""
     budget = _load("scripts/gke/check_budget.py", "topic22_fourth_bootstrap_authorities")
@@ -1521,7 +2170,57 @@ def test_fresh_bootstrap_creates_only_private_backend_then_requires_full_readbac
     with pytest.raises(ValueError, match="backend"):
         budget.create_private_backend_bucket(bad_readback, bucket="private-backend", prefix="edai2/topic22", project_number="123", data_dir=data)
     partial = json.loads((data / "topic22-bootstrap-partial.json").read_text(encoding="utf-8"))
-    assert partial == {"ok": False, "phase": "fresh_backend_create", "project_create_requested": False, "project_created": False, "billing_linked": False, "apis_enabled": False, "backend_bucket_created": True, "rollback_required": True, "owned_rollback_actions": ["backend_bucket_created"], "do_not_delete_existing": True, "cost_estimate_usd_upper_bound": 0, "resume_condition": "operator_review_required", "bucket_sha256": budget._hash("private-backend")}
+    assert partial == {"ok": False, "phase": "fresh_backend_create", "project_create_requested": False, "project_created": False, "billing_linked": False, "api_enable_requested": False, "apis_enabled": False, "backend_bucket_created": True, "rollback_required": True, "owned_rollback_actions": ["backend_bucket_created"], "do_not_delete_existing": True, "cost_estimate_usd_upper_bound": 0, "resume_condition": "operator_review_required", "bucket_sha256": budget._hash("private-backend")}
+
+
+def test_reuse_bootstrap_records_owned_api_and_backend_partial_state(tmp_path: Path) -> None:
+    """Catches reuse mutations failing without a private rollback-required handoff."""
+    budget = _load("scripts/gke/check_budget.py", "topic22_reuse_partial_handoff")
+    completed = {
+        "project_create_requested": False,
+        "project_created": False,
+        "billing_linked": False,
+        "apis_enabled": True,
+        "backend_bucket_created": False,
+    }
+    inventory_data = tmp_path / "inventory"
+    inventory_data.mkdir()
+    budget.ensure_partial_handoff(
+        inventory_data,
+        phase="reuse_inventory",
+        completed=completed,
+    )
+    inventory_partial = json.loads(
+        (inventory_data / "topic22-bootstrap-partial.json").read_text(encoding="utf-8")
+    )
+    assert inventory_partial["phase"] == "reuse_inventory"
+    assert inventory_partial["owned_rollback_actions"] == ["apis_enabled"]
+
+    backend_data = tmp_path / "backend"
+    backend_data.mkdir()
+    calls = 0
+    def bad_readback(method, _url, _payload=None):
+        nonlocal calls
+        calls += 1
+        if method == "POST":
+            return {"name": "private-backend"}
+        return {"projectNumber": "wrong"}
+    with pytest.raises(ValueError, match="backend"):
+        budget.create_private_backend_bucket(
+            bad_readback,
+            bucket="private-backend",
+            prefix="edai2/topic22",
+            project_number="123",
+            data_dir=backend_data,
+            completed=completed,
+            handoff_phase="reuse_backend_create",
+        )
+    backend_partial = json.loads(
+        (backend_data / "topic22-bootstrap-partial.json").read_text(encoding="utf-8")
+    )
+    assert calls > 1
+    assert backend_partial["phase"] == "reuse_backend_create"
+    assert backend_partial["owned_rollback_actions"] == ["apis_enabled", "backend_bucket_created"]
 
 
 def test_reuse_gate_allows_only_the_exact_prevalidated_backend_bucket() -> None:
@@ -1532,6 +2231,11 @@ def test_reuse_gate_allows_only_the_exact_prevalidated_backend_bucket() -> None:
         if "storage/v1/b?" in url: return {"items": [{"name": "private-backend"}]}
         return {}
     assert budget.verify_reused_project_empty(only_backend, "private-project", "123", billing_account="private-billing", enabled_services=enabled, backend_bucket="private-backend")["reused_project_empty"] is True
+    def bootstrap_defaults(_method, url, _payload=None):
+        if "serviceAccounts" in url:
+            return {"accounts": [{"email": "123-compute@developer.gserviceaccount.com"}]}
+        return {}
+    assert budget.verify_reused_project_empty(bootstrap_defaults, "private-project", "123", billing_account="private-billing", enabled_services=enabled, backend_bucket="private-backend")["reused_project_empty"] is True
     def extra_bucket(_method, url, _payload=None):
         if "storage/v1/b?" in url: return {"items": [{"name": "private-backend"}, {"name": "other"}]}
         return {}
@@ -1607,9 +2311,45 @@ def test_private_plan_sanitizer_uses_bundle_contract_without_private_plan_argv(t
         revision="d" * 40,
     )
     assert result["result"] == "approved-for-operator-review"
-    assert seen[0][0][:3] == ["terraform", "show", "-json"]
+    assert seen[0][0][:4] == ["terraform", "-chdir=infra/terraform/edai2", "show", "-json"]
     assert str(data / "topic22.tfplan") not in json.dumps(result)
     assert seen[0][1]["CLOUDSDK_CONFIG"] == str(private / "gcloud")
+
+
+def test_terraform_secret_scan_allows_only_structural_gke_fields_and_wi_outputs() -> None:
+    """Catches provider schema names and hash-only WI outputs being mistaken for credentials."""
+    capture = _load("scripts/qa/capture_edai2_evidence.py", "topic22_fourth_secret_scan")
+    safe = {
+        "type": "google_container_cluster",
+        "values": {"binary_authorization": [], "secret_manager_config": []},
+        "outputs": {
+            "workload_identity_bindings": {
+                "value": {"retrieval": {"gsa": "edai2-retrieval@private-project.iam.gserviceaccount.com"}},
+            },
+        },
+        "managed_service_account": {
+            "type": "google_service_account",
+            "values": {
+                "email": "edai2-retrieval@private-project.iam.gserviceaccount.com",
+                "member": "serviceAccount:edai2-retrieval@private-project.iam.gserviceaccount.com",
+            },
+        },
+        "iam_expression": {
+            "type": "google_service_account_iam_member",
+            "expressions": {"member": {"references": ["var.project_id"]}},
+            "after_unknown": {"service_account_id": True},
+        },
+    }
+    assert capture._has_unsafe_terraform_secret(safe) is False
+    assert capture._has_unsafe_terraform_secret({"password": "not-persisted"}) is True
+    assert capture._has_unsafe_terraform_secret({"contact": "person@example.test"}) is True
+
+
+def test_terraform_sensitive_metadata_requires_a_true_leaf() -> None:
+    """Catches provider sensitivity shape metadata being treated as a sensitive value."""
+    capture = _load("scripts/qa/capture_edai2_evidence.py", "topic22_fourth_sensitive_shape")
+    assert capture._has_sensitive_terraform_value({"nested": [{}, {"flag": False}], "empty": []}) is False
+    assert capture._has_sensitive_terraform_value({"nested": [{"flag": True}]}) is True
 
 
 def test_inventory_uses_live_compute_mig_target_not_nodepool_initial_count() -> None:
@@ -1633,3 +2373,104 @@ def test_recovery_attestation_requires_two_distinct_hash_bound_custodians_with_p
     attestation = {"approved": True, "encrypted": True, "outside_workspace": True, "sink_uri_sha256": budget._hash(sink), "attestations": [{"custodian_sha256": "a" * 64, "approved_at_utc": "2026-08-12T00:00:00Z", "provenance_sha256": "b" * 64}, {"custodian_sha256": "c" * 64, "approved_at_utc": "2026-08-12T00:01:00Z", "provenance_sha256": "d" * 64}]}
     assert budget.recovery_attestation_ok(attestation, sink) is True
     assert budget.recovery_attestation_ok({**attestation, "attestations": [*attestation["attestations"], attestation["attestations"][0]]}, sink) is False
+
+
+def test_plan_allows_wi_service_account_id_unknown_when_gsa_map_deterministic() -> None:
+    """Catches rejecting legitimate apply-time unknown service_account_id on WI bindings."""
+    capture = _load("scripts/qa/capture_edai2_evidence.py", "topic22_wi_unknown")
+    third = _load("tests/unit/test_topic22_third_repair.py", "topic22_wi_unknown_fixture")
+    plan = third._realistic_plan()
+    gsa_by_workload = {
+        "retrieval": "edai2-retrieval@secret-project.iam.gserviceaccount.com",
+        "drift": "edai2-drift@secret-project.iam.gserviceaccount.com",
+        "coordinator": "edai2-coordinator@secret-project.iam.gserviceaccount.com",
+        "workers": "edai2-workers@secret-project.iam.gserviceaccount.com",
+    }
+    for change in plan["resource_changes"]:
+        if change["type"] == "google_service_account":
+            # Mimic live plan where deterministic service accounts have known email.
+            workload = str(change.get("address", "")).split("[")[-1].strip("]'\"")
+            workload = workload.strip("\"'")
+            if workload in gsa_by_workload:
+                assert isinstance(change["change"]["after"], dict)
+                change["change"]["after"]["email"] = gsa_by_workload[workload]
+        if change["type"] == "google_service_account_iam_member":
+            assert isinstance(change["change"]["after"], dict)
+            # Live terraform show omits unknown values from after and marks after_unknown true.
+            change["change"]["after"].pop("service_account_id", None)
+            change["change"]["after_unknown"] = {"service_account_id": True}
+    record = capture.sanitize_terraform_payload(
+        plan,
+        required_resources={"gke", "node-pools", "artifact-registry", "gcs", "kms", "iam", "budget", "project-services"},
+    )
+    assert record["result"] == "approved-for-operator-review"
+    assert record["invariants"]["workload_identity_count"] == 4
+    rendered = json.dumps(record)
+    assert "serviceAccount:" not in rendered
+    assert "@secret-project" not in rendered
+
+
+def test_plan_allows_kms_member_unknown_when_storage_agent_data_unknown() -> None:
+    """Catches rejecting legitimate unknown KMS member backed by storage service-agent data source."""
+    capture = _load("scripts/qa/capture_edai2_evidence.py", "topic22_kms_unknown")
+    third = _load("tests/unit/test_topic22_third_repair.py", "topic22_kms_unknown_fixture")
+    plan = third._realistic_plan()
+    for change in plan["resource_changes"]:
+        if change["type"] == "google_storage_project_service_account":
+            assert isinstance(change["change"]["after"], dict)
+            change["change"]["after"].pop("email_address", None)
+            change["change"]["after_unknown"] = {"email_address": True}
+        if change["type"] == "google_kms_crypto_key_iam_member":
+            assert isinstance(change["change"]["after"], dict)
+            assert change["change"]["after"]["role"] == "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+            change["change"]["after"].pop("member", None)
+            change["change"]["after_unknown"] = {"member": True}
+    record = capture.sanitize_terraform_payload(
+        plan,
+        required_resources={"gke", "node-pools", "artifact-registry", "gcs", "kms", "iam", "budget", "project-services"},
+    )
+    assert record["result"] == "approved-for-operator-review"
+    assert record["invariants"]["gcs_service_agent_unknown"] is True
+    assert "service-123" not in json.dumps(record)
+
+
+def test_plan_rejects_fabricated_unknown_or_missing_gsa() -> None:
+    """Catches accepting an unknown that is not backed by deterministic GSA or data source."""
+    capture = _load("scripts/qa/capture_edai2_evidence.py", "topic22_unknown_negative")
+    third = _load("tests/unit/test_topic22_third_repair.py", "topic22_unknown_negative_fixture")
+    bad = third._realistic_plan()
+    item = next(c for c in bad["resource_changes"] if c["type"] == "google_service_account_iam_member")
+    assert isinstance(item["change"]["after"], dict)
+    item["change"]["after"]["member"] = "serviceAccount:secret-project.svc.id.goog[edai2:edai2-evil]"
+    item["change"]["after"].pop("service_account_id", None)
+    item["change"]["after_unknown"] = {"service_account_id": True}
+    with pytest.raises(ValueError, match="workload identity"):
+        capture.sanitize_terraform_payload(bad, required_resources={"gke", "node-pools", "artifact-registry", "gcs", "kms", "iam", "budget", "project-services"})
+    bad2 = third._realistic_plan()
+    bad2["resource_changes"] = [c for c in bad2["resource_changes"] if c["type"] != "google_storage_project_service_account"]
+    kms = next(c for c in bad2["resource_changes"] if c["type"] == "google_kms_crypto_key_iam_member")
+    assert isinstance(kms["change"]["after"], dict)
+    kms["change"]["after"].pop("member", None)
+    kms["change"]["after_unknown"] = {"member": True}
+    with pytest.raises(ValueError, match="KMS|storage|invariant"):
+        capture.sanitize_terraform_payload(bad2, required_resources={"gke", "node-pools", "artifact-registry", "gcs", "kms", "iam", "budget", "project-services"})
+
+
+def test_plan_allows_budget_filter_unknown_when_project_number_data_unknown() -> None:
+    """Catches rejecting legitimate unknown budget project filter backed by project data source."""
+    capture = _load("scripts/qa/capture_edai2_evidence.py", "topic22_budget_unknown")
+    third = _load("tests/unit/test_topic22_third_repair.py", "topic22_budget_unknown_fixture")
+    plan = third._realistic_plan()
+    for change in plan["resource_changes"]:
+        if change["type"] == "google_billing_budget":
+            assert isinstance(change["change"]["after"], dict)
+            assert isinstance(change["change"]["after"].get("budget_filter"), list)
+            change["change"]["after"]["budget_filter"] = [{"projects": None}]
+            change["change"]["after_unknown"] = {"budget_filter": [{"projects": True}]}
+    record = capture.sanitize_terraform_payload(
+        plan,
+        required_resources={"gke", "node-pools", "artifact-registry", "gcs", "kms", "iam", "budget", "project-services"},
+    )
+    assert record["result"] == "approved-for-operator-review"
+    assert record["invariants"]["budget"]["project_number_filter_unknown"] is True
+    assert "123456789" not in json.dumps(record)
