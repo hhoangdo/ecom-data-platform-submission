@@ -47,7 +47,8 @@
 2. `rtk python -c "import hashlib; p=['tmp/edai2-plan/03_data_generator_improvement.md','tmp/edai2-plan/04.2_llm_design.md','tmp/rubic-check/Coursework Tracking (Public).xlsx']; print([hashlib.sha256(open(x,'rb').read()).hexdigest() for x in p])"`
    - Expected: the three fixed hashes.
 3. `rtk rg -n "Status|terraform_apply.json|EDAI2_GKE_KUBECONFIG|Handoff" tmp/edai2-plan/execution-v1/gcp/22-gcp-account-budget-terraform-apply.md`
-   - Expected: Topic 22 completion names exact evidence hashes/context and no unresolved apply limitation.
+    - Expected: Topic 22 completion names exact evidence hashes/context and no unresolved apply limitation.
+- Option-A exception (E48 deferred): Topic 23 may start on Topic 22 `Partial` (WI 4/4 live, 0/0 nodes, kube `edai2-gke` verified). It must NOT assume `evidence/04_2_llm_design/gke/terraform_apply.json` exists; consume live `terraform output`/REST readbacks + recorded hashes instead, and carry "E48 pending operator PNG + machine link" as a limitation. Starting Topic 23 does not mark E48 `Satisfied`.
 4. `rtk kubectl --kubeconfig $env:EDAI2_GKE_KUBECONFIG --context $env:EDAI2_GKE_CONTEXT cluster-info`
    - Expected: the dedicated kubeconfig resolves the approved GKE API; any mismatch stops execution without falling back to a default context.
 5. `rtk terraform -chdir=infra/terraform/edai2 output -json`

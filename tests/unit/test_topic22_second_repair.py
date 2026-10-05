@@ -148,13 +148,13 @@ def test_workload_identity_helm_values_bind_only_declared_ksa_gsa_pairs() -> Non
     """Catches a later chart render assigning a GSA to the wrong KSA or emitting an undeclared pair."""
     budget = _load("scripts/gke/check_budget.py", "topic22_wi_values")
     bindings = {
-        "retrieval": {"ksa": "serviceAccount:project.svc.id.goog[edai2:edai2-retrieval-agent]", "gsa": "retrieval@project.iam.gserviceaccount.com"},
-        "drift": {"ksa": "serviceAccount:project.svc.id.goog[edai2:edai2-drift-agent]", "gsa": "drift@project.iam.gserviceaccount.com"},
-        "coordinator": {"ksa": "serviceAccount:project.svc.id.goog[edai2:edai2-coordinator]", "gsa": "coordinator@project.iam.gserviceaccount.com"},
-        "workers": {"ksa": "serviceAccount:project.svc.id.goog[edai2:edai2-worker]", "gsa": "workers@project.iam.gserviceaccount.com"},
+        "retrieval": {"ksa": "serviceAccount:project.svc.id.goog[edai2/edai2-retrieval-agent]", "gsa": "retrieval@project.iam.gserviceaccount.com"},
+        "drift": {"ksa": "serviceAccount:project.svc.id.goog[edai2/edai2-drift-agent]", "gsa": "drift@project.iam.gserviceaccount.com"},
+        "coordinator": {"ksa": "serviceAccount:project.svc.id.goog[edai2/edai2-coordinator]", "gsa": "coordinator@project.iam.gserviceaccount.com"},
+        "workers": {"ksa": "serviceAccount:project.svc.id.goog[edai2/edai2-worker]", "gsa": "workers@project.iam.gserviceaccount.com"},
     }
     assert budget.workload_identity_helm_values(bindings, "retrieval") == {"serviceAccount": {"name": "edai2-retrieval-agent", "annotations": {"iam.gke.io/gcp-service-account": "retrieval@project.iam.gserviceaccount.com"}}}
-    bindings["retrieval"]["ksa"] = "serviceAccount:project.svc.id.goog[edai2:wrong]"
+    bindings["retrieval"]["ksa"] = "serviceAccount:project.svc.id.goog[edai2/wrong]"
     with pytest.raises(ValueError, match="binding"):
         budget.workload_identity_helm_values(bindings, "retrieval")
 

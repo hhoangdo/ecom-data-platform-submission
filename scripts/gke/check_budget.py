@@ -1576,7 +1576,8 @@ def write_redacted_account_summary(
 
 
 def _run_get_credentials_redacted(command: list[str], environment: dict[str, str]) -> None:
-    completed = subprocess.run(command, env=environment, capture_output=True, text=True, encoding="utf-8")
+    executable = shutil.which(command[0], path=environment.get("PATH")) or command[0]
+    completed = subprocess.run([executable, *command[1:]], env=environment, capture_output=True, text=True, encoding="utf-8")
     if completed.returncode != 0:
         raise ValueError("private kube credential bootstrap failed")
 
@@ -1794,7 +1795,7 @@ def workload_identity_helm_values(bindings: dict[str, object], workload: str) ->
     if not expected_ksa or not isinstance(entry, dict):
         raise ValueError("workload identity binding is invalid")
     ksa, gsa = entry.get("ksa"), entry.get("gsa")
-    if not isinstance(ksa, str) or not ksa.endswith(f"[edai2:{expected_ksa}]") or not isinstance(gsa, str) or "@" not in gsa:
+    if not isinstance(ksa, str) or not ksa.endswith(f"[edai2/{expected_ksa}]") or not isinstance(gsa, str) or "@" not in gsa:
         raise ValueError("workload identity binding is invalid")
     return {"serviceAccount": {"name": expected_ksa, "annotations": {"iam.gke.io/gcp-service-account": gsa}}}
 

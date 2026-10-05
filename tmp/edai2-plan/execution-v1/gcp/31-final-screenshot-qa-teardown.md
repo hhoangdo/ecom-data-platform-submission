@@ -86,6 +86,8 @@
 
 The table contains exactly 32 EDAI2 names plus `gcp_billing_spend.png`. Topic 32 images may be source-rendered and captured during Topic 32; before then Topic 31 records them as pending, not missing final evidence. Topic 32 must run the same validator after creating them.
 
+> Operator-supply note (E48 future work): `terraform_apply.png` is waived for agent capture. If the operator supplies it manually, Topic 31 QAs it with the standard validator (byte/signature/decode/`1600x1000`/selector/context/staleness/privacy + original-resolution inspection) and links it to `terraform_apply.json` when that machine evidence lands. Until both exist, E48 remains `Partial`.
+
 ## Exact File Map
 
 | Role | Exact path |

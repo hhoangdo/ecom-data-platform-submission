@@ -907,7 +907,7 @@ def test_private_wi_values_writer_emits_all_four_exact_bindings(tmp_path: Path) 
     """Catches a private Helm bridge omitting a chart or mapping a GSA to the wrong KSA."""
     budget = _load("scripts/gke/check_budget.py", "topic22_fourth_wi_writer")
     bindings = {
-        workload: {"ksa": f"serviceAccount:project.svc.id.goog[edai2:{ksa}]", "gsa": f"{workload}@project.iam.gserviceaccount.com"}
+        workload: {"ksa": f"serviceAccount:project.svc.id.goog[edai2/{ksa}]", "gsa": f"{workload}@project.iam.gserviceaccount.com"}
         for workload, ksa in {"retrieval": "edai2-retrieval-agent", "drift": "edai2-drift-agent", "coordinator": "edai2-coordinator", "workers": "edai2-worker"}.items()
     }
     private = tmp_path / "tmp" / "edai2-gcp"
@@ -926,7 +926,7 @@ def test_wi_values_writer_rejects_noncanonical_or_unvalidated_destination(tmp_pa
     budget = _load("scripts/gke/check_budget.py", "topic22_fourth_wi_destination")
     private = tmp_path / "tmp" / "edai2-gcp"
     private.mkdir(parents=True)
-    bindings = {workload: {"ksa": f"serviceAccount:project.svc.id.goog[edai2:{ksa}]", "gsa": f"{workload}@project.iam.gserviceaccount.com"} for workload, ksa in {"retrieval": "edai2-retrieval-agent", "drift": "edai2-drift-agent", "coordinator": "edai2-coordinator", "workers": "edai2-worker"}.items()}
+    bindings = {workload: {"ksa": f"serviceAccount:project.svc.id.goog[edai2/{ksa}]", "gsa": f"{workload}@project.iam.gserviceaccount.com"} for workload, ksa in {"retrieval": "edai2-retrieval-agent", "drift": "edai2-drift-agent", "coordinator": "edai2-coordinator", "workers": "edai2-worker"}.items()}
     with pytest.raises(ValueError, match="private workload"):
         budget.write_private_workload_identity_helm_values(bindings, tmp_path / "outside.yaml", tmp_path, path_validator=lambda path, _kind: path.resolve(), ignore_checker=lambda _path: True)
 
@@ -1866,7 +1866,7 @@ def test_private_wi_helper_dispatches_fixed_private_terraform_output(tmp_path: P
     budget = _load("scripts/gke/check_budget.py", "topic22_fourth_wi_dispatch")
     bundle = tmp_path / "operator.json"; bundle.write_text("{}\n", encoding="utf-8")
     private = tmp_path / "tmp" / "edai2-gcp"; private.mkdir(parents=True)
-    bindings = {workload: {"ksa": f"serviceAccount:p.svc.id.goog[edai2:{ksa}]", "gsa": f"edai2-{workload}@p.iam.gserviceaccount.com"} for workload, ksa in budget._WORKLOAD_KSAS.items()}
+    bindings = {workload: {"ksa": f"serviceAccount:p.svc.id.goog[edai2/{ksa}]", "gsa": f"edai2-{workload}@p.iam.gserviceaccount.com"} for workload, ksa in budget._WORKLOAD_KSAS.items()}
     data = private / "terraform-data"; data.mkdir()
     operator = {"resolved_paths": {"tf_data_dir": data, "gcloud_config_dir": private / "gcloud", "application_default_credentials": private / "adc.json"}}
     args = budget.parse_args(["--operator-inputs", str(bundle), "--write-private-wi-values"])
@@ -2278,7 +2278,7 @@ def test_private_wi_dispatch_renders_and_lints_all_four_mappings_without_persist
     """Catches a private WI values file with no real chart consumer or mismatched service account."""
     budget = _load("scripts/gke/check_budget.py", "topic22_fourth_wi_consumers")
     private = tmp_path / "tmp" / "edai2-gcp"; private.mkdir(parents=True)
-    bindings = {workload: {"ksa": f"serviceAccount:p.svc.id.goog[edai2:{ksa}]", "gsa": f"edai2-{workload}@p.iam.gserviceaccount.com"} for workload, ksa in budget._WORKLOAD_KSAS.items()}
+    bindings = {workload: {"ksa": f"serviceAccount:p.svc.id.goog[edai2/{ksa}]", "gsa": f"edai2-{workload}@p.iam.gserviceaccount.com"} for workload, ksa in budget._WORKLOAD_KSAS.items()}
     combined = private / "topic22-workload-identity-values.yaml"; combined.write_text("{}\n", encoding="utf-8")
     calls: list[list[str]] = []
     def helm(argv):
@@ -2441,7 +2441,7 @@ def test_plan_rejects_fabricated_unknown_or_missing_gsa() -> None:
     bad = third._realistic_plan()
     item = next(c for c in bad["resource_changes"] if c["type"] == "google_service_account_iam_member")
     assert isinstance(item["change"]["after"], dict)
-    item["change"]["after"]["member"] = "serviceAccount:secret-project.svc.id.goog[edai2:edai2-evil]"
+    item["change"]["after"]["member"] = "serviceAccount:secret-project.svc.id.goog[edai2/edai2-evil]"
     item["change"]["after"].pop("service_account_id", None)
     item["change"]["after_unknown"] = {"service_account_id": True}
     with pytest.raises(ValueError, match="workload identity"):

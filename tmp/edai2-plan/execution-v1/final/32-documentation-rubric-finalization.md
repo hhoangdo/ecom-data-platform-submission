@@ -113,6 +113,8 @@
 
 This matrix covers every cell from `Sheet3!E3:E62` exactly once.
 
+> E48 note (Option A): Topic 22 owns `Sheet3!E48`; status stays `Partial` (live DONE, evidence deferred). Mark `Satisfied` only when operator `terraform_apply.png` (contract + QA pass) AND `terraform_apply.json` machine link both exist with hashes. Score accordingly (99 ceiling only when complete; lower truthful score otherwise).
+
 ## Interfaces, Data Flow, and Failure Modes
 
 Source plans/workbook hashes + Completion Records + Section 03 manifest + machine evidence + screenshot manifests/QA -> strict owner/cell reconciliation -> status/points/earned/evidence hashes -> subtotal/ceiling -> reviewer docs and rubric manifest.

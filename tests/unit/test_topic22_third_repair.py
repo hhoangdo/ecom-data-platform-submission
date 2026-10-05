@@ -234,7 +234,7 @@ def _realistic_plan() -> dict[str, object]:
         ksa = {"retrieval": "edai2-retrieval-agent", "drift": "edai2-drift-agent", "coordinator": "edai2-coordinator", "workers": "edai2-worker"}[workload]
         resources.extend([
             (f"module.iam.google_service_account.workload[{workload!r}]", "managed", "google_service_account", "workload", ["create"], {"account_id": f"edai2-{workload}"}),
-            (f"module.iam.google_service_account_iam_member.workload_identity[{workload!r}]", "managed", "google_service_account_iam_member", "workload_identity", ["create"], {"role": "roles/iam.workloadIdentityUser", "member": f"serviceAccount:secret-project.svc.id.goog[edai2:{ksa}]", "service_account_id": f"projects/secret-project/serviceAccounts/{gsa}"}),
+            (f"module.iam.google_service_account_iam_member.workload_identity[{workload!r}]", "managed", "google_service_account_iam_member", "workload_identity", ["create"], {"role": "roles/iam.workloadIdentityUser", "member": f"serviceAccount:secret-project.svc.id.goog[edai2/{ksa}]", "service_account_id": f"projects/secret-project/serviceAccounts/{gsa}"}),
         ])
         for prefix in prefixes:
             resources.append((f"module.iam.google_storage_bucket_iam_member.prefix_access[{prefix!r}]", "managed", "google_storage_bucket_iam_member", "prefix_access", ["create"], {"role": "roles/storage.objectUser", "member": f"serviceAccount:{gsa}", "condition": [{"expression": f"resource.name.startsWith('projects/_/buckets/redacted/objects/{prefix}')"}]}))
@@ -357,10 +357,10 @@ def test_production_inventory_adapter_uses_rest_and_private_terraform_runtime_wi
     raw_bucket, backend_bucket = "secret-foundation-bucket", "secret-state-bucket"
     key = f"projects/{raw_project}/locations/us-central1/keyRings/edai2/cryptoKeys/edai2"
     bindings = {
-        "retrieval": {"ksa": f"serviceAccount:{raw_project}.svc.id.goog[edai2:edai2-retrieval-agent]", "gsa": f"edai2-retrieval@{raw_project}.iam.gserviceaccount.com", "prefixes": ["model-cache/"]},
-        "drift": {"ksa": f"serviceAccount:{raw_project}.svc.id.goog[edai2:edai2-drift-agent]", "gsa": f"edai2-drift@{raw_project}.iam.gserviceaccount.com", "prefixes": ["langfuse-events/"]},
-        "coordinator": {"ksa": f"serviceAccount:{raw_project}.svc.id.goog[edai2:edai2-coordinator]", "gsa": f"edai2-coordinator@{raw_project}.iam.gserviceaccount.com", "prefixes": ["agent-substrate/", "backups/"]},
-        "workers": {"ksa": f"serviceAccount:{raw_project}.svc.id.goog[edai2:edai2-worker]", "gsa": f"edai2-workers@{raw_project}.iam.gserviceaccount.com", "prefixes": ["airflow-logs/"]},
+        "retrieval": {"ksa": f"serviceAccount:{raw_project}.svc.id.goog[edai2/edai2-retrieval-agent]", "gsa": f"edai2-retrieval@{raw_project}.iam.gserviceaccount.com", "prefixes": ["model-cache/"]},
+        "drift": {"ksa": f"serviceAccount:{raw_project}.svc.id.goog[edai2/edai2-drift-agent]", "gsa": f"edai2-drift@{raw_project}.iam.gserviceaccount.com", "prefixes": ["langfuse-events/"]},
+        "coordinator": {"ksa": f"serviceAccount:{raw_project}.svc.id.goog[edai2/edai2-coordinator]", "gsa": f"edai2-coordinator@{raw_project}.iam.gserviceaccount.com", "prefixes": ["agent-substrate/", "backups/"]},
+        "workers": {"ksa": f"serviceAccount:{raw_project}.svc.id.goog[edai2/edai2-worker]", "gsa": f"edai2-workers@{raw_project}.iam.gserviceaccount.com", "prefixes": ["airflow-logs/"]},
     }
     private = tmp_path / "private"
     private.mkdir()

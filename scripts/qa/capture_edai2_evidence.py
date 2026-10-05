@@ -8,6 +8,7 @@ import json
 import math
 import os
 import re
+import shutil
 import subprocess
 import sys
 import urllib.request
@@ -86,7 +87,7 @@ _SECRET_KEY = re.compile(r"(?i)(password|token|secret|api[_-]?key|customer[_-]?i
 _SECRET_VALUE = re.compile(r"(?i)(password|token|api[_-]?key|customer[_-]?id|bearer|authorization|^secret$)")
 _EMAIL_VALUE = re.compile(r"(?i)[\w.+-]+@[\w.-]+\.[a-z]{2,}")
 _APPROVED_SERVICE_ACCOUNT_EMAIL = r"[a-z0-9-]+@[a-z0-9-]+\.iam\.gserviceaccount\.com"
-_APPROVED_TERRAFORM_PRINCIPAL = re.compile(rf"(?:serviceAccount:)?(?:[a-z0-9-]+\.svc\.id\.goog\[edai2:edai2-[a-z-]+\]|{_APPROVED_SERVICE_ACCOUNT_EMAIL}|service-\d+@gs-project-accounts\.iam\.gserviceaccount\.com)", re.IGNORECASE)
+_APPROVED_TERRAFORM_PRINCIPAL = re.compile(rf"(?:serviceAccount:)?(?:[a-z0-9-]+\.svc\.id\.goog\[edai2/edai2-[a-z-]+\]|{_APPROVED_SERVICE_ACCOUNT_EMAIL}|service-\d+@gs-project-accounts\.iam\.gserviceaccount\.com)", re.IGNORECASE)
 _BAD_PAGE = re.compile(r"(?i)(loading|spinner|login|sign[ -]?in|error|generic|terminal)")
 _TERRAFORM_ALLOWED_TYPES = {
     "google_artifact_registry_repository", "google_billing_budget", "google_container_cluster",
@@ -384,7 +385,7 @@ def _terraform_invariants(resources: list[dict[str, object]], types: list[str], 
         member = after.get("member")
         if not isinstance(member, str):
             raise ValueError("Terraform workload identity invariant is invalid")
-        match = re.fullmatch(r"serviceAccount:[^.]+\.svc\.id\.goog\[edai2:(edai2-[a-z-]+)\]", member)
+        match = re.fullmatch(r"serviceAccount:[^.]+\.svc\.id\.goog\[edai2/(edai2-[a-z-]+)\]", member)
         if not match:
             raise ValueError("Terraform workload identity invariant is invalid")
         ksa_names.add(match.group(1))
@@ -1124,6 +1125,15 @@ class Topic22InventoryAdapter(Protocol):
     def read(self, operator_inputs: Path) -> dict[str, object]: ...
 
 
+def _resolve_executable(name: str, environment: dict[str, str]) -> str:
+    """Resolve a bare binary name against the given environment, mirroring check_budget._run_gcloud_private.
+
+    On Windows an extensionless ``.CMD`` name (e.g. ``gcloud``) is unresolvable
+    under an explicit environment, so the absolute path must be used.
+    """
+    return shutil.which(name, path=environment.get("PATH")) or name
+
+
 class GcloudRestTopic22InventoryAdapter:
     """Production read-only inventory boundary; the private bundle supplies all identifiers off-argv."""
 
@@ -1148,7 +1158,8 @@ class GcloudRestTopic22InventoryAdapter:
 
     @staticmethod
     def _run(command: list[str], environment: dict[str, str]) -> str:
-        return subprocess.run(command, check=True, capture_output=True, text=True, encoding="utf-8", env=environment).stdout
+        executable = _resolve_executable(command[0], environment)
+        return subprocess.run([executable, *command[1:]], check=True, capture_output=True, text=True, encoding="utf-8", env=environment).stdout
 
     def _json_command(self, command: list[str], environment: dict[str, str]) -> object:
         raw = self._runner(command, environment)
@@ -1233,7 +1244,7 @@ class GcloudRestTopic22InventoryAdapter:
             storage_service_account = rest("GET", f"https://storage.googleapis.com/storage/v1/projects/{encoded_project}/serviceAccount")
             encoded_key = quote(kms_key, safe="/")
             kms = rest("GET", f"https://cloudkms.googleapis.com/v1/{encoded_key}")
-            kms_iam = rest("POST", f"https://cloudkms.googleapis.com/v1/{encoded_key}:getIamPolicy", {})
+            kms_iam = rest("GET", f"https://cloudkms.googleapis.com/v1/{encoded_key}:getIamPolicy?alt=json&options.requestedPolicyVersion=3")
             budget_items = paged(f"https://billingbudgets.googleapis.com/v1/billingAccounts/{quote(billing, safe='')}/budgets", "budgets")
             forwarding_rules = paged_aggregated_forwarding_rules(rest, f"https://compute.googleapis.com/compute/v1/projects/{encoded_project}/aggregated/forwardingRules")
             instance_group_managers = paged_aggregated_instance_group_managers(rest, f"https://compute.googleapis.com/compute/v1/projects/{encoded_project}/aggregated/instanceGroupManagers")
@@ -1283,7 +1294,7 @@ class GcloudRestTopic22InventoryAdapter:
                 wi_members = [member for binding in policy.get("bindings", []) if isinstance(binding, dict) and binding.get("role") == "roles/iam.workloadIdentityUser" for member in binding.get("members", [])]
                 if wi_members != [ksa]:
                     raise ValueError("workload identity REST response is invalid")
-                workload_identity.append({"workload": workload, "ksa": ksa.removesuffix("]").rsplit(":", 1)[-1], "ksa_member_sha256": hashlib.sha256(ksa.encode()).hexdigest(), "gsa_sha256": hashlib.sha256(gsa.encode()).hexdigest(), "prefixes": prefixes})
+                workload_identity.append({"workload": workload, "ksa": ksa.removesuffix("]").rsplit("/", 1)[-1], "ksa_member_sha256": hashlib.sha256(ksa.encode()).hexdigest(), "gsa_sha256": hashlib.sha256(gsa.encode()).hexdigest(), "prefixes": prefixes})
             kms_bindings = [binding for binding in kms_iam.get("bindings", []) if isinstance(binding, dict) and binding.get("role") == "roles/cloudkms.cryptoKeyEncrypterDecrypter"]
             if len(kms_bindings) != 1 or len(kms_bindings[0].get("members", [])) != 1:
                 raise ValueError("KMS IAM REST response is invalid")
