@@ -770,6 +770,195 @@ def _validate_private_endpoint_entry(entry: object) -> None:
         raise ValueError("private endpoint inventory entry is invalid")
 
 
+def parse_key_list(value: object) -> list[str]:
+    """Split a comma-separated flag value; refuse blank or empty input."""
+    if not isinstance(value, str):
+        raise ValueError("key list must be a comma-separated string")
+    items = [item.strip() for item in value.split(",")]
+    if not items or any(not item for item in items):
+        raise ValueError("key list must not be empty")
+    return items
+
+
+def require_exact_keys(provided: list[str], expected: list[str], what: str) -> None:
+    """Refuse absent, extra, or duplicated entries against the locked set."""
+    if len(provided) != len(set(provided)) or set(provided) != set(expected):
+        raise ValueError(f"{what} mismatch: absent, extra, or stale entries")
+
+
+def verify_private_endpoint_inventory(payload: dict, expected_keys: list[str]) -> None:
+    """Fail-closed check of the exact-key private-endpoint inventory (Topic 24)."""
+    if not isinstance(payload, dict) or set(payload) != {"private_endpoints"}:
+        raise ValueError("private endpoint inventory keys are stale or incomplete")
+    endpoints = payload["private_endpoints"]
+    if not isinstance(endpoints, dict):
+        raise ValueError("private endpoint inventory keys are stale or incomplete")
+    require_exact_keys(list(endpoints), list(expected_keys), "private endpoint inventory")
+    for entry in endpoints.values():
+        _validate_private_endpoint_entry(entry)
+    if _has_secret(payload):
+        raise ValueError("private endpoint inventory carries secret material")
+
+
+def selector_sha256(selector: dict) -> str:
+    """Canonical SHA-256 of a Service selector; order-independent."""
+    if not isinstance(selector, dict) or not selector:
+        raise ValueError("service selector must be a nonempty object")
+    return hashlib.sha256(_canonical_inventory(selector)).hexdigest()
+
+
+def load_service_bindings(path: str | Path) -> dict:
+    """Load the locked five key->Service bindings contract (namespace + service only)."""
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(payload, dict) or not isinstance(payload.get("bindings"), dict):
+        raise ValueError("platform service bindings contract is invalid")
+    bindings = payload["bindings"]
+    require_exact_keys(list(bindings), list(PRIVATE_ENDPOINT_KEYS), "platform service bindings")
+    for key, entry in bindings.items():
+        if not isinstance(entry, dict):
+            raise ValueError(f"platform service binding is invalid for {key}")
+        namespace, service = entry.get("namespace"), entry.get("service")
+        if not isinstance(namespace, str) or not namespace or not isinstance(service, str) or not service:
+            raise ValueError(f"platform service binding is invalid for {key}")
+    return bindings
+
+
+def build_private_endpoint_inventory(
+    bindings: dict,
+    *,
+    runner: Callable[[list[str]], dict] | None = None,
+) -> dict:
+    """Read Service + EndpointSlices per binding; never applies anything."""
+    if runner is None:
+        def runner(command: list[str]) -> dict:
+            raw = subprocess.run(command, check=True, capture_output=True, text=True, encoding="utf-8").stdout
+            return json.loads(raw)
+    if not isinstance(bindings, dict) or not bindings:
+        raise ValueError("platform service bindings are invalid")
+    endpoints: dict[str, dict[str, object]] = {}
+    for key, binding in bindings.items():
+        if not isinstance(binding, dict):
+            raise ValueError(f"live platform read-back failed for {key}")
+        namespace, service_name = binding.get("namespace"), binding.get("service")
+        if not isinstance(namespace, str) or not namespace or not isinstance(service_name, str) or not service_name:
+            raise ValueError(f"live platform read-back failed for {key}")
+        try:
+            service = runner(["kubectl", "get", "service", service_name, "-n", namespace, "--output", "json"])
+        except Exception as error:
+            raise ValueError(f"live platform read-back failed for {key}") from error
+        try:
+            slices = runner(["kubectl", "get", "endpointslices", "-n", namespace, "--selector", f"kubernetes.io/service-name={service_name}", "--output", "json"])
+        except Exception as error:
+            raise ValueError(f"live platform read-back failed for {key}") from error
+        try:
+            if not isinstance(service, dict) or not isinstance(service.get("metadata"), dict):
+                raise ValueError(f"live platform read-back failed for {key}")
+            service_uid = service["metadata"].get("uid")
+            spec = service.get("spec")
+            if not isinstance(spec, dict) or not isinstance(spec.get("ports"), list) or not spec["ports"]:
+                raise ValueError(f"live platform read-back failed for {key}")
+            first_port = spec["ports"][0]
+            if not isinstance(first_port, dict):
+                raise ValueError(f"live platform read-back failed for {key}")
+            service_port = first_port.get("port")
+            if type(service_port) is not int:
+                raise ValueError(f"live platform read-back failed for {key}")
+            if not isinstance(service_uid, str) or not service_uid:
+                raise ValueError(f"live platform read-back failed for {key}")
+            selector = spec.get("selector")
+            if not isinstance(selector, dict) or not selector:
+                raise ValueError(f"live platform read-back failed for {key}")
+            raw_target = first_port.get("targetPort", service_port)
+            if type(raw_target) is int:
+                target_port = raw_target
+            elif isinstance(raw_target, str) and raw_target:
+                resolved: int | None = None
+                items = slices.get("items") if isinstance(slices, dict) else None
+                if not isinstance(items, list):
+                    raise ValueError(f"live platform read-back failed for {key}")
+                for item in items:
+                    if not isinstance(item, dict):
+                        continue
+                    for port_entry in item.get("ports", []) if isinstance(item.get("ports"), list) else []:
+                        if isinstance(port_entry, dict) and port_entry.get("name") == raw_target and type(port_entry.get("port")) is int:
+                            resolved = port_entry["port"]
+                            break
+                    if resolved is not None:
+                        break
+                if resolved is None:
+                    raise ValueError(f"live platform read-back failed for {key}")
+                target_port = resolved
+            else:
+                raise ValueError(f"live platform read-back failed for {key}")
+            ready_uids: set[str] = set()
+            slice_items = slices.get("items") if isinstance(slices, dict) else None
+            if not isinstance(slice_items, list):
+                raise ValueError(f"live platform read-back failed for {key}")
+            for item in slice_items:
+                if not isinstance(item, dict):
+                    continue
+                item_endpoints = item.get("endpoints", [])
+                if not isinstance(item_endpoints, list):
+                    continue
+                for endpoint in item_endpoints:
+                    if not isinstance(endpoint, dict):
+                        continue
+                    conditions = endpoint.get("conditions", {})
+                    target_ref = endpoint.get("targetRef", {})
+                    if (
+                        isinstance(conditions, dict)
+                        and conditions.get("ready") is True
+                        and isinstance(target_ref, dict)
+                        and isinstance(target_ref.get("uid"), str)
+                        and target_ref["uid"]
+                    ):
+                        ready_uids.add(target_ref["uid"])
+            endpoints[key] = {
+                "namespace": namespace,
+                "service_name": service_name,
+                "service_uid": service_uid,
+                "service_port": service_port,
+                "target_port": target_port,
+                "selector_sha256": selector_sha256(selector),
+                "ready_endpoint_uids": sorted(ready_uids),
+            }
+        except ValueError:
+            raise
+        except Exception as error:
+            raise ValueError(f"live platform read-back failed for {key}") from error
+    inventory = {"private_endpoints": endpoints}
+    verify_private_endpoint_inventory(inventory, list(bindings))
+    return inventory
+
+
+def _contains_forbidden(value: object, forbidden: set[str]) -> bool:
+    if isinstance(value, dict):
+        return any(_contains_forbidden(key, forbidden) or _contains_forbidden(item, forbidden) for key, item in value.items())
+    if isinstance(value, list):
+        return any(_contains_forbidden(item, forbidden) for item in value)
+    return isinstance(value, str) and value in forbidden
+
+
+def verify_platform_exclusions(payload: dict, forbidden: list[str]) -> None:
+    """Refuse bundled stores/tools/agents, public load balancers, and app agents."""
+    if not isinstance(payload, dict):
+        raise ValueError("platform inventory must be an object")
+    if not forbidden:
+        raise ValueError("forbidden marker list must not be empty")
+    if _contains_forbidden(payload, set(forbidden)):
+        raise ValueError("platform inventory contains a forbidden bundled/public/app marker")
+
+
+def _require_topic24_target(parser: argparse.ArgumentParser, kubeconfig: str | None, context: str | None) -> None:
+    """Require an explicit named kubeconfig context; never the default context."""
+    if (kubeconfig is None) != (context is None):
+        parser.error("kubeconfig and context are required together")
+    if kubeconfig is None or context is None:
+        return
+    if not context or not Path(kubeconfig).is_file():
+        parser.error("kubeconfig must be a readable file with a named context")
+
+
 def validate_labels(labels: dict[str, str]) -> None:
     if set(labels) - set(STABLE_LABELS) or any(not isinstance(value, str) or not value or len(value) > 128 for value in labels.values()):
         raise ValueError("telemetry label is unknown, unsafe, or high-cardinality")
@@ -816,7 +1005,10 @@ def _validate_gke_target(kubeconfig: Path, context: str) -> None:
     if not kubeconfig.is_absolute() or not kubeconfig.is_file():
         raise ValueError("absolute readable kubeconfig is required")
     contexts = {item.get("name") for item in (yaml.safe_load(kubeconfig.read_text(encoding="utf-8")) or {}).get("contexts", []) if isinstance(item, dict)}
-    if context not in contexts or not context.startswith("gke_"):
+    # `edai2-gke` is the dedicated post-rename context written by
+    # prepare_private_kube_target/_bind_private_kube_document; raw gcloud
+    # contexts keep the gke_{project}_us-central1-a_edai2 form.
+    if context not in contexts or (context != "edai2-gke" and not context.startswith("gke_")):
         raise ValueError("exact GKE context is required")
 
 
@@ -1635,7 +1827,7 @@ def main() -> int:
     parser.add_argument("--verify-observability-contract", action="store_true")
     parser.add_argument("--kubeconfig")
     parser.add_argument("--context")
-    parser.add_argument("--platform-inventory")
+    parser.add_argument("--platform-inventory", nargs="?", const="BUILD")
     parser.add_argument("--inventory-signature")
     parser.add_argument("--private-endpoint-key")
     parser.add_argument("--loopback-only", action="store_true")
@@ -1643,6 +1835,13 @@ def main() -> int:
     parser.add_argument("--local-port", type=int)
     parser.add_argument("--verify-vault-bootstrap")
     parser.add_argument("--verify-model-cache")
+    parser.add_argument("--private-endpoint-keys")
+    parser.add_argument("--require-private-endpoint-fields")
+    parser.add_argument("--output")
+    parser.add_argument("--verify-private-endpoint-inventory")
+    parser.add_argument("--expected-keys")
+    parser.add_argument("--verify-platform-exclusions")
+    parser.add_argument("--forbid")
     parser.add_argument("--strict", action="store_true")
     args = parser.parse_args()
     if args.verify_vault_bootstrap or args.verify_model_cache:
@@ -1661,6 +1860,84 @@ def main() -> int:
         except ValueError as error:
             parser.error(str(error))
         print(json.dumps({"verified": Path(target).name}, sort_keys=True))
+        return 0
+    topic24_modes = {
+        "build": args.platform_inventory == "BUILD",
+        "verify_inventory": args.verify_private_endpoint_inventory is not None,
+        "verify_exclusions": args.verify_platform_exclusions is not None,
+    }
+    topic24_inputs = (
+        args.private_endpoint_keys, args.require_private_endpoint_fields, args.output,
+        args.expected_keys, args.forbid,
+    )
+    if any(topic24_modes.values()) or any(value is not None for value in topic24_inputs):
+        active = [name for name, selected in topic24_modes.items() if selected]
+        if len(active) != 1:
+            parser.error("Topic 24 verification selects exactly one inventory mode")
+        if args.verify_private_endpoint_inventory is not None:
+            if args.output is not None or args.forbid is not None:
+                parser.error("--output and --forbid do not belong to inventory verification")
+            if not args.strict or args.expected_keys is None:
+                parser.error("inventory verification requires --expected-keys --strict")
+            _require_topic24_target(parser, args.kubeconfig, args.context)
+            try:
+                expected = parse_key_list(args.expected_keys)
+                require_exact_keys(expected, list(PRIVATE_ENDPOINT_KEYS), "expected keys")
+                payload = json.loads(Path(args.verify_private_endpoint_inventory).read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError, ValueError) as error:
+                parser.error(str(error))
+            try:
+                verify_private_endpoint_inventory(payload, list(PRIVATE_ENDPOINT_KEYS))
+            except ValueError as error:
+                parser.error(str(error))
+            print(json.dumps({"verified": Path(args.verify_private_endpoint_inventory).name}, sort_keys=True))
+            return 0
+        if args.verify_platform_exclusions is not None:
+            if args.output is not None or args.expected_keys is not None:
+                parser.error("--output and --expected-keys do not belong to exclusion verification")
+            if not args.strict or args.forbid is None:
+                parser.error("exclusion verification requires --forbid --strict")
+            try:
+                forbidden = parse_key_list(args.forbid)
+                payload = json.loads(Path(args.verify_platform_exclusions).read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError, ValueError) as error:
+                parser.error(str(error))
+            try:
+                verify_platform_exclusions(payload, forbidden)
+            except ValueError as error:
+                parser.error(str(error))
+            print(json.dumps({"verified_exclusions": Path(args.verify_platform_exclusions).name}, sort_keys=True))
+            return 0
+        if not args.strict or args.private_endpoint_keys is None or args.require_private_endpoint_fields is None or args.output is None:
+            parser.error("inventory build requires --private-endpoint-keys, --require-private-endpoint-fields, --output, and --strict")
+        _require_topic24_target(parser, args.kubeconfig, args.context)
+        try:
+            require_exact_keys(parse_key_list(args.private_endpoint_keys), list(PRIVATE_ENDPOINT_KEYS), "private endpoint keys")
+            require_exact_keys(parse_key_list(args.require_private_endpoint_fields), sorted(PRIVATE_ENDPOINT_FIELDS), "private endpoint fields")
+        except ValueError as error:
+            parser.error(str(error))
+        bindings_path = Path("configs/gke/platform_service_bindings.json")
+        try:
+            bindings = load_service_bindings(bindings_path)
+            kubeconfig_value, context_value = str(args.kubeconfig), str(args.context)
+
+            def _live_runner(command: list[str]) -> dict:
+                if not command or command[0] != "kubectl":
+                    raise ValueError("live runner expects a kubectl command")
+                full = [command[0], "--kubeconfig", kubeconfig_value, "--context", context_value, *command[1:]]
+                raw = subprocess.run(full, check=True, capture_output=True, text=True, encoding="utf-8").stdout
+                return json.loads(raw)
+
+            inventory = build_private_endpoint_inventory(bindings, runner=_live_runner)
+        except (ValueError, KeyError, TypeError, subprocess.CalledProcessError, OSError) as error:
+            parser.error(f"live platform read-back failed: {bindings_path}: {error}")
+        try:
+            output_path = Path(args.output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(json.dumps(inventory, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        except (ValueError, subprocess.CalledProcessError, OSError) as error:
+            parser.error(str(error))
+        print(json.dumps({"built": Path(args.output).name}, sort_keys=True))
         return 0
     if not args.verify_observability_contract or not args.strict:
         parser.error("local verification requires --verify-observability-contract --strict; live capture is GCP-owned")

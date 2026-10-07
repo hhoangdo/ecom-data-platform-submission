@@ -67,6 +67,40 @@ def re_fullmatch_sha(value: str) -> bool:
     return isinstance(value, str) and len(value) == 40 and all(c in "0123456789abcdef" for c in value.lower())
 
 
+def read_lease(lease_file: str | Path) -> dict:
+    """Read the held session lease; refuse when none is held."""
+    path = Path(lease_file)
+    if not path.exists():
+        raise ValueError("no session lease is held")
+    try:
+        lease = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise ValueError("session lease is not valid JSON") from error
+    if not isinstance(lease, dict):
+        raise ValueError("session lease is invalid")
+    return lease
+
+
+def resolve_resume_ttl(lease_file: str | Path, *, owner: str) -> int:
+    """Reuse the held lease TTL; refuse owner mismatch or an invalid TTL."""
+    if not owner:
+        raise ValueError("lease resume requires --owner")
+    lease = read_lease(lease_file)
+    if lease.get("owner") != owner:
+        raise ValueError("lease owner mismatch")
+    ttl_hours = lease.get("ttl_hours")
+    if type(ttl_hours) is not int or not 0 < ttl_hours <= 6:
+        raise ValueError("session lease carries an invalid TTL")
+    return ttl_hours
+
+
+def write_output(path_str: str, payload: dict) -> None:
+    """Write rendered JSON evidence; never mutates cluster state."""
+    path = Path(path_str)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 def check_kube_target(kubeconfig: str, context: str) -> None:
     """Refuse anything but the dedicated kubeconfig context; never touch the default."""
     if context != EXPECTED_CONTEXT:
@@ -90,6 +124,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--acquire-session-lease", action="store_true")
     parser.add_argument("--release-session-lease", action="store_true")
     parser.add_argument("--require-evidence-manifest")
+    parser.add_argument("--render-only", action="store_true")
+    parser.add_argument("--output")
+    parser.add_argument("--resume-existing-ttl", action="store_true")
     args = parser.parse_args(argv)
     try:
         if args.kubeconfig or args.context:
@@ -110,10 +147,23 @@ def main(argv: list[str] | None = None) -> int:
                           evidence_manifest=args.require_evidence_manifest)
             print(json.dumps({"lease_released": True, "owner": args.owner}, sort_keys=True))
             return 0
+        if args.output and (args.acquire_session_lease or args.release_session_lease):
+            raise ValueError("--output cannot be combined with lease acquire/release")
+        if args.output and not (args.render_only or args.resume_existing_ttl):
+            raise ValueError("--output requires --render-only or --resume-existing-ttl")
+        if args.resume_existing_ttl and args.ttl is not None:
+            raise ValueError("--resume-existing-ttl conflicts with --ttl")
         profiles = yaml.safe_load(Path("configs/gke/profiles.yaml").read_text(encoding="utf-8"))
-        rendered = render_profile(profiles, args.profile, args.ttl, dry_run=args.dry_run)
+        if args.resume_existing_ttl:
+            ttl_hours = resolve_resume_ttl(args.lease_file, owner=args.owner or "")
+            ttl_arg = None if args.profile == "suspended" else f"{ttl_hours}h"
+            rendered = render_profile(profiles, args.profile, ttl_arg, dry_run=True)
+        else:
+            rendered = render_profile(profiles, args.profile, args.ttl, dry_run=args.dry_run or args.render_only)
         if args.stage:
             rendered["stage"] = args.stage
+        if args.output:
+            write_output(args.output, rendered)
         print(json.dumps(rendered, sort_keys=True))
         return 0
     except (OSError, ValueError, yaml.YAMLError) as error:
