@@ -1,6 +1,12 @@
 # Topic 29: Evaluation, A/B, Notebooks, Load-Test, and Test Evidence Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For any agent (Codex / opencode / Claude / etc):** Work task-by-task in one session. Steps use checkbox (`- [ ]`) tracking. Auto-run without asking; only stop on safe-stop gates below.
+
+> **Study-only simplified run (first iteration, overrides strict gates below):**
+> - Repo root = current checkout (`<repo-root>`). Use `rtk` prefix if installed, else run commands directly.
+> - Auto-run; no mid-run approvals. Only safe stops: budget/lease/route-cert fail, missing cases/notebooks, wrong context. Disable `retrieval,chat` routes + suspend at end even on Partial.
+> - Happy-path first: 60-case eval runs + both A/B run + both notebooks execute + coverage/mutation/Locust run + 3 chats + 2 novel-idea probes run wins. Promotion decisions, coverage>90%/mutation>80%, p95 gates, second novel idea may stay `Partial` — record measured values, don't chase perfection.
+> - Screenshots: viewport PNG + SHA + machine link + eyeball check is enough.
 
 **Goal:** Produce reproducible evaluation, two isolated A/B experiments, executed agent notebooks, test-quality evidence, Locust performance evidence, agent-test UI proof, and two runtime-backed novel-idea proofs.
 
@@ -23,7 +29,7 @@
 
 ## Global Constraints
 
-- Read `C:\Users\oou1hc\.codex\RTK.md`; prefix shell commands with `rtk`.
+- Use `rtk` prefix if installed, else run commands directly. Repo root = current checkout (`<repo-root>`).
 - Fixed hashes: Section 03 `3c906ae30ac0fee606e96608a7b5759cd7439ae048c4c12a84511fce5cc33ae6`; EDAI2 `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`; `tmp/rubic-check/Coursework Tracking (Public).xlsx` `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - No branch/worktree/stage/commit changes.
 - Consume the completed local implementation. If a source/IaC/chart defect appears, capture it, release or suspend any owned runtime, mark this topic `Partial`, and return it to the owning local topic; do not patch implementation during a live cloud lease.

@@ -1,6 +1,12 @@
 # Topic 26: KEDA, Agent HA, Registry, and Rollback Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For any agent (Codex / opencode / Claude / etc):** Work task-by-task in one session. Steps use checkbox (`- [ ]`) tracking. Auto-run without asking; only stop on safe-stop gates below.
+
+> **Study-only simplified run (first iteration, overrides strict gates below):**
+> - Repo root = current checkout (`<repo-root>`). Use `rtk` prefix if installed, else run commands directly.
+> - Auto-run; no mid-run approvals. Only safe stops: budget/lease/commit mismatch, wrong context, missing registry inputs. Reuse handed-off lease if TTL remains, else fresh lease — record which.
+> - Happy-path first: registry publish/read-back + KEDA 1->2->1 + one Helm rollback + chat smoke wins. Distinct actor/pod-UID overlap proof, model/index rollback, strict cooldown timing may stay `Partial`.
+> - Screenshots: viewport PNG + SHA + machine link + eyeball check is enough. Skip temp-PNG/signature/decode/atomic + proves/does-not prose for now.
 
 **Goal:** Prove the three logical sandboxed agents are independently usable, registered, securely routed, genuinely multi-instance under KEDA, and recoverable across Helm, model, and index rollback paths.
 
@@ -23,7 +29,7 @@
 
 ## Global Constraints
 
-- Read `C:\Users\oou1hc\.codex\RTK.md`; prefix shell commands with `rtk`.
+- Use `rtk` prefix if installed, else run commands directly. Repo root = current checkout (`<repo-root>`).
 - Fixed hashes: Section 03 `3c906ae30ac0fee606e96608a7b5759cd7439ae048c4c12a84511fce5cc33ae6`; EDAI2 `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`; `tmp/rubic-check/Coursework Tracking (Public).xlsx` `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - No branch/worktree/stage/commit change; current revision must match six CI records.
 - Consume the completed local implementation. If a source/IaC/chart defect appears, capture it, release or suspend any owned runtime, mark this topic `Partial`, and return it to the owning local topic; do not patch implementation during a live cloud lease.

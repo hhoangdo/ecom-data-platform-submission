@@ -1,6 +1,13 @@
 # Topic 25: Jenkins Six-Workload Deployment Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For any agent (Codex / opencode / Claude / etc):** Work task-by-task in one session. Steps use checkbox (`- [ ]`) tracking. Auto-run without asking; only stop on safe-stop gates below.
+
+> **Study-only simplified run (first iteration, overrides strict gates below):**
+> - Repo root = current checkout (`<repo-root>`), not `C:\Users\oou1hc\...`. Use `rtk` prefix if installed, else run commands directly.
+> - Auto-run end-to-end; no mid-run approvals. Only safe stops: budget/spend/trial fail, missing bundle/inputs, wrong cluster context, or capacity over cap. Record blocker and suspend.
+> - Check source hashes + `git status` once at start (not before every command). Reuse fresh (<24h) preflight/forecast if unchanged.
+> - One lease per topic. Set `EDAI2_KUBECONFIG`/`EDAI2_CONTEXT` once, reuse. Run six jobs via single trigger-all; don't babysit per-job approvals.
+> - Happy-path first: six SUCCESS + digests + smoke wins. BuildKit overlap-zero forensics, strict 7-stage audit may stay `Partial` — record measured value, hand off, don't rerun good jobs.
 
 **Goal:** Build, scan, push, atomically deploy, smoke-test, and rollback-prove exactly six commit-SHA workloads through six distinct serialized Jenkins jobs.
 
@@ -23,7 +30,7 @@
 
 ## Global Constraints
 
-- Read and obey `C:\Users\oou1hc\.codex\RTK.md`; prefix every shell command with `rtk`.
+- Use `rtk` prefix if installed, else run commands directly. Repo root = current checkout (`<repo-root>`).
 - Fixed source hashes: Section 03 `3c906ae30ac0fee606e96608a7b5759cd7439ae048c4c12a84511fce5cc33ae6`; EDAI2 `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`; rubric at `tmp/rubic-check/Coursework Tracking (Public).xlsx` `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - Do not create/switch branches/worktrees, stage, or commit. Six jobs use one `EDAI2_COMMIT_SHA` and one verified `EDAI2_BASE_REF`.
 - Consume the completed local implementation. If a source/IaC/chart defect appears, capture it, release or suspend any owned runtime, mark this topic `Partial`, and return it to the owning local topic; do not patch implementation during a live cloud lease.

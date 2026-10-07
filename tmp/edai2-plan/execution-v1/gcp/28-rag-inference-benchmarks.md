@@ -1,6 +1,12 @@
 # Topic 28: RAG and Inference Benchmark Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For any agent (Codex / opencode / Claude / etc):** Work task-by-task in one session. Steps use checkbox (`- [ ]`) tracking. Auto-run without asking; only stop on safe-stop gates below.
+
+> **Study-only simplified run (first iteration, overrides strict gates below):**
+> - Repo root = current checkout (`<repo-root>`). Use `rtk` prefix if installed, else run commands directly.
+> - Auto-run; no mid-run approvals. Only safe stops: budget/lease/capacity fail, missing index/model inputs, wrong context.
+> - Happy-path first: canonical `canonical-evidence-<sha>` RAG run + DataHub read-back + factorial completes + agent startup matrix completes wins. Numeric gates (p95<=20s, >=5% gain, >=20%/>=5% startup) may stay `Partial` — record measured numbers honestly, one bounded retry max, then hand off.
+> - Screenshots: viewport PNG + SHA + machine link + eyeball check is enough.
 
 **Goal:** Produce measured, hash-bound proof for the RAG pipeline/lineage, serial two-model inference optimization, and agent warm-up/startup-cost improvement.
 
@@ -23,7 +29,7 @@
 
 ## Global Constraints
 
-- Read `C:\Users\oou1hc\.codex\RTK.md`; prefix all shell commands with `rtk`.
+- Use `rtk` prefix if installed, else run commands directly. Repo root = current checkout (`<repo-root>`).
 - Fixed hashes: Section 03 `3c906ae30ac0fee606e96608a7b5759cd7439ae048c4c12a84511fce5cc33ae6`; EDAI2 `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`; `tmp/rubic-check/Coursework Tracking (Public).xlsx` `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - Do not create/switch branch/worktree, stage, or commit.
 - Consume the completed local implementation. If a source/IaC/chart defect appears, capture it, release or suspend any owned runtime, mark this topic `Partial`, and return it to the owning local topic; do not patch implementation during a live cloud lease.

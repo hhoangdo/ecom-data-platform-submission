@@ -2,9 +2,9 @@
 
 ## Purpose and operating model
 
-This is the copy/paste control plane for 33 topic-specific Codex chats. Each topic uses one chat in two phases: paste its planning prompt, review the decision-complete handoff, then paste its execution prompt into the same chat. Execute topics serially in numeric order and complete the topic's Completion Record before beginning the next execution phase.
+This is the copy/paste control plane for 33 topic-specific agent sessions (Codex / opencode / Claude / etc). Each topic uses one session in two phases: paste its planning prompt, review the decision-complete handoff, then paste its execution prompt into the same session. Execute topics serially in numeric order and complete the topic's Completion Record before beginning the next execution phase. Auto-run without mid-run approvals; only safe stops (budget/spend/trial, missing inputs, wrong context) stop execution.
 
-This package creates planning artifacts only. The later topic chats implement EDAI2 on the checkout already open at package creation (`feature/implement-edai2`). They must never create a worktree or branch, switch branches, stage, commit, push, or open a PR unless the user separately asks.
+This package creates planning artifacts only. The later topic sessions implement EDAI2 on the current checkout (`feature/implement-edai2`). They must never create a worktree or branch, switch branches, stage, commit, push, or open a PR unless the user separately asks. Study-only first iteration: happy-path working evidence wins; hard numeric gates may stay `Partial` (see per-topic simplified run box).
 
 ## Locked sources
 
@@ -30,11 +30,11 @@ Every session must fail closed before edits if any digest differs. The rubric so
 ## Shared execution rules
 
 1. Read the complete topic file and predecessor Completion Records before acting.
-2. Start and finish with `rtk git status --short --branch`; preserve unrelated work. Acceptance compares the topic's delta with its starting snapshot, not with a clean checkout.
+2. Start and finish with `git status --short --branch` (prefix with `rtk` if installed); preserve unrelated work. Acceptance compares the topic's delta with its starting snapshot, not with a clean checkout.
 3. Snapshot `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned: do not stage or unstage them.
 4. Use the current checkout/branch only. No branch, worktree, staging, commit, push, or PR.
 5. Planning phase is read-only. Execution begins only after the same chat has produced its decision-complete handoff.
-6. Use `apply_patch` for repository text edits. `uv add` is permitted only as the dependency-manager exception; inspect both `pyproject.toml` and `uv.lock` diffs. Make recipes use `uv run`; operators use `rtk make`.
+6. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits. `uv add` is permitted only as the dependency-manager exception; inspect both `pyproject.toml` and `uv.lock` diffs. Make recipes use `uv run`; operators use `make` (prefix `rtk` if installed).
 7. Run one execution/runtime topic at a time. Never auto-prune Docker data or stop unrelated containers.
 8. Every Kubernetes command—and every Kubernetes-aware live test/capture helper—names an explicit kubeconfig and context. Live fixtures construct clients only from those arguments and never use the current default corporate context.
 9. Kind output is labelled `local preflight` and earns no GKE rubric credit.
@@ -64,9 +64,9 @@ Every session must fail closed before edits if any digest differs. The rubric so
 
 Topic 21 uses one control-plane node named `edai2-lean`, kubeconfig `tmp/edai2-kind/kubeconfig`, context `kind-edai2-lean`, and the pinned node image digest above. Do not run the broad Compose platform and Kind simultaneously. Namespace aggregate requests are at most 6 CPU/16 GiB, limits at most 10 CPU/22 GiB, with at most 30 pods, 8 PVCs/20 GiB, and zero `LoadBalancer` services. KEDA maximum is one locally; scale-to-two is render/static validation only. Skip full llm-d, Jenkins, observability, Vault recovery, and every GKE-specific proof.
 
-## Screenshot acceptance gate
+## Screenshot acceptance gate (study-only first pass simplified)
 
-Section 03 remains 1600×900. Browser evidence uses a fixed 1600×1000 viewport and primary captures are full contextual viewport images, not element crops. A capture is accepted only when target selectors are fully inside the viewport, the application is stable, and title/context are visible. Write to a temporary path, verify the PNG signature, decode and fully load it, then atomically replace the final path. Record dimensions, UTC, URL/source, commit/revision, visible selectors, SHA-256, linked machine evidence, and what the image proves/does not prove. Reject blank/near-uniform, clipped, loading, login-only, generic-home, error, stale, secret-bearing, or PII-bearing images. Inspect every accepted image at original resolution.
+Section 03 remains 1600×900. Browser evidence uses 1600×1000 viewport, full contextual viewport images, not element crops. First-pass accept: PNG exists + decodes + eyeball check at original resolution + SHA + linked machine evidence, no blank/loading/login-only/error/secret/PII. Full temp-PNG/signature/decode/full-load/atomic + proves/does-not-prove prose deferred to later hardening.
 
 ## Schedule and dependency catalog
 
@@ -246,16 +246,16 @@ Paste the planning prompt first. After reviewing the handoff in that same chat, 
 ### Topic 00 planning prompt
 
 ```text
-You are planning EDAI2 Topic 00 in the existing Codex task workflow.
+You are planning EDAI2 Topic 00 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/00-workstation-toolchain-context-safety.md`
 Purpose: Workstation prerequisites and kube-context isolation
 Classification: Local-only
 Primary rubric responsibility: Supporting prerequisite
 Required predecessor records: None; this is the first topic.
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -265,14 +265,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 00 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 00; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 00; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/00-workstation-toolchain-context-safety.md`
 Purpose: Workstation prerequisites and kube-context isolation
 Required predecessor records: None; this is the first topic.
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -284,16 +284,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 01 planning prompt
 
 ```text
-You are planning EDAI2 Topic 01 in the existing Codex task workflow.
+You are planning EDAI2 Topic 01 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/01-section03-config-drift-sampler.md`
 Purpose: Section 03 Tasks 1-2: typed configuration and deterministic drift sampling
 Classification: Local-only
 Primary rubric responsibility: Contributes to E32-E33
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/00-workstation-toolchain-context-safety.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -303,14 +303,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 01 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 01; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 01; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/01-section03-config-drift-sampler.md`
 Purpose: Section 03 Tasks 1-2: typed configuration and deterministic drift sampling
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/00-workstation-toolchain-context-safety.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -322,16 +322,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 02 planning prompt
 
 ```text
-You are planning EDAI2 Topic 02 in the existing Codex task workflow.
+You are planning EDAI2 Topic 02 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/02-section03-labels-psi-candidate-evidence.md`
 Purpose: Section 03 Tasks 3-4: labels, PSI, training join, and candidate evidence
 Classification: Local-only
 Primary rubric responsibility: Contributes to E32-E34
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/01-section03-config-drift-sampler.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -341,14 +341,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 02 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 02; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 02; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/02-section03-labels-psi-candidate-evidence.md`
 Purpose: Section 03 Tasks 3-4: labels, PSI, training join, and candidate evidence
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/01-section03-config-drift-sampler.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -360,16 +360,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 03 planning prompt
 
 ```text
-You are planning EDAI2 Topic 03 in the existing Codex task workflow.
+You are planning EDAI2 Topic 03 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/03-section03-dbt-gold-contracts.md`
 Purpose: Section 03 Task 5: leakage-safe dbt Gold contracts
 Classification: Local-only
 Primary rubric responsibility: Supports E34
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/02-section03-labels-psi-candidate-evidence.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -379,14 +379,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 03 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 03; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 03; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/03-section03-dbt-gold-contracts.md`
 Purpose: Section 03 Task 5: leakage-safe dbt Gold contracts
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/02-section03-labels-psi-candidate-evidence.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -398,16 +398,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 04 planning prompt
 
 ```text
-You are planning EDAI2 Topic 04 in the existing Codex task workflow.
+You are planning EDAI2 Topic 04 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/04-section03-spark-gold-parity.md`
 Purpose: Section 03 Task 6: Spark/Iceberg outputs and three-way parity
 Classification: Local-only
 Primary rubric responsibility: Supports E34
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/03-section03-dbt-gold-contracts.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -417,14 +417,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 04 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 04; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 04; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/04-section03-spark-gold-parity.md`
 Purpose: Section 03 Task 6: Spark/Iceberg outputs and three-way parity
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/03-section03-dbt-gold-contracts.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -436,16 +436,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 05 planning prompt
 
 ```text
-You are planning EDAI2 Topic 05 in the existing Codex task workflow.
+You are planning EDAI2 Topic 05 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/05-section03-airflow-datahub-governance.md`
 Purpose: Section 03 Tasks 7-8: DP3 validation and DataHub governance
 Classification: Local-only
 Primary rubric responsibility: Supports E32-E34
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/04-section03-spark-gold-parity.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -455,14 +455,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 05 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 05; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 05; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/05-section03-airflow-datahub-governance.md`
 Purpose: Section 03 Tasks 7-8: DP3 validation and DataHub governance
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/04-section03-spark-gold-parity.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -474,16 +474,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 06 planning prompt
 
 ```text
-You are planning EDAI2 Topic 06 in the existing Codex task workflow.
+You are planning EDAI2 Topic 06 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/06-section03-docs-schema-finalizer.md`
 Purpose: Section 03 Tasks 9 and Task 10 finalizer implementation
 Classification: Local-only
 Primary rubric responsibility: Supports E32-E34
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/05-section03-airflow-datahub-governance.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -493,14 +493,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 06 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 06; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 06; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/06-section03-docs-schema-finalizer.md`
 Purpose: Section 03 Tasks 9 and Task 10 finalizer implementation
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/05-section03-airflow-datahub-governance.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -512,16 +512,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 07 planning prompt
 
 ```text
-You are planning EDAI2 Topic 07 in the existing Codex task workflow.
+You are planning EDAI2 Topic 07 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/07-section03-canonical-runtime-promotion.md`
 Purpose: Section 03 Task 10 canonical seed-42 capture and immutable promotion
 Classification: Local runtime
 Primary rubric responsibility: E32-E34
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/06-section03-docs-schema-finalizer.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -531,14 +531,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 07 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 07; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 07; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/07-section03-canonical-runtime-promotion.md`
 Purpose: Section 03 Task 10 canonical seed-42 capture and immutable promotion
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/06-section03-docs-schema-finalizer.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -550,16 +550,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 08 planning prompt
 
 ```text
-You are planning EDAI2 Topic 08 in the existing Codex task workflow.
+You are planning EDAI2 Topic 08 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/08-edai2-prerequisite-contracts.md`
 Purpose: EDAI2 Tasks 0-1: fail-closed prerequisite and repository contracts
 Classification: Local-only
 Primary rubric responsibility: Supports E32-E34, E59-E60
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/07-section03-canonical-runtime-promotion.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -569,14 +569,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 08 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 08; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 08; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/08-edai2-prerequisite-contracts.md`
 Purpose: EDAI2 Tasks 0-1: fail-closed prerequisite and repository contracts
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/07-section03-canonical-runtime-promotion.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -588,16 +588,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 09 planning prompt
 
 ```text
-You are planning EDAI2 Topic 09 in the existing Codex task workflow.
+You are planning EDAI2 Topic 09 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/09-rag-source-chunking-embeddings.md`
 Purpose: EDAI2 Task 2: trusted sources, versions, 400/80 chunks, embeddings
 Classification: Local-only
 Primary rubric responsibility: Supports E8-E9, E61
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/08-edai2-prerequisite-contracts.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -607,14 +607,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 09 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 09; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 09; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/09-rag-source-chunking-embeddings.md`
 Purpose: EDAI2 Task 2: trusted sources, versions, 400/80 chunks, embeddings
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/08-edai2-prerequisite-contracts.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -626,16 +626,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 10 planning prompt
 
 ```text
-You are planning EDAI2 Topic 10 in the existing Codex task workflow.
+You are planning EDAI2 Topic 10 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/10-rag-index-feast-airflow-datahub.md`
 Purpose: EDAI2 Task 2: candidate/active index, Feast, Airflow, DataHub
 Classification: Local integration
 Primary rubric responsibility: Supports E8-E9
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/09-rag-source-chunking-embeddings.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -645,14 +645,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 10 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 10; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 10; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/10-rag-index-feast-airflow-datahub.md`
 Purpose: EDAI2 Task 2: candidate/active index, Feast, Airflow, DataHub
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/09-rag-source-chunking-embeddings.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -664,16 +664,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 11 planning prompt
 
 ```text
-You are planning EDAI2 Topic 11 in the existing Codex task workflow.
+You are planning EDAI2 Topic 11 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/11-retrieval-api-mcp-safety.md`
 Purpose: EDAI2 Task 3: async retrieval API, MCP, grounding, citation safety
 Classification: Local-only
 Primary rubric responsibility: Supports E10-E12, E62
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/10-rag-index-feast-airflow-datahub.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -683,14 +683,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 11 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 11; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 11; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/11-retrieval-api-mcp-safety.md`
 Purpose: EDAI2 Task 3: async retrieval API, MCP, grounding, citation safety
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/10-rag-index-feast-airflow-datahub.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -702,16 +702,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 12 planning prompt
 
 ```text
-You are planning EDAI2 Topic 12 in the existing Codex task workflow.
+You are planning EDAI2 Topic 12 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/12-section03-loader-drift-api-mcp.md`
 Purpose: EDAI2 Task 4: strict Section 03 loader and async drift API/MCP
 Classification: Local-only
 Primary rubric responsibility: Supports E16-E18
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/08-edai2-prerequisite-contracts.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -721,14 +721,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 12 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 12; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 12; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/12-section03-loader-drift-api-mcp.md`
 Purpose: EDAI2 Task 4: strict Section 03 loader and async drift API/MCP
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/08-edai2-prerequisite-contracts.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -740,16 +740,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 13 planning prompt
 
 ```text
-You are planning EDAI2 Topic 13 in the existing Codex task workflow.
+You are planning EDAI2 Topic 13 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/13-coordinator-inference-routing-telemetry.md`
 Purpose: EDAI2 Task 5: observed inference, coordinator routing, telemetry
 Classification: Local-only
 Primary rubric responsibility: Supports E24-E26, E50, E54-E57
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/11-retrieval-api-mcp-safety.md` Completion Record, `tmp/edai2-plan/execution-v1/local/12-section03-loader-drift-api-mcp.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -759,14 +759,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 13 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 13; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 13; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/13-coordinator-inference-routing-telemetry.md`
 Purpose: EDAI2 Task 5: observed inference, coordinator routing, telemetry
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/11-retrieval-api-mcp-safety.md` Completion Record, `tmp/edai2-plan/execution-v1/local/12-section03-loader-drift-api-mcp.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -778,16 +778,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 14 planning prompt
 
 ```text
-You are planning EDAI2 Topic 14 in the existing Codex task workflow.
+You are planning EDAI2 Topic 14 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/14-agent-security-registry-notebooks.md`
 Purpose: EDAI2 Task 5: SandboxAgents, registry contracts, notebooks
 Classification: Local-only
 Primary rubric responsibility: Supports E13-E25
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/13-coordinator-inference-routing-telemetry.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -797,14 +797,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 14 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 14; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 14; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/14-agent-security-registry-notebooks.md`
 Purpose: EDAI2 Task 5: SandboxAgents, registry contracts, notebooks
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/13-coordinator-inference-routing-telemetry.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -816,16 +816,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 15 planning prompt
 
 ```text
-You are planning EDAI2 Topic 15 in the existing Codex task workflow.
+You are planning EDAI2 Topic 15 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/15-evaluation-test-quality-load.md`
 Purpose: EDAI2 Task 6: evaluation, coverage, EP/BVA, mutation, properties, load
 Classification: Local-only
 Primary rubric responsibility: Supports E27-E31, E61-E62
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/14-agent-security-registry-notebooks.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -835,14 +835,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 15 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 15; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 15; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/15-evaluation-test-quality-load.md`
 Purpose: EDAI2 Task 6: evaluation, coverage, EP/BVA, mutation, properties, load
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/14-agent-security-registry-notebooks.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -854,16 +854,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 16 planning prompt
 
 ```text
-You are planning EDAI2 Topic 16 in the existing Codex task workflow.
+You are planning EDAI2 Topic 16 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/16-images-jenkins-ci.md`
 Purpose: EDAI2 Task 6: six images, six Jenkins pipelines, change maps
 Classification: Local-only
 Primary rubric responsibility: Supports E35-E40
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/15-evaluation-test-quality-load.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -873,14 +873,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 16 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 16; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 16; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/16-images-jenkins-ci.md`
 Purpose: EDAI2 Task 6: six images, six Jenkins pipelines, change maps
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/15-evaluation-test-quality-load.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -892,16 +892,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 17 planning prompt
 
 ```text
-You are planning EDAI2 Topic 17 in the existing Codex task workflow.
+You are planning EDAI2 Topic 17 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/17-terraform-vault-iac-static.md`
 Purpose: EDAI2 Task 7 static Terraform, Vault, IAM, budget validation
 Classification: Local-only
 Primary rubric responsibility: Supports E46, E48, E58
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/16-images-jenkins-ci.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -911,14 +911,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 17 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 17; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 17; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/17-terraform-vault-iac-static.md`
 Purpose: EDAI2 Task 7 static Terraform, Vault, IAM, budget validation
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/16-images-jenkins-ci.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -930,16 +930,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 18 planning prompt
 
 ```text
-You are planning EDAI2 Topic 18 in the existing Codex task workflow.
+You are planning EDAI2 Topic 18 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/18-platform-helm-kustomize.md`
 Purpose: EDAI2 Task 8 static platform Helm/Kustomize contracts
 Classification: Local-only
 Primary rubric responsibility: Supports E3-E7, E41-E47
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/17-terraform-vault-iac-static.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -949,14 +949,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 18 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 18; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 18; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/18-platform-helm-kustomize.md`
 Purpose: EDAI2 Task 8 static platform Helm/Kustomize contracts
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/17-terraform-vault-iac-static.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -968,16 +968,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 19 planning prompt
 
 ```text
-You are planning EDAI2 Topic 19 in the existing Codex task workflow.
+You are planning EDAI2 Topic 19 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/19-workload-charts-streaming-keda-experiments.md`
 Purpose: EDAI2 Task 9 workload charts, streaming, KEDA, warm-up, A/B definitions
 Classification: Local-only
 Primary rubric responsibility: Supports E12-E26, E35-E40, E56-E57
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/18-platform-helm-kustomize.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -987,14 +987,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 19 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 19; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 19; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/19-workload-charts-streaming-keda-experiments.md`
 Purpose: EDAI2 Task 9 workload charts, streaming, KEDA, warm-up, A/B definitions
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/18-platform-helm-kustomize.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -1006,16 +1006,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 20 planning prompt
 
 ```text
-You are planning EDAI2 Topic 20 in the existing Codex task workflow.
+You are planning EDAI2 Topic 20 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/20-observability-ingress-screenshot-contracts.md`
 Purpose: EDAI2 Task 10 observability, ingress, evidence-capture contracts
 Classification: Local-only
 Primary rubric responsibility: Supports E41-E55
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/19-workload-charts-streaming-keda-experiments.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -1025,14 +1025,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 20 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 20; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 20; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/20-observability-ingress-screenshot-contracts.md`
 Purpose: EDAI2 Task 10 observability, ingress, evidence-capture contracts
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/19-workload-charts-streaming-keda-experiments.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -1044,16 +1044,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 21 planning prompt
 
 ```text
-You are planning EDAI2 Topic 21 in the existing Codex task workflow.
+You are planning EDAI2 Topic 21 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/21-kind-lean-preflight.md`
 Purpose: Lean single-node Kind render/install/smoke preflight
 Classification: Kind smoke only
 Primary rubric responsibility: No GKE rubric credit
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/20-observability-ingress-screenshot-contracts.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -1063,14 +1063,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 21 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 21; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 21; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/local/21-kind-lean-preflight.md`
 Purpose: Lean single-node Kind render/install/smoke preflight
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/20-observability-ingress-screenshot-contracts.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 
@@ -1082,16 +1082,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 22 planning prompt
 
 ```text
-You are planning EDAI2 Topic 22 in the existing Codex task workflow.
+You are planning EDAI2 Topic 22 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/22-gcp-account-budget-terraform-apply.md`
 Purpose: EDAI2 Task 7 authorized account gate, budget, Terraform plan/apply
 Classification: GCP mutation
 Primary rubric responsibility: E48
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/21-kind-lean-preflight.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This topic may inspect GCP read-only during planning, but make no cloud mutation. Identify every required project, billing, IAM, budget, trial, recovery-sink, DNS, and spend input; the execution phase must stop safely if any required input is absent. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -1101,14 +1101,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 22 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 22; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 22; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/22-gcp-account-budget-terraform-apply.md`
 Purpose: EDAI2 Task 7 authorized account gate, budget, Terraform plan/apply
 Required predecessor records: `tmp/edai2-plan/execution-v1/local/21-kind-lean-preflight.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Before the first cloud mutation, re-run every external-input, cost, lease, IAM, billing, and target-context gate from the topic. If any gate is unavailable or ambiguous, record the exact blocker and stop without partial provisioning.
 
@@ -1120,16 +1120,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 23 planning prompt
 
 ```text
-You are planning EDAI2 Topic 23 in the existing Codex task workflow.
+You are planning EDAI2 Topic 23 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/23-vault-kms-model-cache-bootstrap.md`
 Purpose: EDAI2 Task 8 Vault/KMS bootstrap and immutable model cache
 Classification: GCP mutation
 Primary rubric responsibility: Supports E3-E4, E46, E58
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/22-gcp-account-budget-terraform-apply.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This topic may inspect GCP read-only during planning, but make no cloud mutation. Identify every required project, billing, IAM, budget, trial, recovery-sink, DNS, and spend input; the execution phase must stop safely if any required input is absent. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -1139,14 +1139,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 23 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 23; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 23; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/23-vault-kms-model-cache-bootstrap.md`
 Purpose: EDAI2 Task 8 Vault/KMS bootstrap and immutable model cache
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/22-gcp-account-budget-terraform-apply.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Before the first cloud mutation, re-run every external-input, cost, lease, IAM, billing, and target-context gate from the topic. If any gate is unavailable or ambiguous, record the exact blocker and stop without partial provisioning.
 
@@ -1158,16 +1158,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 24 planning prompt
 
 ```text
-You are planning EDAI2 Topic 24 in the existing Codex task workflow.
+You are planning EDAI2 Topic 24 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/24-compact-platform-install.md`
 Purpose: EDAI2 Task 8 compact platform, gateway, llm-d, kagent, registry install
 Classification: GCP mutation
 Primary rubric responsibility: E3-E4, E6
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/23-vault-kms-model-cache-bootstrap.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This topic may inspect GCP read-only during planning, but make no cloud mutation. Identify every required project, billing, IAM, budget, trial, recovery-sink, DNS, and spend input; the execution phase must stop safely if any required input is absent. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -1177,14 +1177,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 24 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 24; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 24; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/24-compact-platform-install.md`
 Purpose: EDAI2 Task 8 compact platform, gateway, llm-d, kagent, registry install
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/23-vault-kms-model-cache-bootstrap.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Before the first cloud mutation, re-run every external-input, cost, lease, IAM, billing, and target-context gate from the topic. If any gate is unavailable or ambiguous, record the exact blocker and stop without partial provisioning.
 
@@ -1196,16 +1196,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 25 planning prompt
 
 ```text
-You are planning EDAI2 Topic 25 in the existing Codex task workflow.
+You are planning EDAI2 Topic 25 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/25-jenkins-six-workload-deploy.md`
 Purpose: EDAI2 Task 9 six CI/CD deployments, verified Section 03 pre-upload with drift-owned activation, and noncanonical CI-bootstrap RAG
 Classification: GCP mutation
 Primary rubric responsibility: E10-E12, E16-E18
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/24-compact-platform-install.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This topic may inspect GCP read-only during planning, but make no cloud mutation. Identify every required project, billing, IAM, budget, trial, recovery-sink, DNS, and spend input; the execution phase must stop safely if any required input is absent. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -1215,14 +1215,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 25 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 25; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 25; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/25-jenkins-six-workload-deploy.md`
 Purpose: EDAI2 Task 9 six CI/CD deployments, verified Section 03 pre-upload with drift-owned activation, and noncanonical CI-bootstrap RAG
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/24-compact-platform-install.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Before the first cloud mutation, re-run every external-input, cost, lease, IAM, billing, and target-context gate from the topic. If any gate is unavailable or ambiguous, record the exact blocker and stop without partial provisioning.
 
@@ -1234,16 +1234,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 26 planning prompt
 
 ```text
-You are planning EDAI2 Topic 26 in the existing Codex task workflow.
+You are planning EDAI2 Topic 26 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/26-keda-agent-ha-registry-rollbacks.md`
 Purpose: EDAI2 Task 9 KEDA, agents, HA, registry, rollback exercises
 Classification: GCP mutation
 Primary rubric responsibility: E7, E13-E15, E19-E21, E24
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/25-jenkins-six-workload-deploy.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This topic may inspect GCP read-only during planning, but make no cloud mutation. Identify every required project, billing, IAM, budget, trial, recovery-sink, DNS, and spend input; the execution phase must stop safely if any required input is absent. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -1253,14 +1253,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 26 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 26; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 26; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/26-keda-agent-ha-registry-rollbacks.md`
 Purpose: EDAI2 Task 9 KEDA, agents, HA, registry, rollback exercises
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/25-jenkins-six-workload-deploy.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Before the first cloud mutation, re-run every external-input, cost, lease, IAM, billing, and target-context gate from the topic. If any gate is unavailable or ambiguous, record the exact blocker and stop without partial provisioning.
 
@@ -1272,16 +1272,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 27 planning prompt
 
 ```text
-You are planning EDAI2 Topic 27 in the existing Codex task workflow.
+You are planning EDAI2 Topic 27 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/27-observability-https-jenkins-evidence.md`
 Purpose: EDAI2 Tasks 10-11 observability, HTTPS, and six Jenkins records
 Classification: GCP evidence
 Primary rubric responsibility: E35-E43, E45-E47, E50-E55
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/26-keda-agent-ha-registry-rollbacks.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This topic may inspect GCP read-only during planning, but make no cloud mutation. Identify every required project, billing, IAM, budget, trial, recovery-sink, DNS, and spend input; the execution phase must stop safely if any required input is absent. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -1291,14 +1291,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 27 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 27; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 27; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/27-observability-https-jenkins-evidence.md`
 Purpose: EDAI2 Tasks 10-11 observability, HTTPS, and six Jenkins records
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/26-keda-agent-ha-registry-rollbacks.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Before the first cloud mutation, re-run every external-input, cost, lease, IAM, billing, and target-context gate from the topic. If any gate is unavailable or ambiguous, record the exact blocker and stop without partial provisioning.
 
@@ -1310,16 +1310,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 28 planning prompt
 
 ```text
-You are planning EDAI2 Topic 28 in the existing Codex task workflow.
+You are planning EDAI2 Topic 28 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/28-rag-inference-benchmarks.md`
 Purpose: EDAI2 Task 12 canonical RAG and model benchmark evidence
 Classification: GCP evidence lease
 Primary rubric responsibility: E5, E8-E9, E26
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/27-observability-https-jenkins-evidence.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This topic may inspect GCP read-only during planning, but make no cloud mutation. Identify every required project, billing, IAM, budget, trial, recovery-sink, DNS, and spend input; the execution phase must stop safely if any required input is absent. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -1329,14 +1329,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 28 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 28; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 28; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/28-rag-inference-benchmarks.md`
 Purpose: EDAI2 Task 12 canonical RAG and model benchmark evidence
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/27-observability-https-jenkins-evidence.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Before the first cloud mutation, re-run every external-input, cost, lease, IAM, billing, and target-context gate from the topic. If any gate is unavailable or ambiguous, record the exact blocker and stop without partial provisioning.
 
@@ -1348,16 +1348,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 29 planning prompt
 
 ```text
-You are planning EDAI2 Topic 29 in the existing Codex task workflow.
+You are planning EDAI2 Topic 29 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/29-evaluation-ab-notebooks-load-test-evidence.md`
 Purpose: EDAI2 Task 12 evaluation, A/B, notebooks, load, runtime safety proof
 Classification: GCP evidence lease
 Primary rubric responsibility: E22-E23, E25, E27-E31, E44, E56-E57, E61-E62
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/28-rag-inference-benchmarks.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This topic may inspect GCP read-only during planning, but make no cloud mutation. Identify every required project, billing, IAM, budget, trial, recovery-sink, DNS, and spend input; the execution phase must stop safely if any required input is absent. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -1367,14 +1367,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 29 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 29; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 29; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/29-evaluation-ab-notebooks-load-test-evidence.md`
 Purpose: EDAI2 Task 12 evaluation, A/B, notebooks, load, runtime safety proof
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/28-rag-inference-benchmarks.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Before the first cloud mutation, re-run every external-input, cost, lease, IAM, billing, and target-context gate from the topic. If any gate is unavailable or ambiguous, record the exact blocker and stop without partial provisioning.
 
@@ -1386,16 +1386,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 30 planning prompt
 
 ```text
-You are planning EDAI2 Topic 30 in the existing Codex task workflow.
+You are planning EDAI2 Topic 30 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/30-persistence-vault-recovery-resume.md`
 Purpose: EDAI2 Task 12 persistence, Vault recovery, suspend/resume fingerprints
 Classification: GCP evidence lease
 Primary rubric responsibility: E58
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/29-evaluation-ab-notebooks-load-test-evidence.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This topic may inspect GCP read-only during planning, but make no cloud mutation. Identify every required project, billing, IAM, budget, trial, recovery-sink, DNS, and spend input; the execution phase must stop safely if any required input is absent. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -1405,14 +1405,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 30 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 30; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 30; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/30-persistence-vault-recovery-resume.md`
 Purpose: EDAI2 Task 12 persistence, Vault recovery, suspend/resume fingerprints
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/29-evaluation-ab-notebooks-load-test-evidence.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Before the first cloud mutation, re-run every external-input, cost, lease, IAM, billing, and target-context gate from the topic. If any gate is unavailable or ambiguous, record the exact blocker and stop without partial provisioning.
 
@@ -1424,16 +1424,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 31 planning prompt
 
 ```text
-You are planning EDAI2 Topic 31 in the existing Codex task workflow.
+You are planning EDAI2 Topic 31 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/31-final-screenshot-qa-teardown.md`
 Purpose: EDAI2 Task 12 final screenshot audit, manifest sealing, teardown
 Classification: GCP evidence lease/teardown
 Primary rubric responsibility: Cross-cutting evidence gate
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/30-persistence-vault-recovery-resume.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This topic may inspect GCP read-only during planning, but make no cloud mutation. Identify every required project, billing, IAM, budget, trial, recovery-sink, DNS, and spend input; the execution phase must stop safely if any required input is absent. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -1443,14 +1443,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 31 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 31; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 31; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/31-final-screenshot-qa-teardown.md`
 Purpose: EDAI2 Task 12 final screenshot audit, manifest sealing, teardown
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/30-persistence-vault-recovery-resume.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Before the first cloud mutation, re-run every external-input, cost, lease, IAM, billing, and target-context gate from the topic. If any gate is unavailable or ambiguous, record the exact blocker and stop without partial provisioning.
 
@@ -1462,16 +1462,16 @@ Finish by updating only this topic file's Completion Record with status, affecte
 ### Topic 32 planning prompt
 
 ```text
-You are planning EDAI2 Topic 32 in the existing Codex task workflow.
+You are planning EDAI2 Topic 32 in any agent session (Codex / opencode / Claude / etc).
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/final/32-documentation-rubric-finalization.md`
 Purpose: EDAI2 Task 13 README, diagrams, LLD, fail-closed rubric finalization
 Classification: Local-only
 Primary rubric responsibility: E49 OOS, E59-E60, Row 2
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/31-final-screenshot-qa-teardown.md` Completion Record
 
-This is the read-only planning phase in a two-phase Codex chat. Before any repository inspection, read `C:\Users\oou1hc\.codex\RTK.md` and use relevant available skills. Run shell commands only through `rtk`. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
+This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
 Read every predecessor Completion Record listed above and inspect current repository/runtime state read-only so the handoff reflects changes made by earlier sessions. This is a local planning topic: do not mutate GCP or describe local Kind output as GKE evidence. Every Kubernetes command proposed must name the intended kubeconfig and context; the current default context may be a nonlocal corporate cluster.
 
@@ -1481,14 +1481,14 @@ Return a decision-complete execution handoff in chat with: assumptions verified;
 ### Topic 32 execution prompt
 
 ```text
-Continue this same Codex chat with EDAI2 Topic 32; now execute the approved handoff.
+Continue this same agent session with EDAI2 Topic 32; now execute the approved handoff.
 
-Repository: `C:\Users\oou1hc\Documents\FSDS\ecom-data-platform-submission`
+Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/final/32-documentation-rubric-finalization.md`
 Purpose: EDAI2 Task 13 README, diagrams, LLD, fail-closed rubric finalization
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/31-final-screenshot-qa-teardown.md` Completion Record
 
-Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use `apply_patch` for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `rtk make`.
+Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
 Execute the topic in its written order using test-first changes: establish the failing check, make the minimum scoped change, run the focused check, then the prescribed regression gate. Use one runtime slice at a time. Every Kubernetes command must specify the intended kubeconfig and context; never rely on the current default context. Never prune Docker data or stop unrelated containers automatically. Do not perform live GCP mutations. Any Kind result must be labelled `local preflight` and must not be claimed as GKE rubric evidence.
 

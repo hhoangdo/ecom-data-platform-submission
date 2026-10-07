@@ -1,6 +1,12 @@
 # Topic 31: Final Screenshot QA and Teardown Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For any agent (Codex / opencode / Claude / etc):** Work task-by-task in one session. Steps use checkbox (`- [ ]`) tracking. Auto-run without asking; only stop on safe-stop gates below.
+
+> **Study-only simplified run (first iteration, overrides strict gates below):**
+> - Repo root = current checkout (`<repo-root>`). Use `rtk` prefix if installed, else run commands directly.
+> - Auto-run; no mid-run approvals. Read-only audit first, then one fresh <=2h lease only if repair needed. Always teardown (pools zero, ingress disabled, no forwarding rule/lease) even on Partial.
+> - Happy-path first: per-image pass/fail list + `run_manifest.json` (strict-partial, Topic 32 pending allowed) + `teardown.json` wins. One bounded recapture per rejected image max; else mark `Partial/Missing`, keep prior valid file.
+> - QA bar first pass: PNG exists + decodes + eyeball at original resolution + hash linked. Full 8-byte signature/full-load/atomic/proves-does-not prose deferred.
 
 **Goal:** Fail-closed audit every required Section 03 and EDAI2 screenshot against its machine evidence, perform at most one bounded repair capture, generate the cross-cutting run manifest, and leave all GCP runtime suspended with no public forwarding rule.
 
@@ -23,7 +29,7 @@
 
 ## Global Constraints
 
-- Read `C:\Users\oou1hc\.codex\RTK.md`; prefix shell commands with `rtk`.
+- Use `rtk` prefix if installed, else run commands directly. Repo root = current checkout (`<repo-root>`).
 - Fixed hashes: Section 03 `3c906ae30ac0fee606e96608a7b5759cd7439ae048c4c12a84511fce5cc33ae6`; EDAI2 `b8be3ef5c84fe4d6fe52e8894c3c5dc1c3babc898e2a87684b2b8ff720d6d079`; `tmp/rubic-check/Coursework Tracking (Public).xlsx` `71b2403e068081b00245bea5e15c5754f3762ad354e0a3a6576d69e4963c8657`.
 - No branch/worktree/stage/commit changes.
 - Consume the completed local implementation. If a source/IaC/chart defect appears, capture it, release or suspend any owned runtime, mark this topic `Partial`, and return it to the owning local topic; do not patch implementation during a live cloud lease.
