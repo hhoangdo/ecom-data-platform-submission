@@ -480,6 +480,8 @@ def parse_args(arguments: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--verify-private-backend", choices=("bootstrap", "initialized"))
     parser.add_argument("--private-bootstrap", action="store_true")
     parser.add_argument("--write-private-wi-values", action="store_true")
+    parser.add_argument("--print-model-cache-uri", action="store_true")
+    parser.add_argument("--print-kms-key-id", action="store_true")
     return parser.parse_args(arguments)
 
 
@@ -864,20 +866,53 @@ def require_fresh_backend_preflight_proof(data_dir: Path, operator: dict[str, ob
     return observed
 
 
+def require_current_backend_proof(data_dir: Path, operator: dict[str, object], workspace: Path | None) -> dict[str, object]:
+    """Require the fresh initialized proof after apply, else a fresh bootstrap-phase proof, else the bootstrap record."""
+    try:
+        return _backend_proof_record(data_dir, operator, "initialized", workspace=workspace)
+    except ValueError:
+        pass
+    try:
+        record = _backend_proof_record(data_dir, operator, "bootstrap", workspace=workspace)
+    except ValueError:
+        if workspace is None:
+            raise
+        return require_fresh_backend_preflight_proof(data_dir, operator, workspace)
+    try:
+        bootstrap = json.loads((data_dir / "topic22-bootstrap-proof.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return record
+    expected = {
+        "backend_bucket_proof_sha256": bootstrap.get("backend_bucket_proof_sha256"),
+        "bucket_sha256": bootstrap.get("backend_bucket_sha256"),
+        "prefix_sha256": bootstrap.get("backend_prefix_sha256"),
+        "project_number_sha256": bootstrap.get("backend_project_number_sha256"),
+    }
+    if any(record.get(key) != value for key, value in expected.items()):
+        raise ValueError("private backend proof is required")
+    return record
+
+
 def validate_initialized_backend_record(data_dir: Path, initialized: dict[str, object]) -> dict[str, object]:
-    """Require the post-apply proof to describe the same private backend identity as the fresh bootstrap proof."""
+    """Require the post-apply proof to continue the same backend identity as the bootstrap proof.
+
+    Identity continuity (bucket/prefix/project hashes) is the invariant; the
+    revision pin is intentionally not compared so days-later applies at newer
+    revisions remain possible. Freshness (900s) of the initialized record is
+    the live anchor instead.
+    """
     try:
         bootstrap = json.loads((data_dir / "topic22-backend-bootstrap-proof.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise ValueError("private backend proof is required") from error
-    fields = ("bucket_sha256", "prefix_sha256", "project_number_sha256", "revision")
+    fields = ("bucket_sha256", "prefix_sha256", "project_number_sha256")
     if not isinstance(bootstrap, dict) or initialized.get("phase") != "initialized" or any(not isinstance(initialized.get(name), str) or initialized.get(name) != bootstrap.get(name) for name in fields):
         raise ValueError("private backend proof is invalid")
     try:
-        started, finished = _parse_timestamp(str(bootstrap["observed_at_utc"])), _parse_timestamp(str(initialized["observed_at_utc"]))
+        observed = _parse_timestamp(str(initialized["observed_at_utc"]))
     except (KeyError, ValueError) as error:
         raise ValueError("private backend proof is invalid") from error
-    if finished < started or (finished - started).total_seconds() > 900:
+    if abs((datetime.now(UTC) - observed).total_seconds()) > 900 or not re.fullmatch(r"[0-9a-f]{40}", str(initialized.get("revision", ""))):
         raise ValueError("private backend proof is invalid")
     return initialized
 
@@ -1167,6 +1202,25 @@ def private_project_create_payload(project_id: str, project_parent: str) -> dict
     return {"projectId": project_id, "parent": project_parent}
 
 
+def resolve_authorized_principal(
+    runner: Callable[[list[str], dict[str, str]], str],
+    environment: dict[str, str],
+    userinfo_fetcher: Callable[[str], dict[str, object]],
+) -> str:
+    """Resolve the active principal from gcloud, falling back to the token userinfo endpoint."""
+    listed = runner(["gcloud", "auth", "list", "--filter=status:ACTIVE", "--format=value(account)"], environment).strip()
+    if listed and not any(character.isspace() for character in listed):
+        return listed
+    candidate = userinfo_fetcher("https://openidconnect.googleapis.com/v1/userinfo").get("email")
+    if not isinstance(candidate, str) or not candidate or any(character.isspace() for character in candidate) or "@" not in candidate:
+        raise ValueError("bootstrap contract is invalid")
+    return candidate.strip()
+
+
+def _userinfo_request(url: str, call: Callable[..., dict[str, object]]) -> dict[str, object]:
+    return call("GET", url)
+
+
 def execute_private_bootstrap(
     operator: dict[str, object],
     *,
@@ -1274,12 +1328,8 @@ def execute_private_bootstrap(
     reuse_proof: dict[str, object] = {}
     reuse_bootstrapped_backend = False
     if mode == "reused":
-        authorized_principal = runner(
-            ["gcloud", "auth", "list", "--filter=status:ACTIVE", "--format=value(account)"],
-            environment,
-        ).strip()
-        if not authorized_principal or any(character.isspace() for character in authorized_principal):
-            raise ValueError("bootstrap contract is invalid")
+        authorized_principal = resolve_authorized_principal(
+            runner, environment, lambda url: _userinfo_request(url, call))
         if operator.get("backend_bucket_preexists") is True:
             preexisting_backend = backend_verifier(operator, phase="bootstrap")
             validate_private_backend_gate(operator, preexisting_backend, phase="bootstrap")
@@ -1409,6 +1459,21 @@ def build_terraform_runtime_contract(
     }
 
 
+def private_process_environment(
+    operator: dict[str, object],
+    data_dir: Path,
+    config_dir: Path,
+    adc: Path,
+) -> dict[str, str]:
+    """Build the child-process environment for private gcloud/terraform calls, including the quota project."""
+    environment = dict(os.environ)
+    environment.update({"TF_DATA_DIR": str(data_dir), "CLOUDSDK_CONFIG": str(config_dir), "GOOGLE_APPLICATION_CREDENTIALS": str(adc)})
+    project_id = operator.get("project_id")
+    if isinstance(project_id, str) and project_id:
+        environment["GOOGLE_CLOUD_QUOTA_PROJECT"] = project_id
+    return environment
+
+
 def execute_private_terraform_action(
     contract_path: str | Path,
     operator: dict[str, object],
@@ -1427,7 +1492,7 @@ def execute_private_terraform_action(
     adc = paths.get("application_default_credentials")
     if not all(isinstance(value, Path) for value in (data_dir, config_dir, adc)):
         raise ValueError("private Terraform action is invalid")
-    _backend_proof_record(data_dir, operator, "bootstrap")
+    require_current_backend_proof(data_dir, operator, workspace)
     contract_file = Path(contract_path).resolve()
     if contract_file != data_dir.resolve() / "topic22-terraform-runtime.json":
         raise ValueError("private Terraform action is invalid")
@@ -1449,7 +1514,7 @@ def execute_private_terraform_action(
         if document != expected:
             raise ValueError("private Terraform contract is invalid")
     private_environment = dict(os.environ)
-    private_environment.update({"TF_DATA_DIR": str(data_dir), "CLOUDSDK_CONFIG": str(config_dir), "GOOGLE_APPLICATION_CREDENTIALS": str(adc)})
+    private_environment = private_process_environment(operator, data_dir, config_dir, adc)
     plan_path = data_dir / "topic22.tfplan"
     if action == "apply":
         if approval is None:
@@ -1683,7 +1748,7 @@ def dispatch_private_helper(
     external_path_validator: Callable[..., int] = validate_external_paths,
 ) -> int | None:
     """Dispatch exactly one private helper mode without invoking budget evaluation."""
-    selected = int(bool(args.validate_external_paths)) + int(bool(args.redacted_account_summary)) + int(bool(args.private_monetary_forecast)) + int(bool(args.prepare_kube_target)) + int(bool(args.private_terraform_action)) + int(bool(args.verify_private_backend)) + int(bool(args.private_bootstrap)) + int(bool(args.write_private_wi_values))
+    selected = int(bool(args.validate_external_paths)) + int(bool(args.redacted_account_summary)) + int(bool(args.private_monetary_forecast)) + int(bool(args.prepare_kube_target)) + int(bool(args.private_terraform_action)) + int(bool(args.verify_private_backend)) + int(bool(args.private_bootstrap)) + int(bool(args.write_private_wi_values)) + int(bool(args.print_model_cache_uri)) + int(bool(args.print_kms_key_id))
     if selected == 0:
         return None
     if selected != 1 or not args.operator_inputs:
@@ -1720,6 +1785,18 @@ def dispatch_private_helper(
         return 2
     if args.prepare_kube_target:
         kube_preparer(args.operator_inputs, workspace)
+        return 0
+    if args.print_model_cache_uri:
+        try:
+            print(print_private_model_cache_uri(args.operator_inputs, workspace))
+        except (OSError, ValueError, TypeError, json.JSONDecodeError, subprocess.SubprocessError):
+            return 2
+        return 0
+    if args.print_kms_key_id:
+        try:
+            print(print_private_kms_key_id(args.operator_inputs, workspace))
+        except (OSError, ValueError, TypeError, json.JSONDecodeError, subprocess.SubprocessError):
+            return 2
         return 0
     if args.private_bootstrap:
         bootstrap_executor(bootstrap_loader(args.operator_inputs, workspace), workspace=workspace)
@@ -1777,7 +1854,7 @@ def read_private_workload_identity_bindings(
     if not all(isinstance(value, Path) for value in (data_dir, config_dir, adc)):
         raise ValueError("private workload identity output is invalid")
     environment = dict(os.environ)
-    environment.update({"TF_DATA_DIR": str(data_dir), "CLOUDSDK_CONFIG": str(config_dir), "GOOGLE_APPLICATION_CREDENTIALS": str(adc)})
+    environment = private_process_environment(operator, data_dir, config_dir, adc)
     command = ["terraform", "-chdir=infra/terraform/edai2", "output", "-json", "workload_identity_bindings"]
     execute = runner or (lambda argv, env: subprocess.run(argv, env=env, check=True, capture_output=True, text=True, encoding="utf-8").stdout)
     bindings = json.loads(execute(command, environment))
@@ -1786,6 +1863,64 @@ def read_private_workload_identity_bindings(
     for workload in _WORKLOAD_KSAS:
         workload_identity_helm_values(bindings, workload)
     return bindings
+
+
+def model_cache_uri(bucket_name: str) -> str:
+    """Render the fixed model-cache prefix URI for a bucket name."""
+    if not isinstance(bucket_name, str) or not re.fullmatch(r"[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]", bucket_name):
+        raise ValueError("GCS bucket name is invalid")
+    return f"gs://{bucket_name}/model-cache/"
+
+
+def print_private_model_cache_uri(
+    operator_inputs: str | Path,
+    workspace: Path,
+    *,
+    operator_loader: Callable[..., dict[str, Any]] = load_operator_inputs,
+    runner: Callable[[list[str], dict[str, str]], str] | None = None,
+) -> str:
+    """Resolve the live data-bucket name via the private bundle and print only the cache URI."""
+    operator = operator_loader(str(operator_inputs), workspace)
+    paths = operator.get("resolved_paths") if isinstance(operator, dict) else None
+    if not isinstance(paths, dict):
+        raise ValueError("private model cache URI is invalid")
+    data_dir = paths.get("tf_data_dir")
+    config_dir = paths.get("gcloud_config_dir")
+    adc = paths.get("application_default_credentials")
+    if not all(isinstance(value, Path) for value in (data_dir, config_dir, adc)):
+        raise ValueError("private model cache URI is invalid")
+    environment = dict(os.environ)
+    environment = private_process_environment(operator, data_dir, config_dir, adc)
+    command = ["terraform", "-chdir=infra/terraform/edai2", "output", "-json", "bucket_name"]
+    execute = runner or (lambda argv, env: subprocess.run(argv, env=env, check=True, capture_output=True, text=True, encoding="utf-8").stdout)
+    return model_cache_uri(json.loads(execute(command, environment)))
+
+
+def print_private_kms_key_id(
+    operator_inputs: str | Path,
+    workspace: Path,
+    *,
+    operator_loader: Callable[..., dict[str, Any]] = load_operator_inputs,
+    runner: Callable[[list[str], dict[str, str]], str] | None = None,
+) -> str:
+    """Resolve the live KMS key id via the private bundle; identifier-class output only."""
+    operator = operator_loader(str(operator_inputs), workspace)
+    paths = operator.get("resolved_paths") if isinstance(operator, dict) else None
+    if not isinstance(paths, dict):
+        raise ValueError("private KMS key id is invalid")
+    data_dir = paths.get("tf_data_dir")
+    config_dir = paths.get("gcloud_config_dir")
+    adc = paths.get("application_default_credentials")
+    if not all(isinstance(value, Path) for value in (data_dir, config_dir, adc)):
+        raise ValueError("private KMS key id is invalid")
+    environment = dict(os.environ)
+    environment = private_process_environment(operator, data_dir, config_dir, adc)
+    command = ["terraform", "-chdir=infra/terraform/edai2", "output", "-json", "kms_key_id"]
+    execute = runner or (lambda argv, env: subprocess.run(argv, env=env, check=True, capture_output=True, text=True, encoding="utf-8").stdout)
+    key_id = json.loads(execute(command, environment))
+    if not isinstance(key_id, str) or not key_id.startswith("projects/"):
+        raise ValueError("private KMS key id is invalid")
+    return key_id
 
 
 def workload_identity_helm_values(bindings: dict[str, object], workload: str) -> dict[str, object]:
@@ -1945,7 +2080,7 @@ def execute(
             attestation = json.loads(paths["recovery_sink_attestation"].read_text(encoding="utf-8"))
             attestation_ok = recovery_attestation_ok(attestation, operator["recovery_sink"])
         backend_preexists, backend_binding = _bootstrap_backend_binding(operator, paths["tf_data_dir"])
-        require_fresh_backend_preflight_proof(paths["tf_data_dir"], operator, workspace)
+        require_current_backend_proof(paths["tf_data_dir"], operator, workspace)
         runtime = build_terraform_runtime_contract(
             backend_config=paths["terraform_backend_config"],
             tfvars=paths["terraform_tfvars"],

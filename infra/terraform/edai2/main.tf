@@ -52,6 +52,7 @@ module "iam" {
   source      = "../modules/iam"
   project_id  = var.project_id
   bucket_name = var.bucket_name
+  kms_key_id  = module.kms.key_id
   depends_on  = [google_project_service.topic22, module.gcs]
 }
 module "budget" {

@@ -134,6 +134,58 @@ def _has_secret(value: object) -> bool:
     return isinstance(value, str) and bool(_SECRET.search(value))
 
 
+_TOPIC23_FORBIDDEN_KEYS = ("root_token", "recovery_key", "unseal", "custodian", "attestation")
+
+
+def _topic23_forbidden_key(value: object) -> bool:
+    if isinstance(value, dict):
+        return any(_topic23_forbidden_key(key) or _topic23_forbidden_key(item) for key, item in value.items())
+    if isinstance(value, list):
+        return any(_topic23_forbidden_key(item) for item in value)
+    return isinstance(value, str) and any(token in value.lower() for token in _TOPIC23_FORBIDDEN_KEYS)
+
+
+def verify_vault_bootstrap(payload: dict) -> None:
+    """Fail-closed check of redacted Vault bootstrap evidence (no custodians)."""
+    if not isinstance(payload, dict):
+        raise ValueError("vault bootstrap evidence must be an object")
+    for key in ("initialized", "seal_type", "key_names", "policy_results", "root_revoked"):
+        if key not in payload:
+            raise ValueError(f"vault bootstrap evidence misses {key}")
+    if payload["initialized"] is not True or payload["root_revoked"] is not True:
+        raise ValueError("vault must be initialized with its initial root revoked")
+    if not isinstance(payload["key_names"], list) or not payload["key_names"]:
+        raise ValueError("key names must be nonempty")
+    if not isinstance(payload["policy_results"], dict) or not all(payload["policy_results"].values()):
+        raise ValueError("every policy probe must pass")
+    scrubbed = dict(payload)
+    scrubbed["key_names"] = sorted(hashlib.sha256(str(name).encode("utf-8")).hexdigest()
+                                    for name in payload["key_names"])
+    if _topic23_forbidden_key(payload) or _has_secret(scrubbed):
+        raise ValueError("vault bootstrap evidence carries secret material")
+
+
+def verify_model_cache(payload: dict) -> None:
+    """Fail-closed check of immutable model-cache evidence."""
+    if not isinstance(payload, dict):
+        raise ValueError("model cache evidence must be an object")
+    objects = payload.get("objects")
+    if not isinstance(objects, list) or len(objects) != 3:
+        raise ValueError("exactly three cached model objects are required")
+    for item in objects:
+        if not isinstance(item, dict):
+            raise ValueError("cache object must be an object")
+        for key in ("name", "generation", "sha256", "bytes"):
+            if key not in item:
+                raise ValueError(f"cache object misses {key}")
+        if not re.fullmatch(r"[0-9a-f]{64}", str(item["sha256"])):
+            raise ValueError("cache object hash must be SHA-256")
+    if "manifest_sha256" not in payload or not re.fullmatch(r"[0-9a-f]{64}", str(payload["manifest_sha256"])):
+        raise ValueError("manifest hash must be SHA-256")
+    if _has_secret(payload):
+        raise ValueError("model cache evidence carries secret material")
+
+
 _TERRAFORM_PRINCIPAL_FIELDS = {
     "google_storage_bucket_iam_member": {"member"},
     "google_kms_crypto_key_iam_member": {"member"},
@@ -1589,8 +1641,27 @@ def main() -> int:
     parser.add_argument("--loopback-only", action="store_true")
     parser.add_argument("--tunnel-ttl")
     parser.add_argument("--local-port", type=int)
+    parser.add_argument("--verify-vault-bootstrap")
+    parser.add_argument("--verify-model-cache")
     parser.add_argument("--strict", action="store_true")
     args = parser.parse_args()
+    if args.verify_vault_bootstrap or args.verify_model_cache:
+        if not args.strict or (args.verify_vault_bootstrap and args.verify_model_cache):
+            parser.error("verify exactly one Topic 23 evidence file with --strict")
+        target = args.verify_vault_bootstrap or args.verify_model_cache
+        try:
+            payload = json.loads(Path(target).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            parser.error(str(error))
+        try:
+            if args.verify_vault_bootstrap:
+                verify_vault_bootstrap(payload)
+            else:
+                verify_model_cache(payload)
+        except ValueError as error:
+            parser.error(str(error))
+        print(json.dumps({"verified": Path(target).name}, sort_keys=True))
+        return 0
     if not args.verify_observability_contract or not args.strict:
         parser.error("local verification requires --verify-observability-contract --strict; live capture is GCP-owned")
     supplied = (args.kubeconfig, args.context, args.platform_inventory, args.inventory_signature, args.private_endpoint_key, args.tunnel_ttl, args.local_port)

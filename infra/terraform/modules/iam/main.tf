@@ -30,3 +30,22 @@ resource "google_service_account_iam_member" "workload_identity" {
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${var.project_id}.svc.id.goog[edai2/${each.value.ksa}]"
 }
+resource "google_service_account" "vault" {
+  account_id   = "edai2-vault"
+  display_name = "EDAI2 Vault KMS auto-unseal"
+}
+resource "google_service_account_iam_member" "vault_workload_identity" {
+  service_account_id = google_service_account.vault.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${var.project_id}.svc.id.goog[vault/vault]"
+}
+resource "google_kms_crypto_key_iam_member" "vault_decrypter" {
+  crypto_key_id = var.kms_key_id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member        = "serviceAccount:${google_service_account.vault.email}"
+}
+resource "google_kms_crypto_key_iam_member" "vault_key_viewer" {
+  crypto_key_id = var.kms_key_id
+  role          = "roles/cloudkms.viewer"
+  member        = "serviceAccount:${google_service_account.vault.email}"
+}

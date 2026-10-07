@@ -1,4 +1,5 @@
 output "service_accounts" { value = [for account in google_service_account.workload_identity : account.email] }
+output "vault_service_account_email" { value = google_service_account.vault.email }
 output "workload_identity_bindings" {
   value = {
     for key, binding in google_service_account_iam_member.workload_identity : key => {
