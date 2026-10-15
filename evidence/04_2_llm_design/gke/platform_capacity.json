@@ -1,0 +1,11 @@
+{
+  "dry_run": true,
+  "profile": "core",
+  "resources": {
+    "ingress_enabled": false,
+    "platform_nodes": 1,
+    "spot_nodes": 1,
+    "workload_replicas": 1
+  },
+  "ttl_hours": 2
+}

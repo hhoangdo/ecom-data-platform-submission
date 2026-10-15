@@ -1,0 +1,265 @@
+{
+  "bound_pvc_count": 10,
+  "bound_pvc_total_gi": 71,
+  "context": "edai2-gke",
+  "expired_topic24_lease_retained": true,
+  "gitignored_admin_token_present": true,
+  "kubernetes_node_count": 0,
+  "lease_acquired_this_run": false,
+  "observed_at_utc": "2026-10-12T13:29:29.928692+00:00",
+  "pool_readbacks": [
+    {
+      "autoscaling": {
+        "enabled": true,
+        "locationPolicy": "BALANCED"
+      },
+      "managed_groups": [
+        {
+          "current_actions": {
+            "abandoning": 0,
+            "creating": 0,
+            "creatingWithoutRetries": 0,
+            "deleting": 0,
+            "none": 0,
+            "recreating": 0,
+            "refreshing": 0,
+            "restarting": 0,
+            "resuming": 0,
+            "starting": 0,
+            "stopping": 0,
+            "suspending": 0,
+            "verifying": 0
+          },
+          "target_size": 0
+        }
+      ],
+      "name": "platform",
+      "operation_failed": false,
+      "operation_status": "DONE",
+      "requested_nodes": 0
+    },
+    {
+      "autoscaling": {
+        "enabled": true,
+        "locationPolicy": "ANY"
+      },
+      "managed_groups": [
+        {
+          "current_actions": {
+            "abandoning": 0,
+            "creating": 0,
+            "creatingWithoutRetries": 0,
+            "deleting": 0,
+            "none": 0,
+            "recreating": 0,
+            "refreshing": 0,
+            "restarting": 0,
+            "resuming": 0,
+            "starting": 0,
+            "stopping": 0,
+            "suspending": 0,
+            "verifying": 0
+          },
+          "target_size": 0
+        }
+      ],
+      "name": "spot",
+      "operation_failed": false,
+      "operation_status": "DONE",
+      "requested_nodes": 0
+    }
+  ],
+  "public_loadbalancer_count": 0,
+  "replica_restore_record": "tmp/edai2-gcp/topic24-finalize/workload_replica_restore.json",
+  "replica_restore_record_sha256": "0e84086746cc836ea0b51d0d339a53965d3022228820b53259a11c91ee93157e",
+  "resume_requires_workload_replica_restore": true,
+  "revision": "1643f8d224f66e7ed078fce7cc1c7414780a0cd7",
+  "status": "Partial",
+  "supporting_workload_restore": [
+    {
+      "kind": "Deployment",
+      "name": "airflow-scheduler",
+      "previous_replicas": 1,
+      "uid": "8cd6a326-6755-451d-81e2-c82c986dbb30"
+    },
+    {
+      "kind": "Deployment",
+      "name": "airflow-statsd",
+      "previous_replicas": 1,
+      "uid": "1a003658-8771-4581-a0f8-d5727a796b50"
+    },
+    {
+      "kind": "Deployment",
+      "name": "airflow-webserver",
+      "previous_replicas": 1,
+      "uid": "46dc582e-df96-46cf-a45a-80792e706b43"
+    },
+    {
+      "kind": "Deployment",
+      "name": "datahub-acryl-datahub-actions",
+      "previous_replicas": 1,
+      "uid": "02276789-31ce-496d-a891-ac0a73b8cb50"
+    },
+    {
+      "kind": "Deployment",
+      "name": "datahub-datahub-frontend",
+      "previous_replicas": 1,
+      "uid": "7145e9be-4ad9-44b7-86fa-390357e2153b"
+    },
+    {
+      "kind": "Deployment",
+      "name": "datahub-datahub-gms",
+      "previous_replicas": 1,
+      "uid": "072456d5-473b-449d-bc77-ba2770e2be02"
+    },
+    {
+      "kind": "Deployment",
+      "name": "feast-feature-server",
+      "previous_replicas": 1,
+      "uid": "333e2ecc-c0b1-4a77-b656-d524ac83bef2"
+    },
+    {
+      "kind": "Deployment",
+      "name": "grafana",
+      "previous_replicas": 1,
+      "uid": "103125fe-6499-44b1-85ca-2302f03ebc98"
+    },
+    {
+      "kind": "Deployment",
+      "name": "langfuse-web",
+      "previous_replicas": 1,
+      "uid": "c07fafc5-7330-4d9d-8cca-05e734c44243"
+    },
+    {
+      "kind": "Deployment",
+      "name": "langfuse-worker",
+      "previous_replicas": 1,
+      "uid": "48cdc9ec-fc6b-4020-b354-a7bde337fe0b"
+    },
+    {
+      "kind": "Deployment",
+      "name": "loki-gateway",
+      "previous_replicas": 1,
+      "uid": "5f85d348-2661-4ae1-9200-61438b5287fb"
+    },
+    {
+      "kind": "Deployment",
+      "name": "prometheus-kube-state-metrics",
+      "previous_replicas": 1,
+      "uid": "d1d84d9e-9436-4f49-b507-0dd5d1808b8c"
+    },
+    {
+      "kind": "Deployment",
+      "name": "prometheus-prometheus-pushgateway",
+      "previous_replicas": 1,
+      "uid": "d67dbcd9-5da5-447f-86f4-3dea2bb2e916"
+    },
+    {
+      "kind": "Deployment",
+      "name": "prometheus-server",
+      "previous_replicas": 1,
+      "uid": "1541d6e2-541b-4a17-81f9-58a6f6bbe64d"
+    },
+    {
+      "kind": "Deployment",
+      "name": "redpanda-console",
+      "previous_replicas": 1,
+      "uid": "9ee85e46-512c-4a19-985e-1e2f3640c89f"
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "airflow-redis",
+      "previous_replicas": 1,
+      "uid": "20479b9b-61f0-4f73-a192-ff7656adfe3e"
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "airflow-triggerer",
+      "previous_replicas": 1,
+      "uid": "0490bece-2c22-48d8-839c-9db780f22199"
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "airflow-worker",
+      "previous_replicas": 1,
+      "uid": "4d8a3513-e5eb-4505-9227-ecdf405f65b2"
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "clickhouse-keeper",
+      "previous_replicas": 1,
+      "uid": "cdd70d7f-197b-4962-a722-c2ebd7381fa5"
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "clickhouse-shard0",
+      "previous_replicas": 1,
+      "uid": "dd78cdfb-2057-437b-85ed-70457f684140"
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "feast-redis-master",
+      "previous_replicas": 1,
+      "uid": "3d7f4714-264d-4029-880a-de4ba6b07160"
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "loki",
+      "previous_replicas": 1,
+      "uid": "5a2275fb-03e1-4d30-9628-0216ba6ea94f"
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "loki-chunks-cache",
+      "previous_replicas": 1,
+      "uid": "f28aecbc-3e86-4aea-ac27-f3f5b5b14804"
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "loki-results-cache",
+      "previous_replicas": 1,
+      "uid": "32c3709b-43e1-4f77-8e26-6cbf843857a5"
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "opensearch-cluster-master",
+      "previous_replicas": 1,
+      "uid": "01e514b9-d31f-4dc6-af5a-94d4df448625"
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "postgres-postgresql",
+      "previous_replicas": 1,
+      "uid": "d32e501b-5e22-411f-9c3b-79d9ac59a2b4"
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "prometheus-alertmanager",
+      "previous_replicas": 1,
+      "uid": "80b3a25c-8226-45ce-ad5b-ccff7cdc2143"
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "redpanda",
+      "previous_replicas": 1,
+      "uid": "dfcf2a8a-447f-4ca3-99ab-43d2a734558b"
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "tempo",
+      "previous_replicas": 1,
+      "uid": "704e5c67-97a0-451b-b7c2-7dfb582d1825"
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "valkey-primary",
+      "previous_replicas": 1,
+      "uid": "f0978e19-bc48-42e3-98e9-d6b913e1e84f"
+    }
+  ],
+  "supporting_workloads_desired_replicas": 0,
+  "suspended_supporting_workload_count": 30,
+  "topic25_blocked": true,
+  "vault_desired_replicas": 0,
+  "vault_recovery_secret_present": true
+}

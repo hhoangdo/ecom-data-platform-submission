@@ -1,0 +1,64 @@
+{
+  "compatibility": {
+    "api_server_env_from_kinds": [
+      "configMapRef"
+    ],
+    "api_server_redis_argument_names": [
+      "--redis-cluster-address",
+      "--redis-no-tls",
+      "--redis-use-iam-auth"
+    ],
+    "api_server_redis_password_env_names": [],
+    "api_server_secret_env_from_names": [],
+    "chart_supports_endpoint_iam_tls_only": true,
+    "platform_valkey_requires_authentication": true
+  },
+  "compatible": false,
+  "context": "edai2-gke",
+  "first_failure": "substrate-0.0.6-external-valkey-password-input-unsupported",
+  "lease_acquired": false,
+  "observed_at_utc": "2026-10-12T13:13:30.878480+00:00",
+  "phase": "local-preparation",
+  "platform_install_exists": false,
+  "resume_requires": "Owning local Topic 18 must provide a reviewed, secret-safe authenticated external Valkey connection for pinned Substrate 0.0.6; no auth disablement, credential literals, bundled replacement, or version substitution.",
+  "revision": "1643f8d224f66e7ed078fce7cc1c7414780a0cd7",
+  "status": "Partial",
+  "topic25_blocked": true,
+  "verified_chart_artifacts": [
+    {
+      "chart_metadata_sha256": "f81c9e2b1a603002dca5d5d5680121f459c5fe9c72225fcf07094c92a7d87b37",
+      "digest": "sha256:14958daeb59df2958dbfec204126860f6afe809b5146d2f04733125ef462ed2e",
+      "name": "agentgateway",
+      "source": "oci://cr.agentgateway.dev/charts/agentgateway",
+      "version": "v1.3.1"
+    },
+    {
+      "chart_metadata_sha256": "cd1d8f2ced138aae3931e8f9f21603d06996d8f2f05dc0f63cfb3942e6449d23",
+      "digest": "sha256:65586179d1f784030b82c148852df935dce22468b90072c195dd0664a78a8bff",
+      "name": "agentgateway-crds",
+      "source": "oci://cr.agentgateway.dev/charts/agentgateway-crds",
+      "version": "v1.3.1"
+    },
+    {
+      "chart_metadata_sha256": "1c833971c8d97802d13bfec4471c0e83076a0cf6f0de61405e2cbadd77578d4d",
+      "digest": "sha256:6a77620b8b946270d6720db7006fb78b48eb24dd1235ab9a208ef2834f5b5796",
+      "name": "substrate",
+      "source": "oci://ghcr.io/kagent-dev/substrate/helm/substrate",
+      "version": "0.0.6"
+    },
+    {
+      "chart_metadata_sha256": "98d2ee589849285509146d80bff7759a4d7b05bb064001a575d1569c9131f408",
+      "digest": "sha256:be08504485a73dc67d2ef8a52063e472f756089d720d2451b9ee52651e485bbc",
+      "name": "kagent",
+      "source": "oci://ghcr.io/kagent-dev/kagent/helm/kagent",
+      "version": "0.9.9"
+    },
+    {
+      "chart_metadata_sha256": "7167bdf2fafaef4267f8129af67a2718180d41bd65aeaa03595b5828598fa74d",
+      "digest": "sha256:8196ce4566f9817ecec461f0737d2c6efc675ebf7c654ef72ac81200fc8c414a",
+      "name": "agentregistry",
+      "source": "oci://ghcr.io/agentregistry-dev/agentregistry/charts/agentregistry",
+      "version": "0.3.3"
+    }
+  ]
+}

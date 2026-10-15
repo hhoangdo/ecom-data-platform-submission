@@ -1,0 +1,58 @@
+{
+  "status": "Partial",
+  "observed_at_utc": "2026-10-13T17:33:18.393388+00:00",
+  "revision": "1643f8d224f66e7ed078fce7cc1c7414780a0cd7",
+  "branch": "feature/implement-edai2",
+  "first_failure": "ko rejects explicit GOOS with --platform linux/amd64",
+  "source_tests": {
+    "cmd/ateapi": "passed",
+    "cmd/ateapi/internal/store/ateredis": "passed",
+    "location": "temporary GKE Job"
+  },
+  "published_image": false,
+  "platform_install_sealed": false,
+  "model_inference_proven": false,
+  "topic25_blocked": true,
+  "local_verification": {
+    "required_six_suites_passed": 48,
+    "focused_regressions_passed": 110,
+    "budget_helper_regressions_passed": 113
+  },
+  "budget_preflight": {
+    "exit_code": 0,
+    "ok": true,
+    "gross_spend_vnd": 2040000,
+    "rounded_precision_vnd": 10000,
+    "approved_cumulative_hours": {
+      "regular": 130,
+      "spot": 130
+    }
+  },
+  "lease_acquired_at_utc": "2026-10-13T17:01:48.042641+00:00",
+  "lease_retained_reason": "Strict install manifest legitimately absent; no synthetic release evidence",
+  "cleanup": {
+    "verified_at_utc": "2026-10-13T17:30:33.227145+00:00",
+    "nodes": 0,
+    "vault_replicas": 0,
+    "pvcs": 10,
+    "pvc_gib": 71,
+    "all_bound": true,
+    "temporary_writer_grant_removed": true,
+    "temporary_runtime_removed": true
+  },
+  "artifact_sha256": {
+    "tmp/edai2-gcp/topic24-finalize/execution-required-six.xml": "367d5762f327d7c65cadb95fc76067ba704d3990c156cd45ad2d9fee82cdb641",
+    "tmp/edai2-gcp/topic24-finalize/execution-focused-green.xml": "3b2836489fdb23790cde9e064a968e32245da188615cb9b26a43918fa46a271c",
+    "tmp/edai2-gcp/topic24-finalize/phase-capacity-20261013.json": "386286a6da682657a3423a97538cf7c44c3e3d52c7c4c10cebef6fb71c357d5b",
+    "tmp/edai2-gcp/topic24-finalize/envelope-usage-approved-20261013.json": "1d969bd3ad61779f29710e8746a17a76414ec8bf14c427e308306ebcdd5f579a",
+    "tmp/edai2-gcp/topic24-finalize/budget-observation-20261013.json": "8bf6697e2ec471a62cbc0d89336134b5b2f35a2c2eb829653924baffabb5c712",
+    "evidence/04_2_llm_design/gke/gcp_preflight_topic24.json": "3af63f8f23486b8d7e9c0370e2a9db4e9ac11432e31bdd9163c0dee8a82f1154",
+    "evidence/04_2_llm_design/gke/cost_forecast_topic24.json": "b324769e93e52a1dc9a9b5d730951c03be39c4c66962527b25b432e7edd39ae7",
+    "tmp/edai2-gcp/topic24-finalize/failed-attempt-20261014/cleanup-progress.json": "9370724525393142bf475539b8391b8c12c69d836804e96487ac0086a233567e",
+    "tmp/edai2-gcp/topic24-finalize/failed-attempt-20261014/topic24-substrate-api-build.log": "953e842264cd79f82d4336340e2e503cffdbd3c478a437068b725623878fd9da",
+    "tmp/edai2-gcp/topic24-finalize/failed-attempt-20261014/topic24-substrate-api-build-status.json": "10604e4d770d2f79d76070466ddcc9653acc0c959e5cec2ebc0920bdbea76f1e",
+    "tmp/edai2-gcp/topic24-finalize/substrate-source-topic24-finalize.tar.gz": "c1f70d0e3d2157120de0f7ad8096314e7f02c26c8606443a57cbc4291a075f31",
+    "tmp/edai2-gcp/topic24-finalize/remote-build-provenance.json": "e4af6666ec87661f09755eb6e8dd568954f009916c501fa36c508c147fe2009a"
+  },
+  "resume": "Await explicit exception for the reviewed ko command correction and one rerun in remaining original lease; otherwise keep suspended and Partial."
+}

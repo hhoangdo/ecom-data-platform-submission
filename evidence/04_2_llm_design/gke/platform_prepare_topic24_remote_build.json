@@ -1,0 +1,173 @@
+{
+  "artifact_sha256": {
+    "infra/helm/edai2/releases.yaml": "ec18374ebccf2ca497a3c807781e524ccc4c490e842ca234765cfbd7d3ae4805",
+    "infra/helm/edai2/values/agentregistry.yaml": "6eec311ee451f06e657954d0e03f671884e791e2074bc7885de42c6c5b850981",
+    "infra/helm/edai2/values/kagent.yaml": "a0a79e56f309ccd5e5cbec0c5f76f00c6597515b514ea7d27332692b87e6e5ea",
+    "infra/kagent/edai2/model-configs.yaml": "83e90abf50d266c6ee38914904aa5fac1ccac364e939e2ad0cb2a6e693f8d88f",
+    "infra/kagent/edai2/workerpool-scaledobject.yaml": "36c0c0abc94943638cdc06e4b95629d55352da0ee69b8663b60b0a18bbc30801",
+    "infra/security/external-secrets/agentregistry.yaml": "0e63fd8500b99f0d1077ac23acb21fe8f9c304e7aac45a3aca911e723e4c8269",
+    "scripts/gke/topic24_postrender.py": "785fda14dfdd77fe3e6d526b9b2cd0d76bf6963daa0b66a49d1858f9cd3addbd",
+    "tests/integration/llm/test_gke_agents.py": "493786c6f1e6e34ff6375cf25a2c627943881a4e8b626d6094f632201363a458",
+    "tests/unit/test_topic24_capacity_ceilings.py": "da7ae08917063795618a3b6de143de78b80aa9a895567b42cc4a545422ff03ca",
+    "tests/unit/test_topic24_finalize_values.py": "e0437e24a4b8263d09e4965cce39d4cdb4f6144ea5f39618a6be88192e34bad0",
+    "tests/unit/test_topic24_helm_images.py": "b41247a4d77f0cb8a6ed397563fe00bb26272b0a53433ae830e7fde5a76ce9db",
+    "tests/unit/test_topic24_postrender.py": "3e7849cb7bde7a787d1fe6520806066e387d0b16fe81ca5eb0fa369da881e506"
+  },
+  "branch": "feature/implement-edai2",
+  "budget_gate_run": false,
+  "capacity": {
+    "complete": false,
+    "cpu_ceiling": 3.0,
+    "generated_gateway_proxy_worker_and_install_phase_accounting_pending": true,
+    "headroom_cpu": -0.21,
+    "jenkins_new_pvc_gib": 8,
+    "missing_substrate_cpu_memory_bounds": true,
+    "orphan_deletion_assumed": false,
+    "projected_pvc_gib": 79,
+    "pvc_ceiling_gib": 80,
+    "rendered_cpu_lower_bound": 3.21,
+    "retained_live_pvc_gib": 71
+  },
+  "cleanup": {
+    "all_pvcs_bound": true,
+    "gitignored_admin_token_present": true,
+    "lease_created_or_changed": false,
+    "node_count": 0,
+    "owned_runtime_created": false,
+    "pvc_count": 10,
+    "pvc_requested_gib": 71.0,
+    "vault_desired_replicas": 0,
+    "vault_recovery_secret_present": true
+  },
+  "cleanup_readback_sha256": "efad1cf58a9a2e9464405a6cb1fac769b93134f22b7cb6755e7a3ac9f3fe88da",
+  "cloud_build_used": false,
+  "cloud_mutations": [],
+  "context": "edai2-gke",
+  "first_failure": "rendered-cpu-lower-bound-3.210-exceeds-approved-3.000",
+  "lease_acquired": false,
+  "limitations": [
+    "No deployment readiness or complete capacity proof claimed",
+    "Actual node scratch free space and builder publishing permissions not tested",
+    "Old owner-matching expired lease retained unchanged; sealing manifest absent",
+    "Accepted residuals and two prior credential exposures remain in the post-Complete handoff"
+  ],
+  "local_docker_used": false,
+  "monetary_inputs_refreshed": false,
+  "observed_at_utc": "2026-10-12T17:07:14.195157+00:00",
+  "pending": [
+    "bounded capacity for every remaining/generated workload within existing caps",
+    "Substrate standalone/password-file source patch and remote tests/build",
+    "Vault Agent file/role wiring and private kagent provider rendering",
+    "gateway schema repair and five-allow/twenty-deny live verification",
+    "Registry/Langfuse/kagent SQL bootstrap before consumers",
+    "strict live inventory/exclusion collection and sealing",
+    "ordered remaining installation"
+  ],
+  "phase": "local-preparation-before-lease",
+  "platform_install_exists": false,
+  "pools": [
+    {
+      "disk_size_gb": 100,
+      "machine_type": "e2-highmem-4",
+      "managed_group_targets": [
+        0
+      ],
+      "name": "platform",
+      "workload_metadata_mode": "GKE_METADATA"
+    },
+    {
+      "disk_size_gb": 100,
+      "machine_type": "e2-standard-8",
+      "managed_group_targets": [
+        0
+      ],
+      "name": "spot",
+      "workload_metadata_mode": "GKE_METADATA"
+    }
+  ],
+  "protected_input_sha256": {
+    "evidence/04_2_llm_design/gke/model_cache.json": "67609f908cf96cfb28d0910411a55dc8cb0670766dd17feb2405cb951ebf2dba",
+    "evidence/04_2_llm_design/security/vault_bootstrap.json": "453c88105fcc3d82cc25302ebc17161c09a612def373b82a2e07fdd8858f5489"
+  },
+  "review": {
+    "fresh_reviewer": true,
+    "registry_postgres_admin_credential_copy_removed": true,
+    "remaining_registry_database_bootstrap_required": true,
+    "stock_kagent_hosted_modelconfig_still_requires_private_replacement_or_filter": true
+  },
+  "revision": "1643f8d224f66e7ed078fce7cc1c7414780a0cd7",
+  "static_junit_sha256": "24603e6173fef56c97494f849bd9ce5034600933976a54c17e7cd0dcd4a6aec4",
+  "status": "Partial",
+  "tests": {
+    "cpu_kustomize_render_exit": 0,
+    "diff_check_exit": 0,
+    "final_static_suites": {
+      "errors": 0,
+      "exit_code": 1,
+      "failed": [
+        "test_platform_cpu_fits_ceiling",
+        "test_remaining_components_do_not_have_unbounded_containers"
+      ],
+      "passed": 55,
+      "tests": 57
+    },
+    "focused_preparation_regressions": {
+      "exit_code": 0,
+      "passed": 10
+    },
+    "helm_image_explicit_context_regression": {
+      "exit_code": 0,
+      "passed": 1
+    },
+    "helm_lints": {
+      "service_agent_exit": 0,
+      "warning": "image.tag required without sample workload values",
+      "worker_exit": 0
+    }
+  },
+  "topic25_blocked": true,
+  "verified_oci_chart_catalog": [
+    {
+      "artifact_digest": "sha256:14958daeb59df2958dbfec204126860f6afe809b5146d2f04733125ef462ed2e",
+      "name": "agentgateway",
+      "repo": "oci://cr.agentgateway.dev/charts/agentgateway",
+      "version": "v1.3.1"
+    },
+    {
+      "artifact_digest": "sha256:65586179d1f784030b82c148852df935dce22468b90072c195dd0664a78a8bff",
+      "name": "agentgateway-crds",
+      "repo": "oci://cr.agentgateway.dev/charts/agentgateway-crds",
+      "version": "v1.3.1"
+    },
+    {
+      "artifact_digest": "sha256:6a77620b8b946270d6720db7006fb78b48eb24dd1235ab9a208ef2834f5b5796",
+      "name": "substrate",
+      "repo": "oci://ghcr.io/kagent-dev/substrate/helm/substrate",
+      "version": "0.0.6"
+    },
+    {
+      "artifact_digest": "sha256:08288f647f08398e36830fc16f2c38a46793c5a23db1c2ddd209f2b5b8072949",
+      "name": "substrate-crds",
+      "repo": "oci://ghcr.io/kagent-dev/substrate/helm/substrate-crds",
+      "version": "0.0.6"
+    },
+    {
+      "artifact_digest": "sha256:be08504485a73dc67d2ef8a52063e472f756089d720d2451b9ee52651e485bbc",
+      "name": "kagent",
+      "repo": "oci://ghcr.io/kagent-dev/kagent/helm/kagent",
+      "version": "0.9.9"
+    },
+    {
+      "artifact_digest": "sha256:2ad63e1be9680f9597909fe13fccd827a150ee773818939a39c60102af76a9e4",
+      "name": "kagent-crds",
+      "repo": "oci://ghcr.io/kagent-dev/kagent/helm/kagent-crds",
+      "version": "0.9.9"
+    },
+    {
+      "artifact_digest": "sha256:8196ce4566f9817ecec461f0737d2c6efc675ebf7c654ef72ac81200fc8c414a",
+      "name": "agentregistry",
+      "repo": "oci://ghcr.io/agentregistry-dev/agentregistry/charts/agentregistry",
+      "version": "0.3.3"
+    }
+  ]
+}

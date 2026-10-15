@@ -1,4 +1,6 @@
 {
+  "admin_policy_sha256": "61d119119364056da5ec88b19b65c5cee956010596305776627c332d93545806",
+  "admin_token": "gitignored-local-only",
   "disaster_safe": false,
   "initialized": true,
   "key_name_fingerprints": [

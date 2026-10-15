@@ -1,0 +1,20 @@
+{
+  "status": "Partial",
+  "attempt": "corrected-build-before-approved-cache-resume",
+  "recorded_at_utc": "2026-10-14T05:16:09.798133+00:00",
+  "revision": "1643f8d224f66e7ed078fce7cc1c7414780a0cd7",
+  "build_passed": true,
+  "first_failure": "cache ConfigMap key model-cache-manifest.json differs from initializer model_cache.json",
+  "model_inference_proved": false,
+  "strict_seal_present": false,
+  "cleanup_verified": true,
+  "topic25_blocked": true,
+  "artifacts": {
+    "tmp/edai2-gcp/topic24-finalize/remote-build-output/job-completion.json": "5fff044af848eb1fcefc924a7ee22b7992c50fc212a37d0975a30cf75f4603f2",
+    "tmp/edai2-gcp/topic24-finalize/remote-build-output/image-platform-provenance.json": "6d6b7080e9f1e10e7330fb1f16faf80f4c75d9379461cdf4c2ca26160779385c",
+    "tmp/edai2-gcp/topic24-finalize/corrected-model-feasibility.json": "83d86731bd9d8b751a9dce3b6010a6264fce7700e327acac779b5342f47fa962",
+    "tmp/edai2-gcp/topic24-finalize/corrected-model-cache-init.log": "853a71ed5d17c81a38270dd3e9099d6dfec5ce2a394d98e7706afc4f3a0d209e",
+    "tmp/edai2-gcp/topic24-finalize/corrected-attempt-20261014/cleanup-progress.json": "071da45c367668324264208e3756e9ea0e44cc4296e557a1a0d9f5d377176e79",
+    "tmp/edai2-gcp/topic24-finalize/resume-cleanup-readback-20261014.json": "315daef2a7a94ae464f6526f149501d764495d089811181a656f89f55415fe56"
+  }
+}

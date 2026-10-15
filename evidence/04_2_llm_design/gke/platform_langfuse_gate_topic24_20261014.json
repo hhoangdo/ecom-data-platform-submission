@@ -1,0 +1,347 @@
+{
+  "status": "Partial",
+  "observed_at_utc": "2026-10-14T06:34:19.113029+00:00",
+  "revision": "1643f8d224f66e7ed078fce7cc1c7414780a0cd7",
+  "first_failure": "langfuse-encryption-key-invalid-48-hex-requires-64",
+  "topic25_blocked": true,
+  "key_repair_executed": false,
+  "key_repair_approval_pending": true,
+  "model_feasibility_passed": true,
+  "substrate_api_build_passed": true,
+  "platform_install_sealed": false,
+  "cleanup": {
+    "started_at_utc": "2026-10-14T06:17:32.386676+00:00",
+    "first_failure": "langfuse-encryption-key-invalid-48-hex-requires-64",
+    "temporary_resources": [],
+    "suspended_workloads": [
+      {
+        "namespace": "cert-manager",
+        "kind": "Deployment",
+        "name": "cert-manager",
+        "uid": "e6d93c95-166d-45bf-9e4f-4f27e2954454",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "cert-manager",
+        "kind": "Deployment",
+        "name": "cert-manager-cainjector",
+        "uid": "610ad278-c475-43d2-bbf7-4948fdb42c03",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "cert-manager",
+        "kind": "Deployment",
+        "name": "cert-manager-webhook",
+        "uid": "822f17ba-7466-4f1d-9efa-b90a4279727f",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "Deployment",
+        "name": "airflow-scheduler",
+        "uid": "8cd6a326-6755-451d-81e2-c82c986dbb30",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "Deployment",
+        "name": "airflow-statsd",
+        "uid": "1a003658-8771-4581-a0f8-d5727a796b50",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "Deployment",
+        "name": "airflow-webserver",
+        "uid": "46dc582e-df96-46cf-a45a-80792e706b43",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "Deployment",
+        "name": "datahub-acryl-datahub-actions",
+        "uid": "02276789-31ce-496d-a891-ac0a73b8cb50",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "Deployment",
+        "name": "datahub-datahub-frontend",
+        "uid": "7145e9be-4ad9-44b7-86fa-390357e2153b",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "Deployment",
+        "name": "datahub-datahub-gms",
+        "uid": "072456d5-473b-449d-bc77-ba2770e2be02",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "Deployment",
+        "name": "feast-feature-server",
+        "uid": "333e2ecc-c0b1-4a77-b656-d524ac83bef2",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "Deployment",
+        "name": "grafana",
+        "uid": "103125fe-6499-44b1-85ca-2302f03ebc98",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "Deployment",
+        "name": "langfuse-web",
+        "uid": "c07fafc5-7330-4d9d-8cca-05e734c44243",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "Deployment",
+        "name": "langfuse-worker",
+        "uid": "48cdc9ec-fc6b-4020-b354-a7bde337fe0b",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "Deployment",
+        "name": "loki-gateway",
+        "uid": "5f85d348-2661-4ae1-9200-61438b5287fb",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "Deployment",
+        "name": "prometheus-kube-state-metrics",
+        "uid": "d1d84d9e-9436-4f49-b507-0dd5d1808b8c",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "Deployment",
+        "name": "prometheus-prometheus-pushgateway",
+        "uid": "d67dbcd9-5da5-447f-86f4-3dea2bb2e916",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "Deployment",
+        "name": "prometheus-server",
+        "uid": "1541d6e2-541b-4a17-81f9-58a6f6bbe64d",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "Deployment",
+        "name": "redpanda-console",
+        "uid": "9ee85e46-512c-4a19-985e-1e2f3640c89f",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "external-secrets",
+        "kind": "Deployment",
+        "name": "external-secrets",
+        "uid": "39bf36c6-9453-4b31-94ea-87e0b1c99630",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "external-secrets",
+        "kind": "Deployment",
+        "name": "external-secrets-cert-controller",
+        "uid": "0519ed84-e9b0-4586-8a7e-d0b9e5457f86",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "external-secrets",
+        "kind": "Deployment",
+        "name": "external-secrets-webhook",
+        "uid": "9de59a27-2c10-4966-a9fe-d765dcf8cbc6",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "ingress-nginx",
+        "kind": "Deployment",
+        "name": "ingress-nginx-controller",
+        "uid": "5debb538-5766-43bd-8995-3b40d42ef501",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "keda",
+        "kind": "Deployment",
+        "name": "keda-admission-webhooks",
+        "uid": "68238eb4-2316-450a-a845-3612ec240e88",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "keda",
+        "kind": "Deployment",
+        "name": "keda-operator",
+        "uid": "8f98073b-1dc3-427b-a5d1-a7bc058a79e3",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "keda",
+        "kind": "Deployment",
+        "name": "keda-operator-metrics-apiserver",
+        "uid": "f8fd7623-ed5f-4dd1-816d-214bd262a742",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "vault",
+        "kind": "Deployment",
+        "name": "vault-agent-injector",
+        "uid": "240848b7-0f75-4e03-a5f6-32150779a42e",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "StatefulSet",
+        "name": "airflow-redis",
+        "uid": "20479b9b-61f0-4f73-a192-ff7656adfe3e",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "StatefulSet",
+        "name": "airflow-triggerer",
+        "uid": "0490bece-2c22-48d8-839c-9db780f22199",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "StatefulSet",
+        "name": "airflow-worker",
+        "uid": "4d8a3513-e5eb-4505-9227-ecdf405f65b2",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "StatefulSet",
+        "name": "clickhouse-keeper",
+        "uid": "cdd70d7f-197b-4962-a722-c2ebd7381fa5",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "StatefulSet",
+        "name": "clickhouse-shard0",
+        "uid": "dd78cdfb-2057-437b-85ed-70457f684140",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "StatefulSet",
+        "name": "feast-redis-master",
+        "uid": "3d7f4714-264d-4029-880a-de4ba6b07160",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "StatefulSet",
+        "name": "loki",
+        "uid": "5a2275fb-03e1-4d30-9628-0216ba6ea94f",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "StatefulSet",
+        "name": "loki-chunks-cache",
+        "uid": "f28aecbc-3e86-4aea-ac27-f3f5b5b14804",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "StatefulSet",
+        "name": "loki-results-cache",
+        "uid": "32c3709b-43e1-4f77-8e26-6cbf843857a5",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "StatefulSet",
+        "name": "opensearch-cluster-master",
+        "uid": "01e514b9-d31f-4dc6-af5a-94d4df448625",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "StatefulSet",
+        "name": "postgres-postgresql",
+        "uid": "d32e501b-5e22-411f-9c3b-79d9ac59a2b4",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "StatefulSet",
+        "name": "prometheus-alertmanager",
+        "uid": "80b3a25c-8226-45ce-ad5b-ccff7cdc2143",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "StatefulSet",
+        "name": "redpanda",
+        "uid": "dfcf2a8a-447f-4ca3-99ab-43d2a734558b",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "StatefulSet",
+        "name": "tempo",
+        "uid": "704e5c67-97a0-451b-b7c2-7dfb582d1825",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "edai2",
+        "kind": "StatefulSet",
+        "name": "valkey-primary",
+        "uid": "f0978e19-bc48-42e3-98e9-d6b913e1e84f",
+        "previous_replicas": 1
+      },
+      {
+        "namespace": "vault",
+        "kind": "StatefulSet",
+        "name": "vault",
+        "uid": "77ff0077-d9ac-49ed-ba54-f1c50550adc6",
+        "previous_replicas": 1
+      }
+    ],
+    "pvc_deletions": 0,
+    "lease_released": false,
+    "temporary_iam_grant_removed": true,
+    "verified_at_utc": "2026-10-14T06:33:52.715551+00:00",
+    "node_count": 0,
+    "managed_group_targets": [
+      {
+        "pool": "platform",
+        "targets": [
+          0
+        ]
+      },
+      {
+        "pool": "spot",
+        "targets": [
+          0
+        ]
+      }
+    ],
+    "pvc_count": 10,
+    "all_pvcs_bound": true,
+    "vault_desired_replicas": 0
+  },
+  "artifact_sha256": {
+    "tmp/edai2-gcp/topic24-finalize/langfuse-credential-blocker-20261014/cleanup-progress.json": "a53f2e4f8b8ece50a749eba993a8ed5f6ac032fb87da86a75a69b0bbce4216a6",
+    "tmp/edai2-gcp/topic24-finalize/langfuse-encryption-format-check.json": "427d8f13a3b907181c305c50695524d4a635badf313095876affb8e4e6da4cae",
+    "tmp/edai2-gcp/topic24-finalize/langfuse-key-repair-row-precondition.json": "87ce341184f03e464adffbf8dbe255648b43bfacf33b05eaea0a775c44c869a0",
+    "tmp/edai2-gcp/topic24-finalize/langfuse-pre-key-repair-row-counts.json": "3170888cd8ddcfb6541bb1df9dc0337616716a25d17df83a635af372343a51e7",
+    "tmp/edai2-gcp/topic24-finalize/clickhouse-compatibility-green.xml": "78ee8d9995f3c5bb88e9220bdfcf290f0ebc30113a1746eab10364fe1374b2ca",
+    "tmp/edai2-gcp/topic24-finalize/resume-model-feasibility.json": "19f16520bb200f6b69ef6c8dc426304555a444276aa71c321f2d90f2b8e91c82",
+    "tmp/edai2-gcp/topic24-finalize/compat-externalsecrets-ready-20261014.json": "336a3737c2b7892d29b212b63a731bab48aee46b903b8b2da6d6fa55175551be",
+    "tmp/edai2-gcp/topic24-finalize/compat-postgres-service-auth-verification.json": "b0ef9e3209fe77bdee0522ba33b3f8c0d51887e731ab047a9a7d1337b580a69a",
+    "tmp/edai2-gcp/topic24-finalize/credential-blocker-git-status.txt": "d0be99d8b554b4727b019f7134a3a4c543047965ffba41ca0e0e5a62c13b28ba"
+  },
+  "lease_retained_reason": "Strict install inventory absent; current lease retained for separately approved resume"
+}
