@@ -7,6 +7,8 @@
 > - Auto-run; no mid-run approvals. Only safe stops: budget/lease/ACME/DNS/auth missing. Disable ingress + suspend at end even on Partial.
 > - Happy-path first: temporary HTTPS reachable + Grafana/Loki/Tempo visible + six Jenkins pages (no rebuild, one session) wins. Exact 5-alert pending->firing->recovery, full trace-chain hops, exact 401/1rps/5burst/429 boundaries may stay `Partial`.
 > - Screenshots: viewport PNG + SHA + machine link + eyeball check is enough. `grafana_ab.png` may be placeholder until Topic 29 finalizes — mark stale, let Topic 31 refresh once.
+> - Study-mode relaxation v1 (study-first, single-agent): plan-doc SHA pins and manifest-byte equality are LOG-ONLY — record computed vs listed values, never block. Image remote-digest equality stays HARD.
+> - Safety gates stay HARD: live budget preflight, exact kubeconfig/context, capacity ceilings. Alert/trace-exactness gates are record-and-continue `Partial`, one bounded retry max. No mid-run approvals.
 
 **Goal:** Prove required telemetry, end-to-end trace continuity, temporary HTTPS/auth/rate limiting, and six existing Jenkins delivery records through contextual, fail-closed UI evidence.
 

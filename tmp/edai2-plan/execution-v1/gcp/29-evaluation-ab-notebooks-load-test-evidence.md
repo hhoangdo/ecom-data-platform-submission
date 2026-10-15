@@ -7,6 +7,8 @@
 > - Auto-run; no mid-run approvals. Only safe stops: budget/lease/route-cert fail, missing cases/notebooks, wrong context. Disable `retrieval,chat` routes + suspend at end even on Partial.
 > - Happy-path first: 60-case eval runs + both A/B run + both notebooks execute + coverage/mutation/Locust run + 3 chats + 2 novel-idea probes run wins. Promotion decisions, coverage>90%/mutation>80%, p95 gates, second novel idea may stay `Partial` — record measured values, don't chase perfection.
 > - Screenshots: viewport PNG + SHA + machine link + eyeball check is enough.
+> - Study-mode relaxation v1 (study-first, single-agent): plan-doc SHA pins and manifest-byte equality are LOG-ONLY — record computed vs listed values, never block. Image remote-digest equality stays HARD.
+> - Safety gates stay HARD: live budget preflight, exact kubeconfig/context, capacity ceilings. Numeric gates (eval/A-B/coverage/mutation/Locust) are record-and-continue `Partial`, one bounded retry max. No mid-run approvals.
 
 **Goal:** Produce reproducible evaluation, two isolated A/B experiments, executed agent notebooks, test-quality evidence, Locust performance evidence, agent-test UI proof, and two runtime-backed novel-idea proofs.
 

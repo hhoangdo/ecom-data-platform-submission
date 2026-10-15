@@ -7,6 +7,8 @@
 > - Auto-run; no mid-run approvals. Only safe stops: budget/lease/commit mismatch, wrong context, missing registry inputs. Reuse handed-off lease if TTL remains, else fresh lease — record which.
 > - Happy-path first: registry publish/read-back + KEDA 1->2->1 + one Helm rollback + chat smoke wins. Distinct actor/pod-UID overlap proof, model/index rollback, strict cooldown timing may stay `Partial`.
 > - Screenshots: viewport PNG + SHA + machine link + eyeball check is enough. Skip temp-PNG/signature/decode/atomic + proves/does-not prose for now.
+> - Study-mode relaxation v1 (study-first, single-agent): plan-doc SHA pins and manifest-byte equality are LOG-ONLY — record computed vs listed values, never block. Image remote-digest equality stays HARD.
+> - Safety gates stay HARD: live budget preflight, exact kubeconfig/context, capacity ceilings. Numeric/forensic gates are record-and-continue `Partial`, one bounded retry max. No mid-run approvals.
 
 **Goal:** Prove the three logical sandboxed agents are independently usable, registered, securely routed, genuinely multi-instance under KEDA, and recoverable across Helm, model, and index rollback paths.
 

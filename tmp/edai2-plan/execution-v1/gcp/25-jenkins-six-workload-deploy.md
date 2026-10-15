@@ -8,6 +8,10 @@
 > - Check source hashes + `git status` once at start (not before every command). Reuse fresh (<24h) preflight/forecast if unchanged.
 > - One lease per topic. Set `EDAI2_KUBECONFIG`/`EDAI2_CONTEXT` once, reuse. Run six jobs via single trigger-all; don't babysit per-job approvals.
 > - Happy-path first: six SUCCESS + digests + smoke wins. BuildKit overlap-zero forensics, strict 7-stage audit may stay `Partial` — record measured value, hand off, don't rerun good jobs.
+> - Study-mode relaxation v1 (study-first, single-agent): plan-doc SHA pins and manifest-byte equality are LOG-ONLY — record computed vs listed values, never block. `bundle_id` string match still enforced. Image remote-digest equality stays HARD.
+> - Minimal CI: per-job `build -> push-SHA -> helm_atomic -> smoke` passes the job; `test`/`scan`/`rollback_proof` are best-effort and recorded. Trivy findings are logged; only a `CRITICAL` with a known exploit path blocks.
+> - If Jenkins trigger/verify flags are absent from the checked-in scripts, deploy via direct `helm upgrade --install --atomic` with commit-SHA tags; record as study-debt in the Completion Record; do not claim `Sheet3!E35:E40`.
+> - Safety gates stay HARD: live budget preflight, exact kubeconfig/context, capacity ceilings, lowercase 40-hex commit. No mid-run approvals; one lease per topic; reuse fresh (<24h) preflight/forecast.
 
 **Goal:** Build, scan, push, atomically deploy, smoke-test, and rollback-prove exactly six commit-SHA workloads through six distinct serialized Jenkins jobs.
 

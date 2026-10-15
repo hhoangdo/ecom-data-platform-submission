@@ -7,6 +7,8 @@
 > - Auto-run; no mid-run approvals. Only safe stops: budget/lease/capacity fail, missing index/model inputs, wrong context.
 > - Happy-path first: canonical `canonical-evidence-<sha>` RAG run + DataHub read-back + factorial completes + agent startup matrix completes wins. Numeric gates (p95<=20s, >=5% gain, >=20%/>=5% startup) may stay `Partial` — record measured numbers honestly, one bounded retry max, then hand off.
 > - Screenshots: viewport PNG + SHA + machine link + eyeball check is enough.
+> - Study-mode relaxation v1 (study-first, single-agent): plan-doc SHA pins and manifest-byte equality are LOG-ONLY — record computed vs listed values, never block. Image remote-digest equality stays HARD.
+> - Safety gates stay HARD: live budget preflight, exact kubeconfig/context, capacity ceilings. Numeric gates (p95, gains, startup) are record-and-continue `Partial`, one bounded retry max. No mid-run approvals.
 
 **Goal:** Produce measured, hash-bound proof for the RAG pipeline/lineage, serial two-model inference optimization, and agent warm-up/startup-cost improvement.
 

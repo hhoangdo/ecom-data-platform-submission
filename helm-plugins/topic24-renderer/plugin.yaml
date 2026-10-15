@@ -1,0 +1,15 @@
+apiVersion: v1
+type: postrenderer/v1
+name: topic24-renderer
+version: 0.1.0
+runtime: subprocess
+runtimeConfig:
+  platformCommand:
+    - os: windows
+      command: powershell
+      args:
+        - -NoProfile
+        - -NonInteractive
+        - -File
+        - ${HELM_PLUGIN_DIR}/renderer.ps1
+    - command: ${HELM_PLUGIN_DIR}/renderer.sh

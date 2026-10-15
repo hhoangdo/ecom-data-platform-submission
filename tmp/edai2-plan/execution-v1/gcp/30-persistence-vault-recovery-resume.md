@@ -7,6 +7,8 @@
 > - Auto-run; no mid-run approvals. Only safe stops: budget/sink/KMS missing, wrong context, backup unencrypted. One lease for recovery+resume first pass (two-lease variant deferred). Always end suspended, pools zero, no forwarding rule.
 > - Happy-path first: encrypted backup manifest + Vault pod-delete auto-unseal + policy canary + suspend/resume + post-resume smoke wins. Exact full-subsystem fingerprint equality may stay `Partial` — record diff, don't waive, hand off.
 > - `vault_status.png`: viewport PNG + SHA + machine link + eyeball check is enough.
+> - Study-mode relaxation v1 (study-first, single-agent): plan-doc SHA pins and manifest-byte equality are LOG-ONLY — record computed vs listed values, never block. Image remote-digest equality stays HARD.
+> - Safety gates stay HARD: live budget preflight, exact kubeconfig/context, capacity ceilings, encrypted recovery sink. Fingerprint equality is record-and-continue `Partial` — record the diff, don't waive. No mid-run approvals.
 
 **Goal:** Prove encrypted backup, Vault Raft/KMS recovery, suspended-to-resumed persistence, and ordered service recovery without exposing recovery material or leaving billable runtime active.
 
