@@ -244,6 +244,9 @@ def test_terraform_foundation_encrypts_gcs_and_binds_each_workload_identity() ->
     assert "google_service_account_iam_member" in iam
     assert "roles/iam.workloadIdentityUser" in iam
     assert "serviceAccount:${var.project_id}.svc.id.goog" in iam
+    assert '"atelet_workload_identity"' in iam
+    assert 'google_service_account.workload_identity["coordinator"].name' in iam
+    assert "svc.id.goog[edai2/atelet]" in iam
 
 
 def test_terraform_outputs_are_safe_and_budget_is_vnd_parameterized() -> None:

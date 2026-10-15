@@ -83,13 +83,13 @@ def test_agent_values_are_fail_closed_and_gateway_only() -> None:
         "kube-dns.kube-system.svc.cluster.local",
         "api.ate-system.svc.cluster.local",
         "atenet-router.ate-system.svc.cluster.local",
-        "agentgateway-proxy.edai2.svc.cluster.local",
+        "edai2-private-gateway.edai2.svc.cluster.local",
     }
 
     for document in documents.values():
         assert document["namespace"] == "edai2"
         assert document["proxy"]["url"] == (
-            "http://agentgateway-proxy.edai2.svc.cluster.local:15000"
+            "http://edai2-private-gateway.edai2.svc.cluster.local:8080"
         )
         assert document["substrate"]["bucketName"] == ""
         assert "${" not in yaml.safe_dump(document)

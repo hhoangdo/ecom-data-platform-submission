@@ -201,8 +201,8 @@ def test_authoritative_model_benchmark_evaluation_and_cost_contracts() -> None:
     assert costs["terraform_budget_usd"] == 240
     assert costs["pre_deployment_forecast_ceiling_usd"] == 180
     assert costs["ceilings"] == {
-        "regular_platform_node_hours": 96,
-        "aggregate_spot_node_hours": 72,
+        "regular_platform_node_hours": 150,
+        "aggregate_spot_node_hours": 150,
         "second_spot_node_hours": 16,
         "public_ingress_hours": 24,
         "evidence_session_ttl_hours": 6,

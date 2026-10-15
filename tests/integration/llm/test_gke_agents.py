@@ -34,48 +34,81 @@ def test_platform_contract_files_are_present_and_pinned() -> None:
     assert yaml.safe_load(ingress.read_text(encoding="utf-8"))["chartVersion"] == "4.15.1"
 
 
-def test_gateway_matrix_explicitly_denies_every_non_allow_pair() -> None:
-    """Deleting a deny policy would permit a credential to reach an unrelated route."""
+def test_gateway_matrix_scopes_five_strict_keys_and_denies_the_other_twenty_pairs() -> None:
+    """Route selectors and CEL metadata checks admit five pairs and reject the other twenty."""
     policies = _documents(ROOT / "infra/agentgateway/edai2/policies.yaml")
     expected = {
-        "model-route": "model",
+        "model-route": "model-route",
         "retrieval-mcp": "retrieval-mcp",
         "drift-mcp": "drift-mcp",
-        "coordinator-specialist": "a2a-specialist",
-        "facade-coordinator": "a2a-facade",
+        "coordinator-specialist": "coordinator-specialist",
+        "facade-coordinator": "facade-coordinator",
     }
-    allow = [item for item in policies if item["spec"]["effect"] == "allow"]
-    deny = [item for item in policies if item["spec"]["effect"] == "deny"]
-    assert {(item["spec"]["credential"], item["spec"]["routeClass"]) for item in allow} == set(expected.items())
-    assert len(deny) == 20
-    assert {
-        (item["spec"]["credential"], item["spec"]["routeClass"])
-        for item in deny
-    } == {
-        (credential, route)
-        for credential in expected
-        for route in expected.values()
-        if expected[credential] != route
+    assert len(policies) == 5
+    observed = set()
+    for item in policies:
+        assert item["kind"] == "AgentgatewayPolicy"
+        credential = item["metadata"]["name"].removeprefix("auth-")
+        route = expected[credential]
+        spec = item["spec"]
+        assert spec["targetRefs"] == [{
+            "group": "gateway.networking.k8s.io", "kind": "HTTPRoute",
+            "name": {
+                "model-route": "model-route", "retrieval-mcp": "retrieval-mcp-route",
+                "drift-mcp": "drift-mcp-route", "coordinator-specialist": "coordinator-specialist-route",
+                "facade-coordinator": "facade-coordinator-route",
+            }[credential],
+        }]
+        auth = spec["traffic"]["apiKeyAuthentication"]
+        assert auth["mode"] == "Strict"
+        assert auth["secretSelector"]["matchLabels"] == {"edai2.gateway-auth-route": route}
+        authorization = spec["traffic"]["authorization"]
+        assert authorization["action"] == "Require"
+        expressions = authorization["policy"]["matchExpressions"]
+        assert expressions == [f"apiKey.route == '{route}'"]
+        if route == "model-route":
+            assert spec["backend"]["auth"] == {"secretRef": {"name": "kagent-model-route-key"}}
+        observed.add((credential, route))
+    assert observed == set(expected.items())
+    allowed_pairs = {
+        (credential, key_route)
+        for credential, route in expected.items()
+        for key_route in expected.values()
+        if f"apiKey.route == '{route}'" == f"apiKey.route == '{key_route}'"
     }
-    assert {item["spec"]["statusCode"] for item in deny} <= {401, 403}
+    assert allowed_pairs == set(expected.items())
+    assert len(allowed_pairs) == 5
+    assert len(expected) ** 2 - len(allowed_pairs) == 20
 
 
-def test_gateway_allow_credentials_use_exact_disjoint_secret_keys() -> None:
-    """A reused secret key would collapse two independently authorized routes."""
-    policies = _documents(ROOT / "infra/agentgateway/edai2/policies.yaml")
-    allow = [item for item in policies if item["spec"]["effect"] == "allow"]
-    bindings = {
-        item["spec"]["credential"]: (item["spec"]["secretName"], item["spec"]["secretKey"])
-        for item in allow
+def test_gateway_keys_are_projected_as_route_metadata_json() -> None:
+    """A plain or cross-route Secret would make strict route selectors accept the wrong key."""
+    files = sorted((ROOT / "infra/security/external-secrets").glob("gateway-auth-*.yaml"))
+    assert len(files) == 5
+    expected = {
+        "model-route": ("gateway-auth-model-route", "edai2/kagent/gateway-keys", "model-api-key"),
+        "retrieval-mcp": ("gateway-auth-retrieval-mcp", "edai2/kagent/gateway-keys", "support-authorization"),
+        "drift-mcp": ("gateway-auth-drift-mcp", "edai2/kagent/gateway-keys", "drift-authorization"),
+        "coordinator-specialist": ("gateway-auth-coordinator-specialist", "edai2/kagent/gateway-keys", "coordinator-authorization"),
+        "facade-coordinator": ("gateway-auth-facade-coordinator", "edai2/facade/gateway-entry", "authorization"),
     }
-    assert bindings == {
-        "model-route": ("kagent-model-route-key", "api-key"),
-        "retrieval-mcp": ("kagent-gateway-keys", "support-retrieval"),
-        "drift-mcp": ("kagent-gateway-keys", "drift-detect"),
-        "coordinator-specialist": ("kagent-gateway-keys", "coordinator-to-specialist"),
-        "facade-coordinator": ("facade-gateway-key", "authorization"),
-    }
-    assert len(set(bindings.values())) == len(bindings)
+    observed = {}
+    for path in files:
+        item = _documents(path)[0]
+        route = item["metadata"]["labels"]["edai2.gateway-auth-route"]
+        name, vault_path, property_name = expected[route]
+        assert item["spec"]["target"]["name"] == name
+        assert item["spec"]["target"]["template"]["metadata"]["labels"] == {
+            "edai2.gateway-auth-route": route
+        }
+        data = item["spec"]["data"]
+        assert len(data) == 1 and data[0]["secretKey"] == "gatewayKey"
+        observed[route] = (data[0]["remoteRef"]["key"], data[0]["remoteRef"]["property"])
+        assert item["spec"]["target"]["template"]["data"][route] == (
+            f'{{{{ dict "key" .gatewayKey "metadata" (dict "route" "{route}") | toJson }}}}'
+        )
+        assert observed[route] == (vault_path, property_name)
+    assert set(observed) == set(expected)
 
 
 def test_model_configs_workerpool_and_cpu_overlay_are_private_and_bounded() -> None:
@@ -88,13 +121,15 @@ def test_model_configs_workerpool_and_cpu_overlay_are_private_and_bounded() -> N
     for item in configs:
         spec = item["spec"]
         assert spec["provider"] == "OpenAI"
-        assert spec["contextTokens"] == 4096
-        assert spec["openAI"]["baseUrl"] == "http://agentgateway-proxy.edai2.svc.cluster.local:15000/v1"
+        assert item["metadata"]["namespace"] == "edai2"
+        assert "contextTokens" not in spec  # Not part of the pinned ModelConfig API.
+        assert spec["openAI"]["baseUrl"] == "http://edai2-private-gateway.edai2.svc.cluster.local:8080/v1"
         assert spec["apiKeySecret"] == "kagent-model-route-key"
         assert spec["apiKeySecretKey"] == "api-key"
 
     worker = _documents(ROOT / "infra/kagent/edai2/workerpool-scaledobject.yaml")
     assert worker[0]["metadata"]["name"] == "edai2-agents"
+    assert worker[0]["spec"]["ateomImage"] == "ghcr.io/kagent-dev/substrate/ateom-gvisor:v0.0.6"
     assert worker[1]["spec"]["scaleTargetRef"] == {
         "apiVersion": "ate.dev/v1alpha1", "kind": "WorkerPool", "name": "edai2-agents"
     }
@@ -113,13 +148,17 @@ def test_model_configs_workerpool_and_cpu_overlay_are_private_and_bounded() -> N
     overlay = ROOT / "infra/kustomize/llmd/overlays/cpu"
     rendered_sources = "\n".join(path.read_text(encoding="utf-8") for path in overlay.glob("*.yaml"))
     assert "nvidia.com/gpu" not in rendered_sources
+    assert "--max-model-len" in rendered_sources and '"4096"' in rendered_sources
     assert "runtimeClassName" not in rendered_sources
-    assert "comparison-core: 0" in rendered_sources
-    assert "comparison-model-ab: 1" in rendered_sources
-    assert "comparison-factorial: 2" in rendered_sources
-    assert "primary-factorial: 2" in rendered_sources
+    assert "comparison: 0" in rendered_sources
+    assert "primary: 1" in rendered_sources
     assert "llm-d-inference-scheduler:v0.8.0" not in rendered_sources
-    assert all("v0.7.0" in line for line in rendered_sources.splitlines() if "image:" in line)
+    cpu_image = "ghcr.io/llm-d/llm-d-cpu:v0.7.0@sha256:f4abcce2b3a3c00521d220dfeabe7aeb5b800823451f8f49fc2b3f9cb5441584"
+    cache_image = "python:3.14.8-slim-trixie@sha256:cfe2e24a75302a15934d37c2d86412893c0aa934dc3a97cbb439d04c01890ca9"
+    assert f"image: {cpu_image}" in (overlay / "patch-primary.yaml").read_text(encoding="utf-8")
+    assert f"image: {cpu_image}" in (overlay / "patch-comparison.yaml").read_text(encoding="utf-8")
+    assert f"image: {cache_image}" in (overlay / "patch-model-cache-init.yaml").read_text(encoding="utf-8")
+    assert sum("image:" in line for line in rendered_sources.splitlines()) == 3
 
 
 def test_topic16_values_render_five_logical_agent_resources() -> None:

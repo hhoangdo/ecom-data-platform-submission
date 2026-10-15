@@ -160,10 +160,20 @@ def test_capture_verify_private_endpoint_inventory_rejects_absent_or_extra_key()
 
 def test_capture_verify_platform_exclusions_passes_clean_and_fails_forbidden() -> None:
     module = _load("capture_edai2_evidence", "scripts/qa/capture_edai2_evidence.py")
-    module.verify_platform_exclusions({"private_endpoints": {}}, ["bundled-postgres", "public-loadbalancer"])
+    module.verify_platform_exclusions(
+        {"live_resources": {"namespace": "edai2", "resources": {
+            "pods": [], "deployments": [{"metadata": {"name": "api", "labels": {"app.kubernetes.io/instance": "api", "helm.sh/chart": "api-1.0.0"}}}],
+            "statefulsets": [], "daemonsets": [], "jobs": [], "cronjobs": [], "replicasets": [],
+            "services": [{"metadata": {"name": "api"}, "spec": {"type": "ClusterIP"}}],
+            "endpointslices": [], "persistentvolumeclaims": [], "custom_resources": [], "nodes": [{"metadata": {"name": "node"}}],
+        }}}, ["bundled-postgres", "public-loadbalancer"])
     with pytest.raises(ValueError):
         module.verify_platform_exclusions(
-            {"releases": ["bundled-postgres"], "private_endpoints": {}},
+            {"live_resources": {"namespace": "edai2", "resources": {
+                "pods": [], "deployments": [], "statefulsets": [], "daemonsets": [], "jobs": [], "cronjobs": [],
+                "replicasets": [], "services": [{"metadata": {"name": "public"}, "spec": {"type": "LoadBalancer"}}],
+                "endpointslices": [], "persistentvolumeclaims": [], "custom_resources": [], "nodes": [{"metadata": {"name": "node"}}],
+            }}},
             ["bundled-postgres", "public-loadbalancer"],
         )
 
@@ -171,7 +181,7 @@ def test_capture_verify_platform_exclusions_passes_clean_and_fails_forbidden() -
 # --- capture_edai2_evidence.py: Topic 24 CLI dispatch ---
 
 
-def test_capture_cli_verify_inventory_and_exclusions(tmp_path: Path, monkeypatch, capsys) -> None:
+def test_capture_cli_rejects_endpoint_only_inventory_and_exclusions(tmp_path: Path, monkeypatch) -> None:
     module = _load("capture_edai2_evidence", "scripts/qa/capture_edai2_evidence.py")
     inventory = tmp_path / "platform_install.json"
     inventory.write_text(json.dumps(_five_key_inventory()), encoding="utf-8")
@@ -180,14 +190,15 @@ def test_capture_cli_verify_inventory_and_exclusions(tmp_path: Path, monkeypatch
         "--kubeconfig", DEDICATED_KUBECONFIG, "--context", DEDICATED_CONTEXT,
         "--expected-keys", ",".join(EXPECTED_KEYS), "--strict",
     ])
-    assert module.main() == 0
-    assert "verified" in capsys.readouterr().out
+    with pytest.raises(SystemExit):
+        module.main()
     monkeypatch.setattr(sys, "argv", [
         "capture_edai2_evidence.py", "--verify-platform-exclusions", str(inventory),
         "--forbid", "bundled-postgres,bundled-valkey,rustfs,builtin-agents,builtin-tools,public-loadbalancer,app-sandboxagents",
         "--strict",
     ])
-    assert module.main() == 0
+    with pytest.raises(SystemExit):
+        module.main()
 
 
 def test_capture_cli_verify_inventory_rejects_wrong_keys(tmp_path: Path, monkeypatch) -> None:
