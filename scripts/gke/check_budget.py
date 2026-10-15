@@ -1561,6 +1561,8 @@ def write_terraform_runtime_contract(
     )
     destination = Path(tf_data_dir).resolve() / "topic22-terraform-runtime.json"
     if destination.exists():
+        if json.loads(destination.read_text(encoding="utf-8")) == contract:
+            return destination
         raise FileExistsError("private Terraform runtime contract already exists")
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False, dir=destination.parent, suffix=".tmp") as handle:
         json.dump(contract, handle, sort_keys=True)

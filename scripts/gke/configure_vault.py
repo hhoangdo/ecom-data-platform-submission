@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import argparse
 import base64
+import datetime
 import hashlib
 import json
+import os
 import re
 import secrets
 import subprocess
@@ -38,6 +40,7 @@ KEY_MATRIX: dict[str, list[str]] = {
     "kv/edai2/platform/langfuse": ["nextauth-secret", "salt", "encryption-key"],
     "kv/edai2/platform/agentregistry": ["api-token", "session-secret"],
     "kv/edai2/platform/grafana": ["admin-user", "admin-password"],
+    "kv/edai2/platform/opensearch": ["username", "password"],
 }
 
 RECOVERY_SECRET_NAME = "vault-recovery"
@@ -53,8 +56,70 @@ PROBE_MATRIX: tuple[tuple[str, str, bool], ...] = (
 )
 
 
+# Kubernetes-auth role bindings. The external-secrets role backs
+# ClusterSecretStore/edai2-vault (serviceaccount external-secrets in namespace
+# external-secrets) and maps to the external-secrets policy, which grants read
+# on exactly the KV paths consumed by the checked-in ExternalSecrets.
+# `vault write` upserts, so role creation is idempotent.
+KUBERNETES_ROLE_BINDINGS: dict[str, dict[str, str]] = {
+    "external-secrets": {
+        "bound_service_account_names": "external-secrets",
+        "bound_service_account_namespaces": "external-secrets",
+        "token_policies": "external-secrets",
+    },
+}
+
+
+def build_kubernetes_role_args(role: str) -> list[str]:
+    """Return `vault write` k=v params for a bound kubernetes-auth role (fail-closed)."""
+    try:
+        binding = KUBERNETES_ROLE_BINDINGS[role]
+    except KeyError:
+        raise ValueError(f"unknown kubernetes-auth role: {role}") from None
+    return [f"{key}={binding[key]}" for key in sorted(binding)]
+
+
+def configure_kubernetes_roles(kubeconfig: str, context: str, namespace: str, token: str | None = None) -> list[str]:
+    """Idempotently write every role in KUBERNETES_ROLE_BINDINGS. Returns roles written."""
+    written: list[str] = []
+    for role in sorted(KUBERNETES_ROLE_BINDINGS):
+        _vault_exec(
+            kubeconfig, context, namespace,
+            "write", f"auth/kubernetes/role/{role}", *build_kubernetes_role_args(role),
+            token=token,
+        )
+        written.append(role)
+    return written
+
+
 def recovery_secret_ref(namespace: str) -> dict:
     return {"namespace": namespace, "name": RECOVERY_SECRET_NAME}
+
+
+def resolve_admin_token_output(value: str, workspace: Path | None = None) -> Path:
+    """Fail-closed resolve for --admin-token-output (study-only, gitignored-local-only).
+
+    Only paths under ``tmp/edai2-gcp/`` are accepted. Anything outside that
+    prefix, including ``evidence/`` or repo source dirs, raises ValueError.
+    """
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("admin token output must be a non-empty path")
+    base = (workspace if workspace is not None else Path.cwd()).resolve()
+    root = (base / "tmp" / "edai2-gcp").resolve()
+    candidate = Path(value)
+    candidate = candidate.resolve() if candidate.is_absolute() else (base / candidate).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        raise ValueError("admin token output must be under tmp/edai2-gcp/") from None
+    for forbidden in ("evidence", "scripts", "infra", "src", "tests", "configs"):
+        forbidden_root = (base / forbidden).resolve()
+        try:
+            candidate.relative_to(forbidden_root)
+        except ValueError:
+            continue
+        raise ValueError(f"admin token output must not be under {forbidden}/")
+    return candidate
 
 
 def parse_kms_key(key_id: str) -> dict:
@@ -81,8 +146,9 @@ def build_redacted_evidence(
     recovery_threshold: int,
     recovery_shares: int,
     root_revoked: bool,
+    admin_policy_sha256: str | None = None,
 ) -> dict:
-    return {
+    evidence = {
         "initialized": True,
         "seal_type": seal_type,
         "kms_key_id": kms_key_id,
@@ -95,6 +161,10 @@ def build_redacted_evidence(
         "disaster_safe": False,
         "root_revoked": root_revoked,
     }
+    if admin_policy_sha256 is not None:
+        evidence["admin_token"] = "gitignored-local-only"
+        evidence["admin_policy_sha256"] = admin_policy_sha256
+    return evidence
 
 
 def _kubectl(kubeconfig: str, context: str, *args: str, token: str | None = None) -> subprocess.CompletedProcess:
@@ -125,11 +195,27 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--kubernetes-auth", action="store_true")
     parser.add_argument("--policies", default="infra/security/vault/policies")
     parser.add_argument("--redacted-output", required=True)
+    parser.add_argument("--admin-token-output", default=None,
+                        help="gitignored-local-only study admin token path (must be under tmp/edai2-gcp/)")
     args = parser.parse_args(argv)
 
     if Path(args.redacted_output).exists():
         print("refusing to overwrite existing evidence", file=sys.stderr)
         return 2
+    admin_token_path: Path | None = None
+    admin_policy_sha256: str | None = None
+    if args.admin_token_output is not None:
+        try:
+            admin_token_path = resolve_admin_token_output(args.admin_token_output)
+        except ValueError as exc:
+            print(f"invalid --admin-token-output: {exc}", file=sys.stderr)
+            return 2
+        admin_policy_file = Path(args.policies) / "edai2-admin.hcl"
+        try:
+            admin_policy_sha256 = hashlib.sha256(admin_policy_file.read_bytes()).hexdigest()
+        except OSError as exc:
+            print(f"missing edai2-admin policy: {exc}", file=sys.stderr)
+            return 2
     parse_kms_key(args.kms_key_id)
     ref = recovery_secret_ref(args.namespace)
 
@@ -148,6 +234,8 @@ def main(argv: list[str] | None = None) -> int:
     init_doc = json.loads(init_proc.stdout)
     token = str(init_doc["root_token"])
     recovery_key = str(init_doc["recovery_keys_b64"][0])
+    admin_token_value = ""
+    admin_accessor = ""
     try:
         status = json.loads(_vault_exec(args.kubeconfig, args.context, args.namespace, "status", "-format=json"))
         seal_type = str(status.get("seal_type", ""))
@@ -176,6 +264,8 @@ def main(argv: list[str] | None = None) -> int:
                      str(policy_file), f"vault-0:/tmp/{policy_file.name}", token=token)
             _vault_exec(args.kubeconfig, args.context, args.namespace,
                         "policy", "write", policy_file.stem, f"/tmp/{policy_file.name}", token=token)
+        if args.kubernetes_auth:
+            configure_kubernetes_roles(args.kubeconfig, args.context, args.namespace, token=token)
         populated: list[str] = []
         for path, keys in KEY_MATRIX.items():
             values = [f"{key}={secrets.token_hex(24)}" for key in keys]
@@ -200,16 +290,37 @@ def main(argv: list[str] | None = None) -> int:
                           "vault", "kv", "get", "-format=json", "kv/edai2/kagent/gateway-keys",
                           token="invalid-probe-token")
         policy_results["cross-path-deny"] = denied.returncode != 0
+        if admin_token_path is not None:
+            admin_out = _vault_exec(args.kubeconfig, args.context, args.namespace,
+                                    "token", "create", "-policy=edai2-admin",
+                                    "-display-name=edai2-study-admin", "-orphan",
+                                    "-format=json", token=token)
+            admin_doc = json.loads(admin_out)
+            admin_token_value = str(admin_doc["auth"]["client_token"])
+            admin_accessor = str(admin_doc["auth"].get("accessor", ""))
+            issued_at_utc = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+            token_payload = {
+                "client_token": admin_token_value,
+                "accessor": admin_accessor,
+                "issued_at_utc": issued_at_utc,
+                "policy": "edai2-admin",
+            }
+            assert admin_token_path is not None
+            admin_token_path.parent.mkdir(parents=True, exist_ok=True)
+            admin_token_path.write_text(json.dumps(token_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            os.chmod(admin_token_path, 0o600)
         _vault_exec(args.kubeconfig, args.context, args.namespace, "token", "revoke", "-self", token=token)
         root_revoked = True
     finally:
         token = "0" * 64
         recovery_key = "0" * 64
-        del token, recovery_key
+        admin_token_value = "0" * 64
+        admin_accessor = "0" * 64
+        del token, recovery_key, admin_token_value, admin_accessor
     evidence = build_redacted_evidence(
         kms_key_id=args.kms_key_id, seal_type=seal_type, key_names=populated,
         policy_results=policy_results, recovery_threshold=1, recovery_shares=1,
-        root_revoked=root_revoked,
+        root_revoked=root_revoked, admin_policy_sha256=admin_policy_sha256,
     )
     out_path = Path(args.redacted_output)
     out_path.parent.mkdir(parents=True, exist_ok=True)

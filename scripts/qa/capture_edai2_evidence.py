@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import math
@@ -31,6 +32,9 @@ from vina_bim_shop.topic22_private import (
 MANIFEST_FIELDS = ("path", "width", "height", "captured_at_utc", "url_or_source", "commit_or_revision", "visible_selectors", "linked_machine_evidence", "approved_plan_sha256", "sha256", "proves", "does_not_prove")
 PRIVATE_ENDPOINT_KEYS = ("agentregistry_ui", "grafana_ui", "airflow_web", "datahub_frontend", "vault_status")
 PRIVATE_ENDPOINT_FIELDS = {"namespace", "service_name", "service_uid", "service_port", "target_port", "selector_sha256", "ready_endpoint_uids"}
+TOPIC24_FORBIDDEN_MARKERS = ("postgres", "valkey", "rustfs", "builtin-agents", "builtin-tools", "public-loadbalancer", "app-sandboxagents", "remotemcpserver")
+TOPIC24_RESOURCE_COLLECTIONS = ("pods", "deployments", "statefulsets", "daemonsets", "jobs", "cronjobs", "replicasets", "services", "endpointslices", "persistentvolumeclaims", "custom_resources", "nodes")
+TOPIC24_OWNED_NAMESPACES = tuple(sorted(("edai2", "kagent", "vault", "external-secrets", "cert-manager", "keda", "ingress-nginx")))
 STABLE_LABELS = ("service", "route", "agent", "tool", "model_version", "agent_config", "index_version", "status", "safety_action", "log_scope")
 ALERT_FIXTURES = {
     "EDAI2ApiToolFailureHigh": {"pending": {"failure_ratio": 0.06}, "firing": {"failure_ratio": 0.06, "for_seconds": 300}},
@@ -159,6 +163,12 @@ def verify_vault_bootstrap(payload: dict) -> None:
     if not isinstance(payload["policy_results"], dict) or not all(payload["policy_results"].values()):
         raise ValueError("every policy probe must pass")
     scrubbed = dict(payload)
+    admin_marker = scrubbed.pop("admin_token", None)
+    if admin_marker is not None and admin_marker != "gitignored-local-only":
+        raise ValueError("vault bootstrap evidence carries secret material")
+    admin_policy = scrubbed.pop("admin_policy_sha256", None)
+    if admin_policy is not None and not re.fullmatch(r"[0-9a-f]{64}", str(admin_policy)):
+        raise ValueError("vault bootstrap evidence carries secret material")
     scrubbed["key_names"] = sorted(hashlib.sha256(str(name).encode("utf-8")).hexdigest()
                                     for name in payload["key_names"])
     if _topic23_forbidden_key(payload) or _has_secret(scrubbed):
@@ -886,6 +896,30 @@ def build_private_endpoint_inventory(
                     if resolved is not None:
                         break
                 if resolved is None:
+                    # A named targetPort refers to a container port on the backing Pod(s);
+                    # EndpointSlice port names mirror the Service port name, so resolve the
+                    # truth from the selected Pods and fail closed when it is absent.
+                    selector_query = ",".join(f"{name}={value}" for name, value in selector.items())
+                    pods = runner(["kubectl", "get", "pods", "-n", namespace, "--selector", selector_query, "--output", "json"])
+                    pod_items = pods.get("items") if isinstance(pods, dict) else None
+                    if not isinstance(pod_items, list):
+                        raise ValueError(f"live platform read-back failed for {key}")
+                    for pod in pod_items:
+                        if not isinstance(pod, dict):
+                            continue
+                        pod_spec = pod.get("spec")
+                        if not isinstance(pod_spec, dict):
+                            continue
+                        for container in (pod_spec.get("containers") or []) + (pod_spec.get("initContainers") or []):
+                            for port_entry in container.get("ports") or []:
+                                if isinstance(port_entry, dict) and port_entry.get("name") == raw_target and type(port_entry.get("containerPort")) is int:
+                                    resolved = port_entry["containerPort"]
+                                    break
+                            if resolved is not None:
+                                break
+                        if resolved is not None:
+                            break
+                if resolved is None:
                     raise ValueError(f"live platform read-back failed for {key}")
                 target_port = resolved
             else:
@@ -931,22 +965,509 @@ def build_private_endpoint_inventory(
     return inventory
 
 
-def _contains_forbidden(value: object, forbidden: set[str]) -> bool:
+def _topic24_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _topic24_source_hashes() -> dict[str, str]:
+    root = _topic24_root()
+    source_roots = ("infra/helm/edai2", "infra/agentgateway/edai2", "infra/kustomize/llmd",
+                    "infra/substrate", "infra/kagent/edai2", "infra/security/external-secrets",
+                    "infra/security/vault", "infra/postgres/edai2")
+    paths = [root / "scripts/qa/capture_edai2_evidence.py", root / "configs/gke/platform_service_bindings.json",
+             root / "scripts/qa/record_topic24_build_completion.py",
+             *sorted(path for source_root in source_roots for path in (root / source_root).rglob("*") if path.is_file())]
+    if not all(path.is_file() for path in paths):
+        raise ValueError("Topic 24 provenance sources are incomplete")
+    return {path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest() for path in paths}
+
+
+def _topic24_cluster_fingerprint(kubeconfig: Path, context: str) -> str:
+    if not kubeconfig.is_absolute() or not kubeconfig.is_file():
+        raise ValueError("absolute kubeconfig is required")
+    try:
+        document = yaml.safe_load(kubeconfig.read_text(encoding="utf-8")) or {}
+        context_entry = next(item for item in document.get("contexts", []) if item.get("name") == context)
+        cluster_name = context_entry["context"]["cluster"]
+        cluster_entry = next(item for item in document.get("clusters", []) if item.get("name") == cluster_name)["cluster"]
+        if not isinstance(cluster_entry.get("server"), str):
+            raise ValueError("context has no Kubernetes API server")
+        public_target = {"context": context, "cluster": cluster_name, "server": cluster_entry["server"],
+                         "certificate_authority_sha256": hashlib.sha256(str(cluster_entry.get("certificate-authority-data", "")).encode()).hexdigest()}
+        return hashlib.sha256(_canonical_inventory(public_target)).hexdigest()
+    except (KeyError, StopIteration, TypeError, AttributeError, yaml.YAMLError, OSError) as error:
+        raise ValueError("kubeconfig target cannot be fingerprinted") from error
+
+
+def topic24_provenance(kubeconfig: Path, context: str) -> dict[str, object]:
+    """Return secret-free local and target provenance for a fresh Topic 24 capture."""
+    _validate_gke_target(kubeconfig, context)
+    root = _topic24_root()
+    hashes = _topic24_source_hashes()
+    revision = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], check=True, capture_output=True, text=True, encoding="utf-8").stdout.strip()
+    diff = subprocess.run(["git", "-C", str(root), "diff", "--binary", "HEAD", "--", *hashes], check=True, capture_output=True).stdout
+    working_tree_hash = hashlib.sha256(diff + _canonical_inventory(hashes)).hexdigest()
+    return {"revision": revision, "captured_at_utc": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            "context": context, "cluster_fingerprint": _topic24_cluster_fingerprint(kubeconfig, context),
+            "working_tree_sha256": working_tree_hash, "source_sha256": [hashes[path] for path in sorted(hashes)]}
+
+
+def _sanitize_live_resource(value: object) -> object:
     if isinstance(value, dict):
-        return any(_contains_forbidden(key, forbidden) or _contains_forbidden(item, forbidden) for key, item in value.items())
+        safe: dict[str, object] = {}
+        for key, item in value.items():
+            if key in {"data", "stringData", "env", "envFrom", "command", "args", "annotations", "imagePullSecrets"} or _SECRET.search(str(key)):
+                continue
+            safe[str(key)] = _sanitize_live_resource(item)
+        return safe
     if isinstance(value, list):
-        return any(_contains_forbidden(item, forbidden) for item in value)
-    return isinstance(value, str) and value in forbidden
+        return [_sanitize_live_resource(item) for item in value]
+    return value
+
+
+def verify_cache_runtime_provenance(payload: object, *, root: Path | None = None) -> dict[str, object]:
+    """Bind the model-cache marker to the checked-in manifest and initializer."""
+    root = root or _topic24_root()
+    manifest_path = root / "infra/kustomize/llmd/overlays/cpu/model-cache-manifest.json"
+    init_path = root / "infra/kustomize/llmd/overlays/cpu/cache-init.py"
+    if not isinstance(payload, dict) or set(payload) != {"schema_version", "manifest_file_sha256", "init_script_sha256", "objects"}:
+        raise ValueError("live model cache provenance is incomplete")
+    if not manifest_path.is_file() or not init_path.is_file():
+        raise ValueError("pinned model cache provenance sources are missing")
+    expected_manifest_hash = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    expected_script_hash = hashlib.sha256(init_path.read_bytes()).hexdigest()
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        expected_objects = [{key: item[key] for key in ("name", "generation", "bytes", "sha256", "revision")}
+                            for item in manifest["objects"] if item.get("name") == "primary"]
+        if len(expected_objects) != 1:
+            raise ValueError("pinned model cache manifest has no unique primary object")
+    except (KeyError, TypeError, json.JSONDecodeError) as error:
+        raise ValueError("pinned model cache manifest is malformed") from error
+    if (payload.get("schema_version") != 1 or payload.get("manifest_file_sha256") != expected_manifest_hash
+            or payload.get("init_script_sha256") != expected_script_hash or payload.get("objects") != expected_objects):
+        raise ValueError("live model cache provenance does not match pinned generations and hashes")
+    return {"schema_version": 1, "manifest_file_sha256": expected_manifest_hash,
+            "init_script_sha256": expected_script_hash, "objects": expected_objects}
+
+
+def verify_substrate_build_provenance(root: Path, live_resources: dict) -> dict[str, object]:
+    """Bind a live Substrate API image to the successful source-bundle build outputs."""
+    scratch = root / "tmp/edai2-gcp/topic24-finalize"
+    output = scratch / "remote-build-output"
+    required = [output / name for name in ("image-refs.txt", "remote-tool-versions.txt", "verified-inputs.sha256", "ko-build.log",
+                                           "image-platform-provenance.json", "job-completion.json")]
+    required.extend((scratch / "remote-build-provenance.json", scratch / "substrate-source-topic24-finalize.manifest.json",
+                     scratch / "substrate-source-topic24-finalize.tar.gz", scratch / "topic24-builder-job.yaml"))
+    if any(not path.is_file() for path in required) or not (output / "sbom").is_dir() or not list((output / "sbom").glob("*")):
+        raise ValueError("Substrate API build provenance outputs are missing")
+    try:
+        build = json.loads((scratch / "remote-build-provenance.json").read_text(encoding="utf-8"))
+        source_manifest = json.loads((scratch / "substrate-source-topic24-finalize.manifest.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("Substrate API build provenance is malformed") from error
+    bundle_hash = hashlib.sha256((scratch / "substrate-source-topic24-finalize.tar.gz").read_bytes()).hexdigest()
+    manifest_hash = hashlib.sha256((scratch / "substrate-source-topic24-finalize.manifest.json").read_bytes()).hexdigest()
+    if (build.get("source_bundle_sha256") != bundle_hash or source_manifest.get("archive_sha256") != bundle_hash
+            or build.get("source_manifest_sha256") != manifest_hash):
+        raise ValueError("Substrate API build source bundle provenance is stale")
+    target = build.get("target", {})
+    repo = f"{target.get('region')}-docker.pkg.dev/{target.get('project_id')}/{target.get('artifact_registry_repository')}/{target.get('image_name')}"
+    tag = str(target.get("tag", ""))
+    if not tag or tag != f"topic24-{bundle_hash[:16]}":
+        raise ValueError("Substrate API source tag does not match the source bundle")
+    ref_lines = [line.strip() for line in required[0].read_text(encoding="utf-8").splitlines() if line.strip()]
+    if len(ref_lines) != 1 or not ref_lines[0].startswith((repo + "@sha256:", repo + ":" + tag + "@sha256:")):
+        raise ValueError("Substrate API build output does not identify the source-pinned image")
+    digest_match = re.search(r"@sha256:([0-9a-f]{64})$", ref_lines[0])
+    if not digest_match:
+        raise ValueError("Substrate API image digest is missing")
+    platform_digest = verify_registry_platform_provenance(required[4], ref_lines[0])
+    try:
+        completion = json.loads(required[5].read_text(encoding="utf-8"))
+        job = completion["job"]
+        builder = completion["builder"]
+        condition = completion["complete_condition"]
+        verified_archive = completion["verified_archive"]
+        started = datetime.fromisoformat(str(job["start_time"]).replace("Z", "+00:00"))
+        completed = datetime.fromisoformat(str(job["completion_time"]).replace("Z", "+00:00"))
+        transitioned = datetime.fromisoformat(str(condition["last_transition_time"]).replace("Z", "+00:00"))
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+        raise ValueError("Substrate API builder completion read-back is malformed") from error
+    if not all(isinstance(value, dict) for value in (completion, job, builder, condition, verified_archive)):
+        raise ValueError("Substrate API builder completion read-back is malformed")
+    expected_completion_keys = {"schema_version", "job", "builder", "complete_condition", "source_bundle_sha256", "source_manifest_sha256", "image_ref", "platform_image_digest", "verified_archive", "verified_inputs_sha256"}
+    job_manifest_path = scratch / "topic24-builder-job.yaml"
+    try:
+        expected_job = yaml.safe_load(job_manifest_path.read_text(encoding="utf-8"))
+        expected_builder = expected_job["spec"]["template"]["spec"]["containers"][0]
+        expected_env = {item["name"]: item["value"] for item in expected_builder.get("env", []) if item.get("name") in {"BUILD_TAG", "SOURCE_BUNDLE_SHA256", "KO_DOCKER_REPO"}}
+        expected_command = expected_builder.get("command", []) + expected_builder.get("args", [])
+        expected_command_hash = hashlib.sha256(json.dumps(expected_command, separators=(",", ":")).encode()).hexdigest()
+    except (OSError, KeyError, TypeError, yaml.YAMLError) as error:
+        raise ValueError("pinned Substrate builder manifest is missing") from error
+    if (set(completion) != expected_completion_keys or completion.get("schema_version") != 1
+            or set(job) != {"name", "uid", "succeeded", "start_time", "completion_time"}
+            or job.get("name") != "topic24-substrate-api-build" or not isinstance(job.get("uid"), str) or not job["uid"]
+            or job.get("succeeded") != 1 or set(condition) != {"type", "status", "last_transition_time"}
+            or condition.get("type") != "Complete" or condition.get("status") != "True"
+            or completed <= started or transitioned < started or transitioned > completed or completion.get("source_bundle_sha256") != bundle_hash
+            or completion.get("source_manifest_sha256") != manifest_hash or completion.get("image_ref") != ref_lines[0]
+            or completion.get("platform_image_digest") != platform_digest
+            or set(builder) != {"image", "command_sha256", "source_bundle_sha256", "build_tag", "ko_docker_repo", "job_manifest_sha256"}
+            or builder.get("image") != expected_builder.get("image") or builder.get("command_sha256") != expected_command_hash
+            or builder.get("source_bundle_sha256") != bundle_hash or builder.get("build_tag") != tag
+            or builder.get("ko_docker_repo") != repo or builder.get("job_manifest_sha256") != hashlib.sha256(job_manifest_path.read_bytes()).hexdigest()
+            or expected_env != {"BUILD_TAG": tag, "SOURCE_BUNDLE_SHA256": bundle_hash, "KO_DOCKER_REPO": repo}
+            or set(verified_archive) != {"sha256", "source_manifest_sha256", "command_exit_code"}
+            or verified_archive.get("sha256") != bundle_hash or verified_archive.get("source_manifest_sha256") != manifest_hash
+            or verified_archive.get("command_exit_code") != 0
+            or completion.get("verified_inputs_sha256") != hashlib.sha256(required[2].read_bytes()).hexdigest()):
+        raise ValueError("Substrate API builder completion does not prove the source-pinned successful build")
+    inputs = required[2].read_text(encoding="utf-8")
+    if not re.search(rf"(?m)^{re.escape(bundle_hash)}\s+.*substrate-source-topic24-finalize\.tar\.gz$", inputs):
+        raise ValueError("Substrate API build did not verify the expected source bundle")
+    for key, filename in (("go", "go.tar.gz"), ("ko", "ko.tar.gz")):
+        expected_hash = build.get(key, {}).get("linux_amd64_archive_sha256")
+        if not isinstance(expected_hash, str) or not re.search(rf"(?m)^{re.escape(expected_hash)}\s+.*{re.escape(filename)}$", inputs):
+            raise ValueError("Substrate API build tool archive checksum is missing")
+    versions = required[1].read_text(encoding="utf-8")
+    if (f"BUILD_TAG={tag}" not in versions or f"KO_DOCKER_REPO={repo}" not in versions
+            or f"BASE_IMAGE={build.get('base_image', {}).get('reference')}" not in versions
+            or "go version go1.26.3 linux/amd64" not in versions or not re.search(r"ko version v?0\.19\.1", versions)):
+        raise ValueError("Substrate API builder tool provenance is incomplete")
+    images = []
+    for pod in live_resources.get("resources", {}).get("pods", []):
+        metadata, spec, status = pod.get("metadata", {}), pod.get("spec", {}), pod.get("status", {})
+        statuses = {item.get("name"): item.get("imageID", "") for item in status.get("containerStatuses", []) if isinstance(item, dict)}
+        for container in spec.get("containers", []):
+            image = container.get("image", "")
+            if image == ref_lines[0]:
+                runtime_digest = re.search(r"sha256:([0-9a-f]{64})$", statuses.get(container.get("name"), ""))
+                if runtime_digest and any(item.get("name") == container.get("name") and item.get("ready") is True
+                                          for item in status.get("containerStatuses", []) if isinstance(item, dict)):
+                    images.append((image, runtime_digest.group(1), str(metadata.get("uid", ""))))
+    if len(images) != 1 or images[0][1] != platform_digest.removeprefix("sha256:"):
+        raise ValueError("live Substrate API image is not the source-built digest")
+    return {"source_bundle_sha256": bundle_hash, "source_manifest_sha256": manifest_hash,
+            "image_ref": ref_lines[0], "runtime_pod_uid": images[0][2],
+            "platform_image_digest": platform_digest,
+            "builder_outputs_sha256": hashlib.sha256(_canonical_inventory({path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in required[:6]})).hexdigest(),
+            "sbom_sha256": _sha256_files(output / "sbom")}
+
+
+def verify_registry_platform_provenance(path: Path, expected_image_ref: str) -> str:
+    """Resolve the pinned OCI index/manifest bytes to their linux/amd64 image digest."""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        expected_keys = {"schema_version", "image_ref", "index_manifest_base64", "platform_manifest_base64", "config_blob_base64"}
+        if not isinstance(payload, dict) or set(payload) != expected_keys or payload.get("schema_version") != 1 or payload.get("image_ref") != expected_image_ref:
+            raise ValueError
+        index_bytes = base64.b64decode(payload["index_manifest_base64"], validate=True)
+        platform_bytes = base64.b64decode(payload["platform_manifest_base64"], validate=True)
+        config_bytes = base64.b64decode(payload["config_blob_base64"], validate=True)
+        index_doc, platform_doc, config_doc = (json.loads(value) for value in (index_bytes, platform_bytes, config_bytes))
+        root_digest = re.search(r"@sha256:([0-9a-f]{64})$", expected_image_ref)
+        if not root_digest or hashlib.sha256(index_bytes).hexdigest() != root_digest.group(1):
+            raise ValueError
+        descriptors = index_doc.get("manifests") if isinstance(index_doc, dict) else None
+        if descriptors is not None:
+            matches = [item for item in descriptors if isinstance(item, dict) and isinstance(item.get("platform"), dict)
+                       and item["platform"].get("os") == "linux" and item["platform"].get("architecture") == "amd64"]
+            if len(matches) != 1:
+                raise ValueError
+            child_digest = matches[0].get("digest")
+            if child_digest != "sha256:" + hashlib.sha256(platform_bytes).hexdigest():
+                raise ValueError
+        else:
+            if platform_bytes != index_bytes:
+                raise ValueError
+            child_digest = "sha256:" + hashlib.sha256(platform_bytes).hexdigest()
+        config_descriptor = platform_doc.get("config", {}) if isinstance(platform_doc, dict) else {}
+        if config_descriptor.get("digest") != "sha256:" + hashlib.sha256(config_bytes).hexdigest():
+            raise ValueError
+        if not isinstance(config_doc, dict) or config_doc.get("os") != "linux" or config_doc.get("architecture") != "amd64":
+            raise ValueError
+        return child_digest
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError, base64.binascii.Error) as error:
+        raise ValueError("Substrate API registry platform digest provenance is invalid") from error
+
+
+def _sha256_files(root: Path) -> str:
+    files = sorted(path for path in root.rglob("*") if path.is_file())
+    if not files:
+        raise ValueError("Substrate API SBOM output is empty")
+    rows = [(path.relative_to(root).as_posix(), hashlib.sha256(path.read_bytes()).hexdigest()) for path in files]
+    return hashlib.sha256(_canonical_inventory(rows)).hexdigest()
+
+
+def _topic24_has_secret_material(value: object) -> bool:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            normalized = str(key).replace("_", "").replace("-", "").lower()
+            if normalized in {"data", "stringdata", "env", "envfrom", "command", "args", "token", "password", "secret", "authorization", "apikey"}:
+                return True
+            if _topic24_has_secret_material(item):
+                return True
+    elif isinstance(value, list):
+        return any(_topic24_has_secret_material(item) for item in value)
+    return False
+
+
+def build_live_resource_inventory(*, runner: Callable[[list[str]], dict], namespace: str = "edai2") -> dict:
+    """Read all owned runtime namespaces and nodes; omit secret-bearing fields."""
+    namespaced = "pods,deployments,statefulsets,daemonsets,jobs,cronjobs,replicasets,services,endpointslices,persistentvolumeclaims"
+    try:
+        namespace_payload = runner(["kubectl", "get", namespaced, "--all-namespaces", "--output", "json"])
+        namespace_list = runner(["kubectl", "get", "namespaces", "--output", "json"])
+        node_payload = runner(["kubectl", "get", "nodes", "--output", "json"])
+        api_resources = runner(["kubectl", "api-resources", "--verbs=list", "--namespaced=true", "--output", "name"])
+    except Exception as error:
+        raise ValueError("live namespace or node inventory read-back failed") from error
+    if not isinstance(namespace_payload, dict) or not isinstance(namespace_payload.get("items"), list) or not isinstance(node_payload, dict) or not isinstance(node_payload.get("items"), list):
+        raise ValueError("live namespace or node inventory is incomplete")
+    if not isinstance(namespace_list, dict) or not isinstance(namespace_list.get("items"), list) or not set(TOPIC24_OWNED_NAMESPACES).issubset({item.get("metadata", {}).get("name") for item in namespace_list["items"]}):
+        raise ValueError("owned namespace collection is incomplete")
+    if not isinstance(api_resources, dict) or not isinstance(api_resources.get("items"), list) or any(not isinstance(name, str) for name in api_resources["items"]):
+        raise ValueError("live custom-resource discovery is incomplete")
+    resources: dict[str, list[dict]] = {name: [] for name in TOPIC24_RESOURCE_COLLECTIONS}
+    kind_names = {"pod": "pods", "deployment": "deployments", "statefulset": "statefulsets", "daemonset": "daemonsets", "job": "jobs", "cronjob": "cronjobs", "replicaset": "replicasets", "service": "services", "endpointslice": "endpointslices", "persistentvolumeclaim": "persistentvolumeclaims"}
+    for item in namespace_payload["items"]:
+        if not isinstance(item, dict):
+            raise ValueError("live namespace inventory contains a malformed object")
+        if item.get("metadata", {}).get("namespace") not in TOPIC24_OWNED_NAMESPACES:
+            continue
+        collection = kind_names.get(str(item.get("kind", "")).lower())
+        if collection is not None:
+            resources[collection].append(_sanitize_live_resource(item))
+    resources["nodes"] = [_sanitize_live_resource(item) for item in node_payload["items"] if isinstance(item, dict)]
+    custom_names = sorted(name for name in api_resources["items"] if re.search(r"agent|tool|sandbox|remotemcp", name, re.IGNORECASE))
+    if custom_names:
+        custom_payload = runner(["kubectl", "get", ",".join(custom_names), "--all-namespaces", "--output", "json"])
+        if not isinstance(custom_payload, dict) or not isinstance(custom_payload.get("items"), list):
+            raise ValueError("live custom-resource inventory is incomplete")
+        resources["custom_resources"] = [_sanitize_live_resource(item) for item in custom_payload["items"] if isinstance(item, dict)]
+    return {"namespace": namespace, "collected_namespaces": list(TOPIC24_OWNED_NAMESPACES), "resources": resources}
+
+
+def collect_runtime_cache_provenance(live_resources: dict, *, runner: Callable[[list[str]], dict]) -> dict[str, object]:
+    """Read the verified marker from the ready primary pod's read-only cache."""
+    pods = live_resources.get("resources", {}).get("pods", [])
+    matches = []
+    for pod in pods:
+        metadata, spec, status = pod.get("metadata", {}), pod.get("spec", {}), pod.get("status", {})
+        labels = metadata.get("labels", {}) if isinstance(metadata, dict) else {}
+        containers = spec.get("containers", []) if isinstance(spec, dict) else []
+        init_containers = spec.get("initContainers", []) if isinstance(spec, dict) else []
+        model = any(item.get("name") == "model" and any(mount.get("mountPath") == "/models" for mount in item.get("volumeMounts", []))
+                    for item in containers if isinstance(item, dict))
+        cache_init = any(item.get("name") == "cache-init" for item in init_containers if isinstance(item, dict))
+        statuses = status.get("initContainerStatuses", []) if isinstance(status, dict) else []
+        init_succeeded = any(item.get("name") == "cache-init" and item.get("state", {}).get("terminated", {}).get("exitCode") == 0
+                             for item in statuses if isinstance(item, dict))
+        container_statuses = status.get("containerStatuses", []) if isinstance(status, dict) else []
+        model_ready = any(item.get("name") == "model" and item.get("ready") is True for item in container_statuses if isinstance(item, dict))
+        if labels.get("app") == "llmd-primary" and model and cache_init and init_succeeded and model_ready:
+            matches.append(str(metadata.get("name", "")))
+    if len(matches) != 1 or not matches[0]:
+        raise ValueError("live model cache provenance pod is missing or ambiguous")
+    try:
+        marker = runner(["kubectl", "exec", "-n", "edai2", f"pod/{matches[0]}", "-c", "model", "--", "cat", "/models/.edai2-cache-provenance.json"])
+    except Exception as error:
+        raise ValueError("live model cache provenance read-back failed") from error
+    return verify_cache_runtime_provenance(marker)
+
+
+def _topic24_retained_store(metadata: dict) -> bool:
+    if metadata.get("namespace") != "edai2":
+        return False
+    release = metadata.get("labels", {}).get("app.kubernetes.io/instance")
+    pattern = {"postgres": r"(?:data-)?postgres-postgresql(?:-hl|-\d+)?",
+               "valkey": r"(?:(?:valkey-data-)?valkey-primary(?:-\d+)?|valkey-headless)"}.get(release)
+    return bool(pattern and re.fullmatch(pattern, metadata.get("name", "")))
+
+
+def topic24_workload_provenance(live_resources: dict, *, cache_marker: dict, root: Path | None = None) -> dict[str, object]:
+    resources = live_resources.get("resources") if isinstance(live_resources, dict) else None
+    if not isinstance(resources, dict):
+        raise ValueError("live resource inventory is incomplete")
+    pods, pvcs = resources.get("pods"), resources.get("persistentvolumeclaims")
+    if not isinstance(pods, list) or not isinstance(pvcs, list):
+        raise ValueError("live image or cache provenance is missing")
+    images: list[dict[str, str]] = []
+    for pod in pods:
+        metadata, spec = pod.get("metadata", {}), pod.get("spec", {})
+        status = pod.get("status", {})
+        for container_type, spec_key, status_key in (("application", "containers", "containerStatuses"), ("init", "initContainers", "initContainerStatuses")):
+            statuses = {item.get("name"): item.get("imageID") for item in status.get(status_key, []) if isinstance(item, dict)} if isinstance(status, dict) else {}
+            for container in spec.get(spec_key, []) if isinstance(spec, dict) else []:
+                if not isinstance(container, dict):
+                    continue
+                image, image_id = container.get("image"), statuses.get(container.get("name"))
+                if not isinstance(image, str) or not isinstance(image_id, str) or not re.search(r"sha256:[0-9a-f]{64}$", image_id):
+                    raise ValueError("live workload image digest provenance is missing")
+                pinned = re.search(r"@sha256:([0-9a-f]{64})$", image)
+                reference_kind = "digest"
+                if not pinned:
+                    canonical_image = re.sub(r"^registry-1\.docker\.io/", "docker.io/", image)
+                    accepted_floating = (_topic24_retained_store(metadata) and
+                        {"docker.io/bitnami/postgresql:latest": "postgres", "docker.io/bitnami/valkey:latest": "valkey"}.get(canonical_image)
+                        == metadata.get("labels", {}).get("app.kubernetes.io/instance"))
+                    version_tag = re.search(r":v?\d[^/@]*$", image)
+                    critical_model = any(mount.get("mountPath") == "/models" for mount in container.get("volumeMounts", []))
+                    if critical_model or not (accepted_floating or version_tag):
+                        raise ValueError("live workload image reference is not an approved version or digest")
+                    reference_kind = "accepted-floating-tag" if accepted_floating else "version-tag"
+                runtime = re.search(r"sha256:([0-9a-f]{64})$", image_id)
+                if pinned and (not runtime or runtime.group(1) != pinned.group(1)):
+                    proof_root = (root or Path.cwd()) / "tmp/edai2-gcp/topic24-finalize"
+                    candidates = [proof_root / "image-platform-provenance" / (hashlib.sha256(image.encode()).hexdigest() + ".json"),
+                                  proof_root / "remote-build-output/image-platform-provenance.json"]
+                    resolved = None
+                    for candidate in candidates:
+                        if candidate.is_file():
+                            try:
+                                resolved = verify_registry_platform_provenance(candidate, image)
+                                break
+                            except ValueError:
+                                continue
+                    if not runtime or resolved != "sha256:" + runtime.group(1):
+                        raise ValueError("live runtime image digest differs from its pinned registry provenance")
+                images.append({"namespace": str(metadata.get("namespace", live_resources.get("namespace", ""))),
+                               "pod_uid": str(metadata.get("uid", "")), "container": str(container.get("name", "")),
+                               "container_type": container_type, "image": image, "image_id": image_id, "reference_kind": reference_kind})
+    if not images:
+        raise ValueError("live workload image provenance is empty")
+    charts = set()
+    for collection_name in TOPIC24_RESOURCE_COLLECTIONS:
+        for resource in resources.get(collection_name, []):
+            metadata = resource.get("metadata", {})
+            labels = metadata.get("labels", {}) if isinstance(metadata, dict) else {}
+            release, chart = labels.get("app.kubernetes.io/instance"), labels.get("helm.sh/chart")
+            if isinstance(release, str) and isinstance(chart, str):
+                charts.add((metadata.get("namespace", live_resources.get("namespace", "")), release, chart))
+    if not charts:
+        raise ValueError("live Helm chart provenance is empty")
+    cache_pvcs = []
+    for pvc in pvcs:
+        metadata, spec, status = pvc.get("metadata", {}), pvc.get("spec", {}), pvc.get("status", {})
+        cache_pvcs.append({"namespace": metadata.get("namespace", live_resources.get("namespace", "")), "name": metadata.get("name"), "uid": metadata.get("uid"), "storage_class": spec.get("storageClassName"), "phase": status.get("phase")})
+    root = root or _topic24_root()
+    cache_provenance = verify_cache_runtime_provenance(cache_marker, root=root)
+    substrate_build = verify_substrate_build_provenance(root, live_resources)
+    return {"images": sorted(images, key=lambda item: (item["pod_uid"], item["container_type"], item["container"])),
+            "charts": [{"namespace": namespace, "release": release, "chart": chart} for namespace, release, chart in sorted(charts)],
+            "chart_sources_sha256": hashlib.sha256(_canonical_inventory(_topic24_source_hashes())).hexdigest(),
+            "cache_pvcs": sorted(cache_pvcs, key=lambda item: str(item["name"])),
+            "model_cache": cache_provenance, "substrate_api_build": substrate_build}
+
+
+def _topic24_kubectl_runner(kubeconfig: Path, context: str) -> Callable[[list[str]], dict]:
+    if not kubeconfig.is_absolute():
+        raise ValueError("absolute kubeconfig is required")
+    kubeconfig_value, context_value = str(kubeconfig), context
+
+    def runner(command: list[str]) -> dict:
+        if not command or command[0] != "kubectl":
+            raise ValueError("live runner expects kubectl")
+        full = [command[0], "--kubeconfig", kubeconfig_value, "--context", context_value, *command[1:]]
+        raw = subprocess.run(full, check=True, capture_output=True, text=True, encoding="utf-8").stdout
+        if command[1] == "api-resources":
+            return {"items": [line.strip() for line in raw.splitlines() if line.strip()]}
+        return json.loads(raw)
+    return runner
+
+
+def build_topic24_inventory(*, kubeconfig: Path, context: str, bindings: dict, runner: Callable[[list[str]], dict] | None = None) -> dict:
+    """Collect the five private Service bindings plus sanitized same-target runtime proof."""
+    live_runner = runner or _topic24_kubectl_runner(kubeconfig, context)
+    endpoints = build_private_endpoint_inventory(bindings, runner=live_runner)["private_endpoints"]
+    live_resources = build_live_resource_inventory(runner=live_runner)
+    cache_marker = collect_runtime_cache_provenance(live_resources, runner=live_runner)
+    return {"provenance": topic24_provenance(kubeconfig, context), "private_endpoints": endpoints,
+            "live_resources": live_resources, "workload_provenance": topic24_workload_provenance(live_resources, cache_marker=cache_marker)}
+
+
+def verify_topic24_inventory(payload: dict, *, kubeconfig: Path, context: str, bindings: dict | None = None,
+                             runner: Callable[[list[str]], dict] | None = None, root: Path | None = None) -> None:
+    """Validate a fresh, same-target snapshot and its resource-backed provenance."""
+    if not isinstance(payload, dict) or set(payload) != {"provenance", "private_endpoints", "live_resources", "workload_provenance"}:
+        raise ValueError("Topic 24 inventory provenance or resource proof is incomplete")
+    verify_private_endpoint_inventory({"private_endpoints": payload["private_endpoints"]}, list(PRIVATE_ENDPOINT_KEYS))
+    live = payload["live_resources"]
+    if not isinstance(live, dict) or live.get("namespace") != "edai2" or not isinstance(live.get("resources"), dict):
+        raise ValueError("live resource inventory is incomplete")
+    resources = live["resources"]
+    if live.get("collected_namespaces") != list(TOPIC24_OWNED_NAMESPACES):
+        raise ValueError("owned namespace collection is incomplete")
+    if set(resources) != set(TOPIC24_RESOURCE_COLLECTIONS) or any(not isinstance(resources[name], list) for name in TOPIC24_RESOURCE_COLLECTIONS):
+        raise ValueError("live resource inventory is incomplete")
+    if not resources["nodes"] or not (resources["pods"] or resources["deployments"] or resources["statefulsets"] or resources["services"]):
+        raise ValueError("live resource proof is empty")
+    live_runner = runner or _topic24_kubectl_runner(kubeconfig, context)
+    cache_marker = collect_runtime_cache_provenance(live, runner=live_runner)
+    if payload["workload_provenance"] != topic24_workload_provenance(live, cache_marker=cache_marker, root=root):
+        raise ValueError("image, chart, or cache provenance is stale")
+    provenance = payload["provenance"]
+    fresh = topic24_provenance(kubeconfig, context)
+    if not isinstance(provenance, dict) or set(provenance) != set(fresh):
+        raise ValueError("Topic 24 provenance is incomplete")
+    if any(provenance.get(key) != fresh.get(key) for key in ("revision", "context", "cluster_fingerprint", "working_tree_sha256", "source_sha256")):
+        raise ValueError("Topic 24 provenance does not match the current revision, sources, context, or cluster")
+    try:
+        captured = datetime.fromisoformat(str(provenance["captured_at_utc"]).replace("Z", "+00:00"))
+        age_seconds = (datetime.now(UTC) - captured.astimezone(UTC)).total_seconds()
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("Topic 24 provenance timestamp is invalid") from error
+    if age_seconds < -300 or age_seconds > 1800:
+        raise ValueError("Topic 24 live read-back is stale")
+    if _topic24_has_secret_material(payload):
+        raise ValueError("Topic 24 inventory carries secret material")
+    target_bindings = bindings or load_service_bindings(_topic24_root() / "configs/gke/platform_service_bindings.json")
+    live_endpoints = build_private_endpoint_inventory(target_bindings, runner=live_runner)["private_endpoints"]
+    if payload["private_endpoints"] != live_endpoints:
+        raise ValueError("private Service and EndpointSlice read-back is stale")
 
 
 def verify_platform_exclusions(payload: dict, forbidden: list[str]) -> None:
-    """Refuse bundled stores/tools/agents, public load balancers, and app agents."""
-    if not isinstance(payload, dict):
-        raise ValueError("platform inventory must be an object")
-    if not forbidden:
-        raise ValueError("forbidden marker list must not be empty")
-    if _contains_forbidden(payload, set(forbidden)):
-        raise ValueError("platform inventory contains a forbidden bundled/public/app marker")
+    """Prove exclusions from collected Kubernetes resource identities and specs."""
+    if not isinstance(payload, dict) or not forbidden:
+        raise ValueError("platform resource inventory and forbidden marker contract are required")
+    live = payload.get("live_resources")
+    if not isinstance(live, dict) or not isinstance(live.get("resources"), dict):
+        raise ValueError("platform resource proof is missing")
+    resources = live["resources"]
+    if set(TOPIC24_RESOURCE_COLLECTIONS) - set(resources) or any(not isinstance(resources.get(name), list) for name in TOPIC24_RESOURCE_COLLECTIONS):
+        raise ValueError("platform resource proof is incomplete")
+    if not resources["nodes"] or not (resources["pods"] or resources["deployments"] or resources["statefulsets"] or resources["services"]):
+        raise ValueError("platform resource proof is empty")
+    for service in resources["services"]:
+        spec = service.get("spec", {})
+        if spec.get("type") == "LoadBalancer" or spec.get("externalIPs"):
+            raise ValueError("platform resource inventory contains a forbidden public service")
+    forbidden_kinds = {"agent", "tool", "sandboxagent", "appsandboxagent", "remotemcpserver"}
+    retained_services = {service["metadata"]["name"] for service in resources["services"]
+                         if _topic24_retained_store(service.get("metadata", {}))}
+    for collection in resources.values():
+        for item in collection:
+            kind = str(item.get("kind", "")).replace(".", "").lower()
+            if kind in forbidden_kinds:
+                raise ValueError("platform resource inventory contains a forbidden agent or tool")
+            metadata = item.get("metadata", {})
+            labels = metadata.get("labels", {}) if isinstance(metadata, dict) else {}
+            release, name = labels.get("app.kubernetes.io/instance"), str(metadata.get("name", "")).lower()
+            spec = item.get("spec", {})
+            containers = spec.get("containers", []) if isinstance(spec, dict) else []
+            template = spec.get("template", {}).get("spec", {}) if isinstance(spec, dict) else {}
+            containers += template.get("containers", []) if isinstance(template, dict) else []
+            refs = [str(container.get("image", "")).lower() for container in containers if isinstance(container, dict)]
+            words = " ".join([name, *refs])
+            allowed_broker = release == "airflow" and ("broker" in words or "redis" in words)
+            allowed_feast_redis = release == "feast" and "redis" in words
+            allowed_retained = _topic24_retained_store(metadata) or (kind == "endpointslice" and metadata.get("namespace") == "edai2"
+                and labels.get("kubernetes.io/service-name") in retained_services)
+            if any(marker in words for marker in ("postgres", "valkey", "rustfs")) and not (allowed_broker or allowed_feast_redis or allowed_retained):
+                raise ValueError("platform resource inventory contains a forbidden bundled store")
 
 
 def _require_topic24_target(parser: argparse.ArgumentParser, kubeconfig: str | None, context: str | None) -> None:
@@ -954,7 +1475,7 @@ def _require_topic24_target(parser: argparse.ArgumentParser, kubeconfig: str | N
     if (kubeconfig is None) != (context is None):
         parser.error("kubeconfig and context are required together")
     if kubeconfig is None or context is None:
-        return
+        parser.error("kubeconfig and context are required")
     if not context or not Path(kubeconfig).is_file():
         parser.error("kubeconfig must be a readable file with a named context")
 
@@ -1884,10 +2405,11 @@ def main() -> int:
                 expected = parse_key_list(args.expected_keys)
                 require_exact_keys(expected, list(PRIVATE_ENDPOINT_KEYS), "expected keys")
                 payload = json.loads(Path(args.verify_private_endpoint_inventory).read_text(encoding="utf-8"))
+                bindings = load_service_bindings(_topic24_root() / "configs/gke/platform_service_bindings.json")
             except (OSError, json.JSONDecodeError, ValueError) as error:
                 parser.error(str(error))
             try:
-                verify_private_endpoint_inventory(payload, list(PRIVATE_ENDPOINT_KEYS))
+                verify_topic24_inventory(payload, kubeconfig=Path(args.kubeconfig), context=args.context, bindings=bindings)
             except ValueError as error:
                 parser.error(str(error))
             print(json.dumps({"verified": Path(args.verify_private_endpoint_inventory).name}, sort_keys=True))
@@ -1897,12 +2419,15 @@ def main() -> int:
                 parser.error("--output and --expected-keys do not belong to exclusion verification")
             if not args.strict or args.forbid is None:
                 parser.error("exclusion verification requires --forbid --strict")
+            _require_topic24_target(parser, args.kubeconfig, args.context)
             try:
                 forbidden = parse_key_list(args.forbid)
                 payload = json.loads(Path(args.verify_platform_exclusions).read_text(encoding="utf-8"))
+                bindings = load_service_bindings(_topic24_root() / "configs/gke/platform_service_bindings.json")
             except (OSError, json.JSONDecodeError, ValueError) as error:
                 parser.error(str(error))
             try:
+                verify_topic24_inventory(payload, kubeconfig=Path(args.kubeconfig), context=args.context, bindings=bindings)
                 verify_platform_exclusions(payload, forbidden)
             except ValueError as error:
                 parser.error(str(error))
@@ -1916,19 +2441,10 @@ def main() -> int:
             require_exact_keys(parse_key_list(args.require_private_endpoint_fields), sorted(PRIVATE_ENDPOINT_FIELDS), "private endpoint fields")
         except ValueError as error:
             parser.error(str(error))
-        bindings_path = Path("configs/gke/platform_service_bindings.json")
+        bindings_path = _topic24_root() / "configs/gke/platform_service_bindings.json"
         try:
             bindings = load_service_bindings(bindings_path)
-            kubeconfig_value, context_value = str(args.kubeconfig), str(args.context)
-
-            def _live_runner(command: list[str]) -> dict:
-                if not command or command[0] != "kubectl":
-                    raise ValueError("live runner expects a kubectl command")
-                full = [command[0], "--kubeconfig", kubeconfig_value, "--context", context_value, *command[1:]]
-                raw = subprocess.run(full, check=True, capture_output=True, text=True, encoding="utf-8").stdout
-                return json.loads(raw)
-
-            inventory = build_private_endpoint_inventory(bindings, runner=_live_runner)
+            inventory = build_topic24_inventory(kubeconfig=Path(args.kubeconfig), context=args.context, bindings=bindings)
         except (ValueError, KeyError, TypeError, subprocess.CalledProcessError, OSError) as error:
             parser.error(f"live platform read-back failed: {bindings_path}: {error}")
         try:
