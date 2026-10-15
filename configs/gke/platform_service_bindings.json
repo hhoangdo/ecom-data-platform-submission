@@ -1,0 +1,10 @@
+{
+  "bindings": {
+    "agentregistry_ui": {"namespace": "edai2", "service": "agentregistry"},
+    "airflow_web": {"namespace": "edai2", "service": "airflow-webserver"},
+    "datahub_frontend": {"namespace": "edai2", "service": "datahub-datahub-frontend"},
+    "grafana_ui": {"namespace": "edai2", "service": "grafana"},
+    "vault_status": {"namespace": "vault", "service": "vault"}
+  },
+  "note": "Five keys live as of 2026-10-14T15:46Z: agentregistry 0.3.3 (server 0.2.1) installed as ClusterIP Service agentregistry in edai2, port 12121->8080, ready endpoint present. Bindings carry namespace+service only; all other fields are read back live by the strict collector."
+}

@@ -5,6 +5,11 @@ metadata:
   namespace: edai2
 spec:
   gatewayClassName: agentgateway
+  infrastructure:
+    parametersRef:
+      group: agentgateway.dev
+      kind: AgentgatewayParameters
+      name: edai2-private-gateway
   listeners:
     - name: http
       protocol: HTTP

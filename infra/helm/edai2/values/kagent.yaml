@@ -1,10 +1,69 @@
-service: { type: ClusterIP }
-database: { urlFile: /vault/secrets/kagent-postgres-url }
-builtInAgents: { enabled: false }
+database:
+  postgres:
+    urlFile: /vault/secrets/kagent-postgres-url
+    bundled: { enabled: false }
+providers:
+  default: openAI
+  openAI:
+    provider: OpenAI
+    model: Qwen/Qwen2.5-1.5B-Instruct
+    apiKeySecretRef: kagent-model-route-key
+    apiKeySecretKey: api-key
+    config:
+      baseUrl: http://edai2-private-gateway.edai2.svc.cluster.local:8080/v1
 kmcp: { enabled: false }
-kagentTools: { enabled: false }
-grafanaMcp: { enabled: false }
+kagent-tools: { enabled: false }
+grafana-mcp: { enabled: false }
 querydoc: { enabled: false }
-controller: { substrate: { enabled: true } }
-substrateWorkerPool: { create: true, name: edai2-agents }
-proxy: { url: http://agentgateway-proxy.edai2.svc.cluster.local:15000 }
+k8s-agent: { enabled: false }
+kgateway-agent: { enabled: false }
+istio-agent: { enabled: false }
+promql-agent: { enabled: false }
+observability-agent: { enabled: false }
+argo-rollouts-agent: { enabled: false }
+helm-agent: { enabled: false }
+cilium-policy-agent: { enabled: false }
+cilium-manager-agent: { enabled: false }
+cilium-debug-agent: { enabled: false }
+oauth2-proxy: { enabled: false }
+controller:
+  env:
+    - name: SSL_CERT_DIR
+      value: /etc/edai2-ca
+  volumes:
+    - name: ateapi-ca
+      configMap:
+        name: kagent-ateapi-ca
+        items:
+          - key: ca.crt
+            path: ca.crt
+  volumeMounts:
+    - name: ateapi-ca
+      mountPath: /etc/edai2-ca
+      readOnly: true
+  podAnnotations:
+    vault.hashicorp.com/agent-inject: "true"
+    vault.hashicorp.com/role: kagent
+    vault.hashicorp.com/agent-inject-secret-kagent-postgres-url: kv/data/edai2/kagent/database
+    vault.hashicorp.com/agent-inject-file-kagent-postgres-url: kagent-postgres-url
+    vault.hashicorp.com/agent-requests-cpu: 50m
+    vault.hashicorp.com/agent-requests-mem: 128Mi
+    vault.hashicorp.com/agent-limits-cpu: 500m
+    vault.hashicorp.com/agent-limits-mem: 256Mi
+    vault.hashicorp.com/agent-inject-template-kagent-postgres-url: |
+      {{- with secret "kv/data/edai2/kagent/database" -}}
+      {{ .Data.data.url }}
+      {{- end }}
+  substrate:
+    enabled: true
+    ateApiEndpoint: dns:///api.edai2.svc:443
+    atenetRouterURL: http://atenet-router.edai2.svc:80
+    ateApiTokenAudience: api.edai2.svc
+    ateApiServer: { namespace: edai2, serviceAccount: ate-api-server }
+    defaultWorkerPool: { namespace: kagent, name: edai2-agents }
+substrateWorkerPool:
+  create: true
+  name: edai2-agents
+  replicas: 1
+  ateomImage: ghcr.io/kagent-dev/substrate/ateom-gvisor:v0.0.6
+proxy: { url: http://edai2-private-gateway.edai2.svc.cluster.local:8080 }

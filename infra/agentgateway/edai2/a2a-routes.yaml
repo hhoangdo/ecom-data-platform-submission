@@ -6,7 +6,14 @@ metadata:
   labels: { edai2.route-class: a2a-specialist }
 spec:
   parentRefs: [{ name: edai2-private-gateway }]
-  rules: [{ backendRefs: [{ name: coordinator-agent, port: 8080 }] }]
+  rules:
+    - matches:
+        - path: { type: PathPrefix, value: /a2a/specialist }
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path: { type: ReplacePrefixMatch, replacePrefixMatch: / }
+      backendRefs: [{ name: coordinator-agent, port: 8080 }]
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -16,4 +23,11 @@ metadata:
   labels: { edai2.route-class: a2a-facade }
 spec:
   parentRefs: [{ name: edai2-private-gateway }]
-  rules: [{ backendRefs: [{ name: coordinator-agent, port: 8080 }] }]
+  rules:
+    - matches:
+        - path: { type: PathPrefix, value: /a2a/coordinator }
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path: { type: ReplacePrefixMatch, replacePrefixMatch: / }
+      backendRefs: [{ name: coordinator-agent, port: 8080 }]

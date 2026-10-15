@@ -3,3 +3,35 @@ existingSecret: airflow
 retentionDays: 7
 gcsPrefix: airflow-logs/
 resources: { requests: { cpu: 250m, memory: 512Mi } }
+# EDAI2 Topic 24 LOCAL airflow fix (no lease): external postgres + small log PVCs.
+# Key rationale vs chart schema (`helm show values airflow/airflow --version 1.16.0`):
+# - postgresql.enabled=false: real key (default true). Disables the bundled
+#   bitnami/postgresql subchart whose image 16.1.0-debian-11-r15 was removed
+#   upstream (live ImagePullBackOff). DB moves to platform postgres.
+# - secret: real key (verbatim secretKeyRef envs for all airflow containers,
+#   `_helpers.tpl` custom_airflow_environment). AIRFLOW_DB_PASSWORD mounts the
+#   REAL password from ExternalSecret `postgres` (target secret `postgres`,
+#   exact synced key `password`; see infra/security/external-secrets/postgres.yaml).
+# - enableBuiltInSecretEnvVars.{AIRFLOW__CORE__SQL_ALCHEMY_CONN,
+#   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN,AIRFLOW_CONN_AIRFLOW_DB}=false: real keys
+#   (all default true). Stops pods from using the chart-default `airflow-metadata`
+#   Secret (bundled-postgres connection string); the Secret still renders as an
+#   unreferenced orphan and dies with `helm uninstall`.
+# - extraEnv: real key (tpl-rendered string appended to container env AFTER the
+#   `secret:` entries, so kubelet $(AIRFLOW_DB_PASSWORD) expansion resolves).
+#   URI host postgres-postgresql.edai2 = platform postgres primary Service;
+#   user/db postgres = platform defaults; password is a $(...) reference, NEVER
+#   a literal (the chart offers no passwordSecret+key for the metadata DB).
+# - workers.persistence.size + triggerer.persistence.size=4Gi: real keys
+#   (defaults 100Gi each, enabled by default -> StatefulSets with `logs`
+#   volumeClaimTemplates). 4Gi x2 keeps PVC total within the 80Gi ceiling
+#   (bound 62Gi + airflow 4+4+1 redis = 71Gi). Bundled redis stays (broker for
+#   the default CeleryExecutor, 1Gi, self-contained).
+postgresql: { enabled: false }
+enableBuiltInSecretEnvVars: { AIRFLOW__CORE__SQL_ALCHEMY_CONN: false, AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: false, AIRFLOW_CONN_AIRFLOW_DB: false }
+secret: [{ envName: AIRFLOW_DB_PASSWORD, secretName: postgres, secretKey: password }]
+extraEnv: |
+  - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+    value: postgresql://postgres:$(AIRFLOW_DB_PASSWORD)@postgres-postgresql.edai2:5432/postgres?sslmode=disable
+workers: { persistence: { size: 4Gi } }
+triggerer: { persistence: { size: 4Gi } }

@@ -1,4 +1,17 @@
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata: { name: agentregistry }
-spec: { refreshInterval: 1h, secretStoreRef: { name: edai2-vault, kind: ClusterSecretStore }, target: { name: agentregistry }, data: [{ secretKey: api-token, remoteRef: { key: edai2/platform/agentregistry, property: api-token } }, { secretKey: session-secret, remoteRef: { key: edai2/platform/agentregistry, property: session-secret } }] }
+spec:
+  refreshInterval: 1h
+  secretStoreRef: { name: edai2-vault, kind: ClusterSecretStore }
+  target:
+    name: agentregistry
+    template:
+      engineVersion: v2
+      mergePolicy: Merge
+      data:
+        AGENT_REGISTRY_JWT_PRIVATE_KEY: '{{ index . "session-secret" }}'
+        database-url: 'postgresql://agentregistry:{{ index . "api-token" | urlquery }}@postgres-postgresql.edai2.svc.cluster.local:5432/agentregistry?sslmode=disable'
+  data:
+    - { secretKey: api-token, remoteRef: { key: edai2/platform/agentregistry, property: api-token } }
+    - { secretKey: session-secret, remoteRef: { key: edai2/platform/agentregistry, property: session-secret } }

@@ -1,15 +1,30 @@
-apiVersion: batch/v1
-kind: Job
-metadata: { name: llmd-model-cache-init, namespace: edai2 }
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llmd-primary
+  namespace: edai2
 spec:
   template:
+    metadata:
+      annotations:
+        checksum/llmd-cache-init: b927d757cb75a5617aeeaa34e25119f6943a927e5e48bb7771e64bec35741c62
+        checksum/llmd-cache-manifest: 67609f908cf96cfb28d0910411a55dc8cb0670766dd17feb2405cb951ebf2dba
     spec:
-      restartPolicy: Never
-      containers:
+      initContainers:
         - name: cache-init
-          image: ghcr.io/llm-d/llm-d-cpu:v0.7.0
-          env:
-            - { name: MODEL_CACHE_PREFIX, value: model-cache/ }
-            - { name: MODEL_CACHE_GENERATION_REQUIRED, value: "true" }
-          volumeMounts: [{ name: model-cache, mountPath: /models }]
-      volumes: [{ name: model-cache, emptyDir: { sizeLimit: 5Gi } }]
+          image: python:3.14.8-slim-trixie@sha256:cfe2e24a75302a15934d37c2d86412893c0aa934dc3a97cbb439d04c01890ca9
+          command: [python, /opt/edai2/cache-init.py]
+          resources:
+            requests: { cpu: 100m, memory: 256Mi, ephemeral-storage: 8Gi }
+            limits: { cpu: 500m, memory: 512Mi, ephemeral-storage: 8Gi }
+          volumeMounts:
+            - { name: model-cache, mountPath: /models }
+            - { name: model-cache-manifest, mountPath: /etc/edai2-model-cache, readOnly: true }
+            - { name: cache-init-script, mountPath: /opt/edai2, readOnly: true }
+      volumes:
+        - name: model-cache
+          emptyDir: { sizeLimit: 8Gi }
+        - name: model-cache-manifest
+          configMap: { name: llmd-model-cache-manifest }
+        - name: cache-init-script
+          configMap: { name: llmd-model-cache-init-script }

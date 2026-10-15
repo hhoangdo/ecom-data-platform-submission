@@ -1,0 +1,28 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: gateway-auth-model-route
+  namespace: edai2
+  labels:
+    edai2.gateway-auth-route: model-route
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: edai2-vault
+    kind: ClusterSecretStore
+  target:
+    name: gateway-auth-model-route
+    creationPolicy: Owner
+    template:
+      engineVersion: v2
+      mergePolicy: Replace
+      metadata:
+        labels:
+          edai2.gateway-auth-route: model-route
+      data:
+        model-route: '{{ dict "key" .gatewayKey "metadata" (dict "route" "model-route") | toJson }}'
+  data:
+    - secretKey: gatewayKey
+      remoteRef:
+        key: edai2/kagent/gateway-keys
+        property: model-api-key

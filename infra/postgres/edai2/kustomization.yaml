@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: edai2
+configMapGenerator:
+  - name: edai2-platform-db-bootstrap
+    files:
+      - script=bootstrap-platform-databases.sh
+generatorOptions:
+  disableNameSuffixHash: true

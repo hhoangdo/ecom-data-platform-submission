@@ -1,3 +1,51 @@
-service: { type: ClusterIP }
-retention: 168h
-persistence: { size: 4Gi }
+# grafana/loki 7.3.0 (repo: https://grafana.github.io/helm-charts).
+# Key rationale vs chart schema (`helm show values grafana/loki --version 7.3.0`):
+# - deploymentMode=SingleBinary: REQUIRED for compact. Default SimpleScalable requires
+#   object storage (template FAILS without loki.storage.bucketNames.chunks) and renders
+#   3x backend/read/write replicas. SingleBinary runs one stateful pod on local disk.
+# - backend/read/write.replicas=0: required with SingleBinary (chart validation rejects
+#   >0 replicas on both single-binary and scalable targets simultaneously).
+# - singleBinary.replicas=1, singleBinary.persistence.enabled=false (+ size 4Gi
+#   retained, ignored when disabled) + singleBinary.extraVolumes/
+#   extraVolumeMounts storage emptyDir at /var/loki: EDAI2 Topic 24 LOCAL
+#   loki fix (no lease). Real keys (`helm show values grafana/loki --version
+#   7.3.0` `singleBinary.persistence.enabled: true` / `size: 10Gi` default
+#   WITHOUT emptyDir fallback for singleBinary + `singleBinary.extraVolumes:
+#   []` / `singleBinary.extraVolumeMounts: []`): persistence=false alone
+#   renders NO data volume (live CrashLoopBackOff `mkdir /var/loki:
+#   read-only file system` with readOnlyRootFilesystem:true); the emptyDir
+#   extraVolume supplies the writable /var/loki (template-proof volume
+#   storage emptyDir + mount /var/loki, VCT None = ZERO PVC).
+#   REJECTED: persistence.enabled:true small size (71+8+4=83Gi BREACH vs 80Gi;
+#   +2Gi=81Gi breach; +1Gi=80Gi headroom 0) + readOnlyRootFilesystem:false
+#   (weakens hardening, unneeded).
+#   TRADEOFF (ephemeral telemetry buffers / study core): logs lost on pod
+#   restart (filesystem chunks best-effort; re-ingests on restart). Fits 80Gi:
+#   71Gi base + jenkins 8Gi + 0 = 79Gi (headroom 1Gi).
+# - singleBinary.service.type=ClusterIP: explicit private-only (default ClusterIP).
+# - loki.storage.type=filesystem: local-disk chunks/ruler (defaults to s3 with no endpoint).
+# - loki.useTestSchema=true: valid single-store schema for the compact install (a real
+#   schemaConfig is owning-topic runtime work).
+# - loki.limits_config.reject_old_samples_max_age=168h: preserves the previous flat
+#   `retention: 168h` intent with the real key (coincides with the chart default).
+# - EDAI2 Topic 24 LOCAL capacity-tuning (no lease): memcached fat defaults tuned
+#   (real keys, `helm show values grafana/loki --version 7.3.0`
+#   `chunksCache.resources: null` + `resultsCache.resources: null` with
+#   allocatedCPU 500m/allocatedMemory 8192/1024MB deriving fat 500m/9830Mi +
+#   500m/1229Mi; setting `*.resources.requests` overrides derivation).
+#   chunksCache 500m/9830Mi->50m/128Mi, resultsCache 500m/1229Mi->50m/128Mi.
+#   Template-proof renders StatefulSets loki-chunks-cache + loki-results-cache
+#   50m/128Mi. SingleBinary 0/0 left. Do NOT touch limits.
+deploymentMode: SingleBinary
+singleBinary:
+  replicas: 1
+  persistence: { enabled: false, size: 4Gi }
+  service: { type: ClusterIP }
+  extraVolumes: [{ name: storage, emptyDir: {} }]
+  extraVolumeMounts: [{ name: storage, mountPath: /var/loki }]
+backend: { replicas: 0 }
+read: { replicas: 0 }
+write: { replicas: 0 }
+loki: { storage: { type: filesystem }, useTestSchema: true, limits_config: { reject_old_samples_max_age: 168h } }
+chunksCache: { resources: { requests: { cpu: 50m, memory: 128Mi } } }
+resultsCache: { resources: { requests: { cpu: 50m, memory: 128Mi } } }

@@ -9,3 +9,10 @@ output "workload_identity_bindings" {
     }
   }
 }
+output "atelet_workload_identity_binding" {
+  value = {
+    ksa      = google_service_account_iam_member.atelet_workload_identity.member
+    gsa      = google_service_account.workload_identity["coordinator"].email
+    prefixes = local.workload_identity["coordinator"].prefixes
+  }
+}

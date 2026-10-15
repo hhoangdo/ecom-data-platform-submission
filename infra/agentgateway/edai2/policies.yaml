@@ -1,124 +1,113 @@
 apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: allow-model-route, namespace: edai2 }
-spec: { credential: model-route, routeClass: model, effect: allow, secretName: kagent-model-route-key, secretKey: api-key }
+kind: AgentgatewayPolicy
+metadata:
+  name: auth-model-route
+  namespace: edai2
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: model-route
+  backend:
+    auth:
+      secretRef:
+        name: kagent-model-route-key
+  traffic:
+    apiKeyAuthentication:
+      mode: Strict
+      secretSelector:
+        matchLabels:
+          edai2.gateway-auth-route: model-route
+    authorization:
+      action: Require
+      policy:
+        matchExpressions:
+          - "apiKey.route == 'model-route'"
 ---
 apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: allow-retrieval-mcp, namespace: edai2 }
-spec: { credential: retrieval-mcp, routeClass: retrieval-mcp, effect: allow, secretName: kagent-gateway-keys, secretKey: support-retrieval }
+kind: AgentgatewayPolicy
+metadata:
+  name: auth-retrieval-mcp
+  namespace: edai2
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: retrieval-mcp-route
+  traffic:
+    apiKeyAuthentication:
+      mode: Strict
+      secretSelector:
+        matchLabels:
+          edai2.gateway-auth-route: retrieval-mcp
+    authorization:
+      action: Require
+      policy:
+        matchExpressions:
+          - "apiKey.route == 'retrieval-mcp'"
 ---
 apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: allow-drift-mcp, namespace: edai2 }
-spec: { credential: drift-mcp, routeClass: drift-mcp, effect: allow, secretName: kagent-gateway-keys, secretKey: drift-detect }
+kind: AgentgatewayPolicy
+metadata:
+  name: auth-drift-mcp
+  namespace: edai2
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: drift-mcp-route
+  traffic:
+    apiKeyAuthentication:
+      mode: Strict
+      secretSelector:
+        matchLabels:
+          edai2.gateway-auth-route: drift-mcp
+    authorization:
+      action: Require
+      policy:
+        matchExpressions:
+          - "apiKey.route == 'drift-mcp'"
 ---
 apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: allow-coordinator-specialist, namespace: edai2 }
-spec: { credential: coordinator-specialist, routeClass: a2a-specialist, effect: allow, secretName: kagent-gateway-keys, secretKey: coordinator-to-specialist }
+kind: AgentgatewayPolicy
+metadata:
+  name: auth-coordinator-specialist
+  namespace: edai2
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: coordinator-specialist-route
+  traffic:
+    apiKeyAuthentication:
+      mode: Strict
+      secretSelector:
+        matchLabels:
+          edai2.gateway-auth-route: coordinator-specialist
+    authorization:
+      action: Require
+      policy:
+        matchExpressions:
+          - "apiKey.route == 'coordinator-specialist'"
 ---
 apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: allow-facade-coordinator, namespace: edai2 }
-spec: { credential: facade-coordinator, routeClass: a2a-facade, effect: allow, secretName: facade-gateway-key, secretKey: authorization }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-model-route-retrieval-mcp, namespace: edai2 }
-spec: { credential: model-route, routeClass: retrieval-mcp, effect: deny, statusCode: 403 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-model-route-drift-mcp, namespace: edai2 }
-spec: { credential: model-route, routeClass: drift-mcp, effect: deny, statusCode: 403 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-model-route-specialist, namespace: edai2 }
-spec: { credential: model-route, routeClass: a2a-specialist, effect: deny, statusCode: 403 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-model-route-facade, namespace: edai2 }
-spec: { credential: model-route, routeClass: a2a-facade, effect: deny, statusCode: 403 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-retrieval-model, namespace: edai2 }
-spec: { credential: retrieval-mcp, routeClass: model, effect: deny, statusCode: 401 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-retrieval-drift, namespace: edai2 }
-spec: { credential: retrieval-mcp, routeClass: drift-mcp, effect: deny, statusCode: 403 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-retrieval-specialist, namespace: edai2 }
-spec: { credential: retrieval-mcp, routeClass: a2a-specialist, effect: deny, statusCode: 403 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-retrieval-facade, namespace: edai2 }
-spec: { credential: retrieval-mcp, routeClass: a2a-facade, effect: deny, statusCode: 403 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-drift-model, namespace: edai2 }
-spec: { credential: drift-mcp, routeClass: model, effect: deny, statusCode: 401 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-drift-retrieval, namespace: edai2 }
-spec: { credential: drift-mcp, routeClass: retrieval-mcp, effect: deny, statusCode: 403 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-drift-specialist, namespace: edai2 }
-spec: { credential: drift-mcp, routeClass: a2a-specialist, effect: deny, statusCode: 403 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-drift-facade, namespace: edai2 }
-spec: { credential: drift-mcp, routeClass: a2a-facade, effect: deny, statusCode: 403 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-specialist-model, namespace: edai2 }
-spec: { credential: coordinator-specialist, routeClass: model, effect: deny, statusCode: 401 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-specialist-retrieval, namespace: edai2 }
-spec: { credential: coordinator-specialist, routeClass: retrieval-mcp, effect: deny, statusCode: 403 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-specialist-drift, namespace: edai2 }
-spec: { credential: coordinator-specialist, routeClass: drift-mcp, effect: deny, statusCode: 403 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-specialist-facade, namespace: edai2 }
-spec: { credential: coordinator-specialist, routeClass: a2a-facade, effect: deny, statusCode: 403 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-facade-model, namespace: edai2 }
-spec: { credential: facade-coordinator, routeClass: model, effect: deny, statusCode: 401 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-facade-retrieval, namespace: edai2 }
-spec: { credential: facade-coordinator, routeClass: retrieval-mcp, effect: deny, statusCode: 403 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-facade-drift, namespace: edai2 }
-spec: { credential: facade-coordinator, routeClass: drift-mcp, effect: deny, statusCode: 403 }
----
-apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
-metadata: { name: deny-facade-specialist, namespace: edai2 }
-spec: { credential: facade-coordinator, routeClass: a2a-specialist, effect: deny, statusCode: 403 }
+kind: AgentgatewayPolicy
+metadata:
+  name: auth-facade-coordinator
+  namespace: edai2
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: facade-coordinator-route
+  traffic:
+    apiKeyAuthentication:
+      mode: Strict
+      secretSelector:
+        matchLabels:
+          edai2.gateway-auth-route: facade-coordinator
+    authorization:
+      action: Require
+      policy:
+        matchExpressions:
+          - "apiKey.route == 'facade-coordinator'"

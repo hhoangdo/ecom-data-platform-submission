@@ -6,7 +6,14 @@ metadata:
   labels: { edai2.route-class: retrieval-mcp }
 spec:
   parentRefs: [{ name: edai2-private-gateway }]
-  rules: [{ backendRefs: [{ name: retrieval-mcp, port: 8080 }] }]
+  rules:
+    - matches:
+        - path: { type: PathPrefix, value: /mcp/retrieval }
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path: { type: ReplacePrefixMatch, replacePrefixMatch: /mcp }
+      backendRefs: [{ name: retrieval-mcp, port: 8080 }]
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -16,4 +23,11 @@ metadata:
   labels: { edai2.route-class: drift-mcp }
 spec:
   parentRefs: [{ name: edai2-private-gateway }]
-  rules: [{ backendRefs: [{ name: drift-mcp, port: 8080 }] }]
+  rules:
+    - matches:
+        - path: { type: PathPrefix, value: /mcp/drift }
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path: { type: ReplacePrefixMatch, replacePrefixMatch: /mcp }
+      backendRefs: [{ name: drift-mcp, port: 8080 }]

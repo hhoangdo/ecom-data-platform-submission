@@ -1,4 +1,131 @@
-service: { type: ClusterIP }
-postgres: { existingSecret: postgres }
-valkey: { existingSecret: valkey }
-resources: { requests: { cpu: 100m, memory: 256Mi } }
+# feast/feast 0.45.0 (repo: https://feast-helm-charts.storage.googleapis.com).
+# Key rationale vs chart schema (`helm show values feast-charts/feast --version 0.45.0`
+# + pulled chart templates, metadata-only):
+# - Top-level keys here (global, feature-server, transformation-service, redis) are the
+#   ONLY real top-level keys (`helm show values` 18 lines). Stub keys `service`,
+#   `postgres`, `valkey`, `resources` do not exist and were ignored at render.
+# - feature-server.service.type = ClusterIP: real key (subchart values
+#   `service.type`; feature-server default ClusterIP); explicit private-only.
+#   transformation-service.service.type/replicaCount intentionally ABSENT:
+#   `transformation-service.enabled=false` (real key, see below) disables the whole
+#   subchart, so its service/replica keys are moot (defaults ClusterIP/1 when enabled).
+# - feature-server.replicaCount = 1: real key (default 1); single-replica compact.
+# - transformation-service.enabled=false: REAL chart key (umbrella requirements.yaml
+#   `condition: transformation-service.enabled` + feast/values.yaml
+#   `transformation-service.enabled: true` default). Disables the entire subchart
+#   (zero Deployments/Services rendered — helm template proof). Reason: image
+#   `feastdev/feature-transformation-server:0.45.0` CrashLoops image-internally
+#   (`feast/transformation_server.py:7` unconditionally imports `grpc_reflection`,
+#   absent from base Requires-Dist; packaging bug, also in 0.46.0, no 0.45.x hotfix).
+#   Nothing in core consumes it (no clients, zero feature views).
+#   RE-ENABLE CONDITION (exact): set `enabled: true` ONLY when the upstream image
+#   ships `grpc_reflection` (fixed transformation-server image tag).
+# - redis.enabled=true: REAL umbrella key (feast Chart.yaml `condition: redis.enabled`,
+#   feast/values.yaml `redis.enabled: false` default; stable/redis 10.5.6 subchart).
+#   Installs the chart's BUNDLED redis (upstream-tested path, chart-managed creds).
+# - redis.usePassword=false: REAL subchart key (redis values.yaml `usePassword: true`
+#   default; umbrella feast/values.yaml overrides to false). No auth: master
+#   StatefulSet runs `--protected-mode no` (template branch `if .Values.usePassword`
+#   else protected-mode no), Secret template `if and .Values.usePassword` renders
+#   nothing -> chart wires its own (empty) credentials; NO user secret, NO password
+#   key needed in our override. Auth model: chart-managed, zero user action.
+# - redis.cluster.enabled=false: REAL subchart key (default true, slaveCount 2).
+#   Slave StatefulSet template `if .Values.cluster.enabled` + `replicas: cluster.slaveCount`
+#   -> false renders ZERO slaves (single master only, minimal footprint).
+# - redis.master.persistence.enabled=false + redis.slave.persistence.enabled=false:
+#   REAL subchart keys (defaults true 8Gi each; master-statefulset 361-382
+#   `if .Values.master.persistence.enabled` guards volumeClaimTemplates else emptyDir,
+#   same for slave 396-400). False -> ephemeral emptyDir, ZERO PVCs (online cache is
+#   EPHEMERAL). Keeps TOTAL <=80Gi (live Bound 69Gi edai2 + 10Gi vault = 79Gi; new 0Gi).
+# - feature-server.application-generated.yaml.enabled=false: real key (default true).
+#   Generated config hardcodes `host: {{ .Release.Name }}-redis-master` (configmap.yaml
+#   28-30) + `registry: <global.registry.path>` (configmap.yaml 16); disabled to drop
+#   the GCS default registry path (override below is the single source of truth).
+# - feature-server.application-override.yaml.feast.stores: real key (README example
+#   `application-override.yaml.feast.stores` REDIS host/port). Wires online store to
+#   BUNDLED Service `feast-redis-master:6379` (redis-master-svc.yaml
+#   `name: {{ template "redis.fullname" . }}-master`; fullname helper release+chart
+#   -> `feast-redis` + `-master` = `feast-redis-master`; matches generated hardcode).
+#   NO password key (usePassword=false above). Valkey platform path ABANDONED:
+#   official java-demo README shows `password: [YOUR PASSWORD]` as a LITERAL consumed
+#   VERBATIM by the Java server (NO ${ENV} expansion) -> `password: ${REDIS_PASSWORD}`
+#   would be sent LITERALLY -> live WRONGPASS. No secret-safe path to platform Valkey
+#   exists (secretKeyRef->env cannot inject into file values; literals forbidden).
+#   Precedent: values/airflow.yaml keeps chart-bundled redis for the Celery broker
+#   (self-contained, 1Gi; exclusion checks scan only the 5-service inventory JSON
+#   where bundled brokers never appear).
+# - global.registry.path=/etc/secrets/feast-registry/registry.db (PLAIN absolute,
+#   NO scheme) + cache_ttl_seconds=0 + project=default: real keys. URI-vs-path fix:
+#   chart re-emits `global.registry.path` VERBATIM into the JVM config
+#   (feature-server/templates/configmap.yaml:16 `registry: {{ .Values.global.registry.path }}`
+#   + :40 same in override), and feast 0.45.0 `LocalRegistryFile.java:38` passes the
+#   FULL string to `Paths.get()` — `Paths.get("file:///etc/...")` normalizes to literal
+#   `file:/etc/...` -> NoSuchFileException despite correct Secret/mount/bytes.
+#   FIX: scheme-less absolute path; dirname == secrets-mount path (helm template proof).
+#   PATH A delivery (non-GCS, ZERO `gs://`): the file-registry object IS platform-wired
+#   `feature-server.secrets` loop (values.yaml `secrets: []`, Deployment 47-51
+#   `secretName: {{ $secret }}` + 64-68 `mountPath: "/etc/secrets/{{ $secret }}"`):
+#   `secrets: [feast-registry]` mounts the pre-created `feast-registry` Secret at
+#   `/etc/secrets/feast-registry`; `global.registry.path` names the mounted file
+#   `registry.db` (key created via --from-file; K8s decodes Secret base64 on mount
+#   so raw protobuf bytes land on disk). ConfigMap override (36-50) re-emits
+#   `registry: <global.registry.path>` verbatim -> dirname == mountPath aligned
+#   (helm template proof). SQL wiring stays ABSENT (PATH B: NO support):
+#   * feast/values.yaml 14-23: ONLY registry.path/cache_ttl/project; NO postgres/offline keys.
+#   * feature-server/templates/configmap.yaml 13-34: ONLY registry/endpoint/online-REDIS;
+#     NO offline/postgres branch; no DB URL support.
+#   * transformation-service/config/feature_store.yaml 1-5: ONLY registry.path/cache_ttl,
+#     provider local, project; NO offline store. Deployment env
+#     FEATURE_STORE_YAML_BASE64 renders this file verbatim.
+#   Hence NO postgres host/secret keys are set here (setting them would be fake:
+#   no template reads them). Leased agent pre-creates `feast-registry` Secret
+#   from REAL `feast apply` bytes before `helm install`; without it the
+#   feature-server pod stays Pending/ContainerCreating (missing Secret), NOT
+#   CrashLoop file-not-found. GCS 403 is gone.
+# - Residual risks: (1) Secret `feast-registry` absent at install -> pod cannot
+#   start until the leased agent creates it (see infra/feast-registry/README.md).
+#   (2) Bundled-redis auth model: chart-managed (usePassword=false -> no Secret,
+#   --protected-mode no); state exactly: NO user action, NO password in override,
+#   NO secretKeyRef. Valkey platform path abandoned for feast (reason above).
+#   (3) Bundled redis is EPHEMERAL (emptyDir): online cache lost on pod restart
+#   (acceptable; registry file is the source of truth via secrets-mount).
+# - transformation-service DISABLED (see enabled=false above): prior REGISTRY_BASE64
+#   secretKeyRef wiring via real key `transformation-service.envOverrides` (values
+#   30-31 `envOverrides: {}`, Deployment 62-70 upper + valueFrom) is REMOVED — the
+#   subchart renders nothing, so no env is needed. Retained context: transformation
+#   app.py `registry_base64=os.environ[REGISTRY_ENV_NAME]; base64.b64decode` +
+#   constants.py `REGISTRY_ENV_NAME="REGISTRY_BASE64"` expected protobuf bytes, but the
+#   image never starts (grpc_reflection ImportError first). Generator
+#   `infra/feast-registry/generate.py --emit-secret` still emits BOTH keys
+#   (`registry.db` for feature-server mount + `REGISTRY_BASE64` for future use);
+#   while disabled only `registry.db` is consumed. Re-enable ONLY per condition above.
+# - (2) Registry generation: `feast==0.45.0` EXISTS on PyPI. Minimal repo (one
+#   entity, zero views) `feast apply` -> real protobuf registry.db
+#   (FileRegistryStore mkdir + SerializeToString; `pip install "feast[redis]==0.45.*"`
+#   is REQUIRED: repo `online_store: redis` needs the redis extra at apply time).
+#   PATH A mount needs the Secret to carry BOTH keys: `REGISTRY_BASE64`
+#   (stringData, transformation env) AND `registry.db` (data, feature-server
+#   secrets-mount file). `generate.py --emit-secret` emits both from the same
+#   bytes. Generator `infra/feast-registry/` (minimal repo + script + README,
+#   NO binary) supplies real bytes; leased agent runs generation at install.
+# - (4) Re-pin: NO. 0.66.0 (newest) still renders ONLY FEATURE_STORE_YAML_BASE64,
+#   NO REGISTRY_BASE64, NO extraVolumes (template proof) -> same blockers.
+global: { registry: { path: /etc/secrets/feast-registry/registry.db, cache_ttl_seconds: 0 }, project: default }
+feature-server:
+  replicaCount: 1
+  service: { type: ClusterIP }
+  secrets: [feast-registry]
+  application-generated.yaml: { enabled: false }
+  application-override.yaml:
+    enabled: true
+    feast:
+      active_store: online
+      stores: [{ name: online, type: REDIS, config: { host: feast-redis-master, port: 6379 } }]
+transformation-service: { enabled: false }
+redis:
+  enabled: true
+  usePassword: false
+  image: { repository: bitnamilegacy/redis, tag: 5.0.7-r56 }
+  cluster: { enabled: false }
+  master: { persistence: { enabled: false } }
+  slave: { persistence: { enabled: false } }

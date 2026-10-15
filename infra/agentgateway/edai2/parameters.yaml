@@ -1,0 +1,22 @@
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayParameters
+metadata:
+  name: edai2-private-gateway
+  namespace: edai2
+spec:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  deployment:
+    spec:
+      template:
+        metadata:
+          labels:
+            edai2.private-gateway: "true"
+  service:
+    spec:
+      type: ClusterIP

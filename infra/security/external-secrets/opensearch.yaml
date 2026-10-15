@@ -1,0 +1,4 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: { name: opensearch }
+spec: { refreshInterval: 1h, secretStoreRef: { name: edai2-vault, kind: ClusterSecretStore }, target: { name: opensearch }, data: [{ secretKey: username, remoteRef: { key: edai2/platform/opensearch, property: username } }, { secretKey: password, remoteRef: { key: edai2/platform/opensearch, property: password } }] }

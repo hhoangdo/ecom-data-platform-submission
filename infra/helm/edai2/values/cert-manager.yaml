@@ -1,2 +1,11 @@
-service: { type: ClusterIP }
-acme: { enabled: true }
+# Topic 24 PRIVATE core: no public ingress, no ACME here (ACME/public belongs to
+# Topics 27/31). Chart default Services are already ClusterIP; no override needed.
+# Keys verified against cert-manager v1.18.2 real schema:
+# `helm show values jetstack/cert-manager --version 1.18.2` + values.schema.json
+# ($defs/helm-values/properties, additionalProperties: false) — has NO `service`,
+# NO `acme` top-level keys.
+crds:
+  # Install CRDs via Helm so fail-fast `helm upgrade --install` needs no separate kubectl apply.
+  enabled: true
+# Compact single replica for core capacity ceiling (platform aggregate 3.00 CPU/18Gi).
+replicaCount: 1

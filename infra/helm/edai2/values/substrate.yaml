@@ -1,8 +1,18 @@
 service: { type: ClusterIP }
 valkey: { enabled: false }
 rustfs: { enabled: false }
-redis: { clusterAddress: edai2-valkey-primary.edai2.svc.cluster.local:6379 }
+auth:
+  mode: jwt
+  jwt:
+    issuer: https://container.googleapis.com/v1/projects/project-a7c45c4e-f589-4b40-b8b/locations/us-central1-a/clusters/edai2
+    audience: api.edai2.svc
+redis:
+  clusterAddress: valkey-primary.edai2.svc.cluster.local:6379
+  mode: standalone
+  useIAMAuth: false
+  passwordFile: /run/valkey-auth/password
+  passwordSecretName: valkey
+  passwordSecretKey: password
 atelet:
   storageBackend: gcs
-  gcsPrefix: agent-substrate/
-  image: ateom-gvisor:v0.0.6
+  # Snapshot gs:// URIs and prefixes follow the existing ActorTemplate/RPC contract.

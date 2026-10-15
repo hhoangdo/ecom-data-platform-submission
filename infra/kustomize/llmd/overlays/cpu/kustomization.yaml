@@ -1,7 +1,17 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+namespace: edai2
 resources:
   - patch-primary.yaml
   - patch-comparison.yaml
   - patch-router.yaml
-  - patch-model-cache-init.yaml
+  - model-networkpolicy.yaml
+patches:
+  - path: patch-model-cache-init.yaml
+configMapGenerator:
+  - name: llmd-model-cache-init-script
+    files: [cache-init.py]
+  - name: llmd-model-cache-manifest
+    files: [model_cache.json=model-cache-manifest.json]
+generatorOptions:
+  disableNameSuffixHash: true

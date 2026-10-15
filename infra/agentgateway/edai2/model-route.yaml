@@ -7,4 +7,6 @@ metadata:
 spec:
   parentRefs: [{ name: edai2-private-gateway }]
   rules:
-    - backendRefs: [{ name: agentgateway-proxy, port: 15000 }]
+    - matches:
+        - path: { type: PathPrefix, value: /v1 }
+      backendRefs: [{ name: llmd-router, port: 8000 }]

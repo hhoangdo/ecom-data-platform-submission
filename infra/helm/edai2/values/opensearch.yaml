@@ -1,3 +1,86 @@
+# opensearch/opensearch 2.38.0 (app 2.19.6; repo: https://opensearch-project.github.io/helm-charts).
+# Re-pinned 2026-10-09 from 3.9.0: DataHub 1.1.6 version-detects `OpenSearch
+# expected 2.x`, so the DESIGNED pair is DataHub 1.1.6 x OpenSearch 2.x (the
+# 3.9.0 pin was a newest-is-best selection error). Repo URL UNCHANGED, only
+# the version number changes. Native 2.x needs NO compat flag
+# (`compatibility.override_main_response_version` was removed in 3.0 and is
+# meaningless on 2.x; absence asserted in
+# test_topic24_datahub_opensearch_local_auth.py). releases.yaml pin
+# opensearch 2.38.0 / app 2.19.6 UNCHANGED.
+# Key rationale vs chart schema (`helm show values opensearch/opensearch --version 2.38.0`):
+# - singleNode=true: forces single-node discovery (chart comment: "If true, replicas will be
+#   forced to 1"). Default is a 3-replica cluster; single node fits compact capacity.
+# - replicas=1, persistence.size=8Gi, service.type=ClusterIP: real top-level keys, unchanged.
+# - extraEnvs OPENSEARCH_INITIAL_ADMIN_PASSWORD valueFrom secretKeyRef
+#   opensearch/password: real key (chart renders extraEnvs verbatim into container
+#   env:, statefulset.yaml 435-437). Secret name == component + key `password`
+#   follows the postgres/clickhouse/valkey remap convention; ExternalSecret
+#   `infra/security/external-secrets/opensearch.yaml` syncs Vault
+#   kv/edai2/platform/opensearch (keys username/password) -> target secret
+#   `opensearch`. No literal. RETAINED HARMLESSLY in this fallback (unenforced
+#   while the plugin is disabled) because Topics 27/31 need it at re-hardening
+#   -- do NOT delete the Vault secret or ExternalSecret.
+# - extraEnvs DISABLE_INSTALL_DEMO_CONFIG value "true": real key (same extraEnvs
+#   verbatim mechanism, values.yaml 105-111). Entrypoint
+#   `opensearch-docker-entrypoint-2.x.sh` setupSecurityPlugin SKIPS
+#   `install_demo_configuration.sh` entirely when this is "true", so NO Quit
+#   check (`opensearch.yml seems to be already configured for Security. Quit.`)
+#   can fire. Non-credential flag (distinct from any password literal).
+# - persistence.enableInitChown=false: real key; drops the pulled
+#   `busybox:latest` fsgroup-volume initContainer (chart default image/tag when
+#   enabled). podSecurityContext fsGroup 1000 (chart default) still owns the
+#   volume. Keeps the render free of `:latest`.
+# - config."opensearch.yml" (real top-level `config:` map of `<filename>: |`
+#   literal strings, values.yaml 35-49; rendered verbatim into the
+#   `<release>-config` ConfigMap, templates/configmap.yaml 2,10, mounted at
+#   opensearchHome/config/opensearch.yml, templates/statefulset.yaml 510-514):
+#   chart-DEFAULT 2 active lines (`cluster.name: opensearch-cluster` +
+#   `network.host: 0.0.0.0`) + flat `plugins.security.disabled: true`.
+#   GROUNDED VERDICT (do NOT relitigate): ANY `plugins.security.*` key in
+#   opensearch.yml (INCLUDING http-off) triggers the demo-installer Quit; zero
+#   such keys -> installer writes FULL demo TLS which datahub cannot use (no
+#   trust path, `insecure` does not propagate to GMS). Full-TLS-for-datahub is
+#   unwinnable with chart-real keys. APPROVED FALLBACK: installer SKIPPED via
+#   DISABLE_INSTALL_DEMO_CONFIG + plugin DISABLED via this key -> plaintext
+#   HTTP + no auth. The chart-default COMMENTED demo block (values.yaml 59-99)
+#   is REMOVED entirely (NO demo filepaths at all, neither active nor
+#   commented) because it is moot without plugin/installer; http-off flat key
+#   REMOVED (moot without plugin). With the installer skipped, this disabled
+#   key is safe (Quit lives inside the Installer Java class run ONLY by the
+#   demo script -- never runs, never Quits).
+#   `securityConfig.enabled` stays default-true (harmless: statefulset.yaml
+#   456-502 mounts nothing when all secrets empty), `plugins.enabled` stays
+#   default-false (required: true would override command at statefulset.yaml
+#   364-383), `protocol: https` untouched (only consumed by the
+#   disabled-by-default masterTerminationFix curl, statefulset.yaml 545),
+#   singleNode via `discovery.type` env (statefulset.yaml 431-433, not
+#   opensearch.yml).
+#   RESIDUAL RISK (plain): OPEN search tier (no auth, plaintext HTTP) inside
+#   the private pod network ONLY until Topics 27/31 re-harden with TLS + auth
+#   (public/HTTPS owned by 27/31); ClusterIP-only retained, no public ingress;
+#   Vault `opensearch` secret retained but UNENFORCED; old 8Gi PVC carries
+#   secured-era system indices (unreadable/incompatible) -- fresh volume
+#   MANDATORY at leased install (UID-matched DELETE + fresh install).
 service: { type: ClusterIP }
+singleNode: true
 replicas: 1
-persistence: { size: 8Gi }
+persistence: { size: 8Gi, enableInitChown: false }
+# EDAI2 Topic 24 LOCAL capacity-tuning (no lease): opensearch 1.0->0.25 CPU
+# (heap untouched: opensearchJavaOpts -Xmx512M -Xms512M chart default kept).
+# Schema: `helm show values opensearch/opensearch --version 2.38.0` top-level
+# `resources.requests.cpu: "1000m"` + `resources.requests.memory: "100Mi"`.
+# Template-proof: `helm template opensearch opensearch --repo
+# https://opensearch-project.github.io/helm-charts --version 2.38.0 -n edai2 -f
+# infra/helm/edai2/values/opensearch.yaml` renders StatefulSet
+# opensearch-cluster-master requests 250m/100Mi. Mem keep 100Mi.
+resources: { requests: { cpu: 250m, memory: 100Mi } }
+config:
+  opensearch.yml: |
+    cluster.name: opensearch-cluster
+    network.host: 0.0.0.0
+    plugins.security.disabled: true
+extraEnvs:
+  - name: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+    valueFrom: { secretKeyRef: { name: opensearch, key: password } }
+  - name: DISABLE_INSTALL_DEMO_CONFIG
+    value: "true"

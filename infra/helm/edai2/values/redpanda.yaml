@@ -1,4 +1,63 @@
-service: { type: ClusterIP }
-auth: { existingSecret: redpanda }
-storage: { size: 8Gi }
-retentionDays: 7
+# redpanda/redpanda 26.2.4 (repo: https://charts.redpanda.com).
+# Key rationale vs chart schema (`helm show values redpanda/redpanda --version 26.2.4`):
+# This chart enforces a strict values.schema.json: the previous flat keys
+# (`service.type`, `auth.existingSecret`, `storage.size`, `retentionDays`) are REJECTED
+# (template exit != 0), so they are replaced below with real keys.
+# - statefulset.replicas=1: default 3 brokers; single broker fits the platform
+#   aggregate 3.00 CPU/18Gi ceiling.
+# - storage.persistentVolume.size=8Gi: real key (default 20Gi x3 replicas = 60Gi alone).
+# - external.enabled=false: default true creates an external NodePort Service per broker;
+#   disabled keeps the core private (internal Service stays ClusterIP).
+# - SASL is intentionally left at the chart default (disabled): broker SASL requires a
+#   users list whose passwords cannot be expressed without secret literals (forbidden),
+#   and the ExternalSecret `redpanda` (keys sasl-user/sasl-password) is consumed by
+#   client configuration in owning topics. Enabling SASL is an owning-topic runtime step.
+# - retentionDays has no cluster-level key in this chart (retention is per-topic);
+#   the 7d platform retention is enforced by owning workload topics. Key removed.
+# - EDAI2 Topic 24 LOCAL capacity-tuning (no lease): redpanda 1.0->0.25 CPU
+#   (mem keep 2.5Gi). Schema: `helm show values redpanda/redpanda --version
+#   26.2.4` `resources.cpu.cores: 1` (default; docs: equivalent to `--smp`,
+#   `resources.requests.cpu`, and `resources.limits.cpu`) +
+#   `resources.memory.container.max: 2.5Gi` (default; equivalent to
+#   `resources.requests.memory`/`resources.limits.memory`). The
+#   `resources.requests`-only path is IGNORED when cores/max are set (template
+#   proof: setting `resources.requests.cpu` alone leaves main limits 1/2.5Gi),
+#   so the request-equivalent `resources.cpu.cores: 250m` is used (mem max kept
+#   2.5Gi explicit). Template-proof renders StatefulSet redpanda main limits
+#   250m/2.5Gi (no requests; K8s effective requests 0.25/2.5Gi). Limits change
+#   1->0.25 is INCIDENTAL (chart couples requests+limits via cores; cannot set
+#   requests without limits on this path). Overprovisioned true when cores <1
+#   (thread-per-core dev-only; study core tiny load, observed usage ~1.1 CPU;
+#   throttling risk accepted, see capacity test residual risks).
+# - EDAI2 Topic 24 LOCAL redpanda-listener fix (no lease): disable TLS on the
+#   Kafka API listener ONLY (`listeners.kafka.tls.enabled=false`, real key per
+#   values.schema.json `properties.listeners.properties.kafka.properties.tls.
+#   properties.enabled` boolean, optional; chart values.yaml lines 909-913
+#   `tls: {cert: default, requireClientAuth: false}` + line 910-911 `Optional
+#   flag to override the global TLS enabled flag`; template law
+#   `templates/_values.go.tpl:1042 redpanda.InternalTLS.IsEnabled =
+#   (t.enabled DEFAULT tls.enabled) AND (t.cert != "")`, so false wins over
+#   global `tls.enabled=true`). WHY toggle not host/port: the chart has a
+#   SINGLE internal Kafka port (`listeners.kafka.port=9093`, line 906; :9094
+#   is the external NodePort path, Service `redpanda` exposes only 9093
+#   internally) -- NO plaintext listener exists, and datahub 1.1.6 has NO
+#   simple Kafka-TLS key (only JKS-mount SSL overrides needing literals,
+#   forbidden), while console 2/2 Running proves the broker is healthy and
+#   auto-wires TLS material the datahub client lacks (plaintext
+#   `KAFKA_BOOTSTRAP_SERVER` -> `Wrong SSL Version number` on TLS-only 9093).
+#   `cert: default` + `requireClientAuth: false` repeat chart defaults
+#   verbatim (schema `required: [cert, requireClientAuth]`). Global TLS stays
+#   on (admin/rpc/schemaRegistry/http keep TLS; console auto-switches its
+#   kafka block to plaintext via `templates/_render_state.go.tpl`
+#   `RenderState.AsStaticConfigSource`; `kafka_api_tls`/`broker_tls` drop via
+#   `templates/_configmap.go.tpl:545-549/509-512`; Service ports unchanged --
+#   `templates/_service.internal.go.tpl` derives ports from `listeners.*.port`
+#   only). Residual risk (same Topics-27/31 note as opensearch): plaintext
+#   Kafka inside the private ClusterIP-only pod network until Topics 27/31
+#   re-enable TLS; SASL stays off both sides -- watch GMS logs for SASL/AUTH
+#   errors + `KAFKA_BOOTSTRAP_SERVER` connectivity.
+statefulset: { replicas: 1 }
+storage: { persistentVolume: { size: 8Gi } }
+external: { enabled: false }
+resources: { cpu: { cores: 250m }, memory: { container: { max: 2.5Gi } } }
+listeners: { kafka: { tls: { enabled: false, cert: default, requireClientAuth: false } } }

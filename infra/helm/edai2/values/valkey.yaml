@@ -1,3 +1,15 @@
-service: { type: ClusterIP }
-auth: { existingSecret: valkey }
-primary: { persistence: { size: 4Gi } }
+# bitnami/valkey 6.3.4 (repo: https://charts.bitnami.com/bitnami).
+# Key rationale vs chart schema (`helm show values bitnami/valkey --version 6.3.4`):
+# - architecture=standalone: REQUIRED for compact. Default `replication` renders 1 primary +
+#   3 replicas + sentinel (extra pods + extra PVCs), exceeding the platform aggregate
+#   3.00 CPU/18Gi and PVC 80Gi ceilings. Standalone renders a single primary.
+# - auth.existingSecret: real key; wires ExternalSecret `valkey`.
+# - auth.existingSecretPasswordKey=password: chart default is `valkey-password`; the
+#   ExternalSecret syncs key `password` (rendered StatefulSet mounts `valkey-password`
+#   from the secret; verified in template).
+# - primary.persistence.size=4Gi: real key.
+# - primary.service.type=ClusterIP: real key (top-level `service.type` does not exist);
+#   explicit private-only (default ClusterIP).
+auth: { existingSecret: valkey, existingSecretPasswordKey: password }
+architecture: standalone
+primary: { persistence: { size: 4Gi }, service: { type: ClusterIP } }

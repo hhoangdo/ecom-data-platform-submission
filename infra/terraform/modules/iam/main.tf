@@ -30,6 +30,11 @@ resource "google_service_account_iam_member" "workload_identity" {
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${var.project_id}.svc.id.goog[edai2/${each.value.ksa}]"
 }
+resource "google_service_account_iam_member" "atelet_workload_identity" {
+  service_account_id = google_service_account.workload_identity["coordinator"].name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${var.project_id}.svc.id.goog[edai2/atelet]"
+}
 resource "google_service_account" "vault" {
   account_id   = "edai2-vault"
   display_name = "EDAI2 Vault KMS auto-unseal"

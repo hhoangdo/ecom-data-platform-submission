@@ -2,7 +2,7 @@ apiVersion: ate.dev/v1alpha1
 kind: WorkerPool
 metadata: { name: edai2-agents, namespace: kagent }
 spec:
-  platform: substrate
+  ateomImage: ghcr.io/kagent-dev/substrate/ateom-gvisor:v0.0.6
   replicas: 1
 ---
 apiVersion: keda.sh/v1alpha1

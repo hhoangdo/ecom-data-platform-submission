@@ -1,2 +1,16 @@
-service: { type: ClusterIP }
-controller: { existingSecret: jenkins-controller, numExecutors: 0 }
+# jenkins/jenkins 5.9.68 (repo: https://charts.jenkins.io).
+# Key rationale vs chart schema (`helm show values jenkins/jenkins --version 5.9.68`):
+# - controller.admin.existingSecret: real key (was `controller.existingSecret`, which does
+#   not exist; without it the chart generates a random admin password). Wires ExternalSecret
+#   `jenkins-controller`.
+# - controller.admin.userKey=passwordKey: chart defaults are jenkins-admin-user /
+#   jenkins-admin-password; the ExternalSecret syncs admin-user/admin-password, so the
+#   remap is required.
+# - controller.numExecutors=0: real key, unchanged (no builds on the controller; compact).
+# - controller.serviceType=ClusterIP: real key (top-level `service.type` does not exist in
+#   this chart); explicit private-only (default ClusterIP).
+# Compact: controller.replicas defaults to 1.
+controller:
+  admin: { existingSecret: jenkins-controller, userKey: admin-user, passwordKey: admin-password }
+  numExecutors: 0
+  serviceType: ClusterIP

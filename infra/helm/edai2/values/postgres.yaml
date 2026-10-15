@@ -1,3 +1,28 @@
-service: { type: ClusterIP }
-auth: { existingSecret: postgres }
-primary: { persistence: { size: 16Gi } }
+# bitnami/postgresql 18.12.4 (repo: https://charts.bitnami.com/bitnami).
+# Key rationale vs chart schema (`helm show values bitnami/postgresql --version 18.12.4`):
+# - auth.existingSecret: real key; wires ExternalSecret `postgres` (target secret `postgres`).
+# - auth.secretKeys.adminPasswordKey=password: chart default is `postgres-password`;
+#   the ExternalSecret syncs key `password`, so the mapping is required (rendered
+#   StatefulSet mounts the admin password from this key; verified in template).
+# - primary.persistence.size=16Gi: real key (default 8Gi); 16Gi keeps PVC total within the 80Gi ceiling.
+# - primary.service.type=ClusterIP: real key (top-level `service.type` does not exist in
+#   this chart); explicit private-only (default is already ClusterIP).
+# Compact: architecture defaults to standalone, primary.replicaCount defaults to 1.
+auth: { existingSecret: postgres, secretKeys: { adminPasswordKey: password } }
+primary:
+  persistence: { size: 16Gi }
+  service: { type: ClusterIP }
+  extraVolumes:
+    - name: topic24-bootstrap-script
+      configMap:
+        name: edai2-platform-db-bootstrap
+        defaultMode: 365 # 0555; executable script, projected read-only
+        items: [{ key: script, path: script }]
+    - name: topic24-registry-api-token
+      secret:
+        secretName: agentregistry
+        defaultMode: 288 # 0440; readable by the chart's postgres group
+        items: [{ key: api-token, path: api-token }]
+  extraVolumeMounts:
+    - { name: topic24-bootstrap-script, mountPath: /run/topic24/bootstrap, readOnly: true }
+    - { name: topic24-registry-api-token, mountPath: /run/topic24/registry, readOnly: true }

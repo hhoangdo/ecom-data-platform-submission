@@ -8,3 +8,5 @@ data:
   coordinator-role: coordinator
   agentgateway-role: agentgateway
   jenkins-role: jenkins
+  external-secrets-role: external-secrets
+  kagent-role: kagent

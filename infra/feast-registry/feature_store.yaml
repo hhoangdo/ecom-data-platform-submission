@@ -1,0 +1,6 @@
+project: default
+provider: local
+registry: data/registry.db
+online_store: redis
+offline_store: file
+entity_key_serialization_version: 2

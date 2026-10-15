@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: llmd-primary-gateway-only
+  namespace: edai2
+spec:
+  podSelector:
+    matchLabels:
+      app: llmd-primary
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              edai2.private-gateway: "true"
+      ports:
+        - protocol: TCP
+          port: 8000

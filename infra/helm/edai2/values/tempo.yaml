@@ -1,3 +1,17 @@
+# grafana/tempo 1.24.4 (repo: https://grafana.github.io/helm-charts).
+# Key rationale vs chart schema (`helm show values grafana/tempo --version 1.24.4`):
+# - tempo.retention=168h: real key (was top-level `retention`, ignored; rendered default is
+#   24h block_retention). 168h = 7d platform retention.
+# - persistence.enabled=false + persistence.size=4Gi (retained, ignored when
+#   disabled): EDAI2 Topic 24 LOCAL persistence-tuning (no lease). Real keys
+#   (`helm show values grafana/tempo --version 1.24.4` `persistence.enabled:
+#   false` / `size: 10Gi` default; prior values enabled:true/size 4Gi rendered
+#   4Gi VCT; false -> no PVC, template-proof ZERO PVC docs).
+#   TRADEOFF (ephemeral telemetry buffers / study core): traces lost on pod
+#   restart (local backend best-effort; re-ingests on restart). Fits 80Gi:
+#   71Gi base + jenkins 8Gi + 0 = 79Gi (headroom 1Gi).
+# - service.type=ClusterIP: real top-level key, unchanged (default ClusterIP).
+# Compact: replicas defaults to 1 (single binary).
 service: { type: ClusterIP }
-retention: 168h
-persistence: { size: 4Gi }
+tempo: { retention: 168h }
+persistence: { enabled: false, size: 4Gi }

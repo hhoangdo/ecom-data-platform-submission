@@ -1,0 +1,28 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: gateway-auth-coordinator-specialist
+  namespace: edai2
+  labels:
+    edai2.gateway-auth-route: coordinator-specialist
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: edai2-vault
+    kind: ClusterSecretStore
+  target:
+    name: gateway-auth-coordinator-specialist
+    creationPolicy: Owner
+    template:
+      engineVersion: v2
+      mergePolicy: Replace
+      metadata:
+        labels:
+          edai2.gateway-auth-route: coordinator-specialist
+      data:
+        coordinator-specialist: '{{ dict "key" .gatewayKey "metadata" (dict "route" "coordinator-specialist") | toJson }}'
+  data:
+    - secretKey: gatewayKey
+      remoteRef:
+        key: edai2/kagent/gateway-keys
+        property: coordinator-authorization

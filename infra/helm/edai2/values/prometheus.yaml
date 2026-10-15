@@ -1,3 +1,18 @@
-service: { type: ClusterIP }
-retention: 7d
-persistence: { size: 8Gi }
+# prometheus-community/prometheus 29.36.1 (repo: https://prometheus-community.github.io/helm-charts).
+# Key rationale vs chart schema (`helm show values prometheus-community/prometheus --version 29.36.1`):
+# - server.service.type=ClusterIP: real key (top-level `service.type` does not exist);
+#   explicit private-only (default ClusterIP).
+# - server.retention=7d: real key (was top-level `retention`, ignored; rendered default is
+#   15d). 7d matches the platform retention budget.
+# - server.persistentVolume.enabled=false + alertmanager.persistence.enabled=false:
+#   real keys (EDAI2 Topic 24 LOCAL persistence-tuning, no lease).
+#   Schema (`helm show values prometheus-community/prometheus --version 29.36.1`):
+#   `server.persistentVolume.enabled: true` (default, emptyDir when false) +
+#   `alertmanager.persistence.enabled: true` / `size: 2Gi` (default, emptyDir
+#   when false). Template-proof renders ZERO PVC docs + emptyDir.
+#   TRADEOFF (ephemeral telemetry buffers / study core): metrics lost on pod
+#   restart (7d retention best-effort; re-scrapes on restart). Fits 80Gi ceiling:
+#   71Gi adjusted base + jenkins 8Gi + 0 = 79Gi (headroom 1Gi). Jenkins KEPT.
+# Compact: server replicaCount defaults to 1 (statefulset, single replica).
+server: { service: { type: ClusterIP }, retention: 7d, persistentVolume: { enabled: false, size: 8Gi } }
+alertmanager: { persistence: { enabled: false } }

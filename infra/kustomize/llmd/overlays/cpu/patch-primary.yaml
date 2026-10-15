@@ -3,15 +3,51 @@ kind: Deployment
 metadata:
   name: llmd-primary
   namespace: edai2
-  annotations: { edai2.replica-states: "primary-factorial: 2; comparison-core: 0" }
+  annotations: { edai2.replica-states: "primary: 1; comparison: 0" }
 spec:
   replicas: 1
+  strategy: {type: Recreate}
   selector: { matchLabels: { app: llmd-primary } }
   template:
     metadata: { labels: { app: llmd-primary } }
     spec:
+      serviceAccountName: edai2-retrieval-agent
       containers:
         - name: model
-          image: ghcr.io/llm-d/llm-d-cpu:v0.7.0
-          args: [--model, Qwen/Qwen2.5-1.5B-Instruct, --max-model-len, "4096"]
-          resources: { requests: { cpu: "2", memory: 4Gi } }
+          image: ghcr.io/llm-d/llm-d-cpu:v0.7.0@sha256:f4abcce2b3a3c00521d220dfeabe7aeb5b800823451f8f49fc2b3f9cb5441584
+          args:
+            - --model
+            - /models/primary
+            - --served-model-name
+            - Qwen/Qwen2.5-1.5B-Instruct
+            - --host
+            - 0.0.0.0
+            - --port
+            - "8000"
+            - --dtype
+            - bfloat16
+            - --max-model-len
+            - "4096"
+            - --max-num-seqs
+            - "1"
+          env:
+            - { name: HF_HUB_OFFLINE, value: "1" }
+            - { name: TRANSFORMERS_OFFLINE, value: "1" }
+            - { name: OMP_NUM_THREADS, value: "1" }
+            - { name: VLLM_CPU_OMP_THREADS_BIND, value: nobind }
+            - { name: VLLM_CPU_KVCACHE_SPACE, value: "1" }
+            - { name: VLLM_CPU_SGL_KERNEL, value: "0" }
+            - name: VLLM_API_KEY
+              valueFrom:
+                secretKeyRef: { name: kagent-model-route-key, key: api-key }
+          ports: [{ name: http, containerPort: 8000 }]
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 10
+            failureThreshold: 60
+          resources: { requests: { cpu: "1", memory: 4Gi }, limits: {cpu: "1", memory: 6Gi} }
+          volumeMounts: [{ name: model-cache, mountPath: /models, readOnly: true }]

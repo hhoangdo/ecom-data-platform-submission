@@ -1,2 +1,10 @@
+# grafana/grafana 10.5.15 (repo: https://grafana.github.io/helm-charts).
+# Key rationale vs chart schema (`helm show values grafana/grafana --version 10.5.15`):
+# - admin.existingSecret: real key (was top-level `existingSecret`, which does not exist;
+#   without it the chart generates a random admin password). Wires ExternalSecret `grafana`.
+#   ExternalSecret keys (admin-user/admin-password) match the chart defaults
+#   (admin.userKey/admin.passwordKey), so no key remapping is needed.
+# - service.type=ClusterIP: real top-level key, unchanged (default ClusterIP).
+# Compact: replicas defaults to 1; persistence disabled by default (no PVC).
 service: { type: ClusterIP }
-existingSecret: grafana
+admin: { existingSecret: grafana }

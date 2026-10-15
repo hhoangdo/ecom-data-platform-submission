@@ -5,8 +5,8 @@ trial_credit_usd: 300
 terraform_budget_usd: 240
 pre_deployment_forecast_ceiling_usd: 180
 ceilings:
-  regular_platform_node_hours: 96
-  aggregate_spot_node_hours: 72
+  regular_platform_node_hours: 150
+  aggregate_spot_node_hours: 150
   second_spot_node_hours: 16
   public_ingress_hours: 24
   evidence_session_ttl_hours: 6

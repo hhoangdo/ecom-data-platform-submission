@@ -1,0 +1,389 @@
+--- a/cmd/ateapi/main.go
++++ b/cmd/ateapi/main.go
+@@ -55,6 +55,8 @@
+ 	grpcServerCredBundle = pflag.String("grpc-server-cred-bundle", "", "File with the server TLS credential bundle.")
+ 
+ 	redisClusterAddress = pflag.String("redis-cluster-address", "", "The address of the redis cluster.")
++	redisMode           = pflag.String("redis-mode", "cluster", "Redis topology: cluster|standalone.")
++	redisPasswordFile   = pflag.String("redis-password-file", "", "File containing the Redis/Valkey password.")
+ 	redisCACerts        = pflag.String("redis-ca-certs", "", "The file that contains the CA certificate for Redis cluster.")
+ 	redisUseIAMAuth     = pflag.String("redis-use-iam-auth", "true", "Whether to use Google IAM authentication for Redis/Valkey.")
+ 	redisTLSServerName  = pflag.String("redis-tls-server-name", "", "The ServerName to use for Redis TLS hostname verification.")
+@@ -109,6 +111,7 @@
+ 	if err != nil {
+ 		serverboot.Fatal(ctx, "Failed to set up Redis/Valkey", err)
+ 	}
++	defer redisClient.close()
+ 
+ 	clientset, ateClient, err := newKubeClients()
+ 	if err != nil {
+@@ -206,6 +209,12 @@
+ 			*o.flag = os.Getenv(o.env)
+ 		}
+ 	}
++	if *redisMode == "@env" {
++		*redisMode = os.Getenv("ATE_API_REDIS_MODE")
++	}
++	if *redisPasswordFile == "@env" {
++		*redisPasswordFile = os.Getenv("ATE_API_REDIS_PASSWORD_FILE")
++	}
+ }
+ 
+ func logFlagValues(ctx context.Context) {
+@@ -213,6 +222,8 @@
+ 		slog.String("grpc-listen-addr", *listenAddr),
+ 		slog.String("grpc-server-cred-bundle", *grpcServerCredBundle),
+ 		slog.String("redis-cluster-address", *redisClusterAddress),
++		slog.String("redis-mode", *redisMode),
++		slog.String("redis-password-file", *redisPasswordFile),
+ 		slog.String("redis-ca-certs", *redisCACerts),
+ 		slog.String("redis-use-iam-auth", *redisUseIAMAuth),
+ 		slog.String("redis-tls-server-name", *redisTLSServerName),
+@@ -227,46 +238,131 @@
+ 	)
+ }
+ 
+-// connectRedis builds the Redis/Valkey TLS config, plumbs IAM auth if
+-// requested, opens the cluster client, and pings with retries.
+-func connectRedis(ctx context.Context) (*redis.ClusterClient, error) {
++// connectRedis builds the Redis/Valkey client, plumbs TLS and IAM auth if
++// requested, and pings with retries.
++type redisPersistenceClient struct {
++	redis.Cmdable
++	watch         func(context.Context, func(*redis.Tx) error, ...string) error
++	forEachMaster func(context.Context, func(context.Context, *redis.Client) error) error
++	close         func() error
++}
++
++func (c *redisPersistenceClient) Watch(ctx context.Context, fn func(*redis.Tx) error, keys ...string) error {
++	return c.watch(ctx, fn, keys...)
++}
++
++func (c *redisPersistenceClient) ForEachMaster(ctx context.Context, fn func(context.Context, *redis.Client) error) error {
++	return c.forEachMaster(ctx, fn)
++}
++
++func connectRedis(ctx context.Context) (*redisPersistenceClient, error) {
++	mode := strings.ToLower(*redisMode)
++	if mode != "cluster" && mode != "standalone" {
++		return nil, fmt.Errorf("invalid Redis mode %q: expected cluster or standalone", *redisMode)
++	}
++	if *redisUseIAMAuth != "false" && *redisPasswordFile != "" {
++		return nil, fmt.Errorf("Redis IAM authentication and password authentication cannot be enabled together")
++	}
++	password, err := readRedisPassword(*redisPasswordFile)
++	if err != nil {
++		return nil, err
++	}
++
++	var tlsConfig *tls.Config
++	if !*redisNoTLS {
++		tlsConfig, err = buildRedisTLSConfig(ctx)
++		if err != nil {
++			return nil, err
++		}
++	}
++	credentialsProvider, err := redisCredentialsProvider(ctx)
++	if err != nil {
++		return nil, err
++	}
++
++	if mode == "standalone" {
++		client := redis.NewClient(&redis.Options{
++			Addr: *redisClusterAddress, Password: password, TLSConfig: tlsConfig,
++			CredentialsProvider: credentialsProvider,
++		})
++		wrapped := newStandaloneRedisPersistenceClient(client)
++		if err := pingRedisWithRetries(ctx, wrapped); err != nil {
++			_ = wrapped.close()
++			return nil, err
++		}
++		return wrapped, nil
++	}
++
+ 	clusterOpts := &redis.ClusterOptions{
+-		Addrs: []string{*redisClusterAddress},
++		Addrs: []string{*redisClusterAddress}, Password: password,
++		TLSConfig: tlsConfig, CredentialsProvider: credentialsProvider,
+ 	}
+ 	if *redisNoTLS {
+ 		slog.InfoContext(ctx, "Connecting to Redis/Valkey without TLS (--redis-no-tls=true)")
+-	} else {
+-		tlsConfig, err := buildRedisTLSConfig(ctx)
++	}
++	client := redis.NewClusterClient(clusterOpts)
++	wrapped := newClusterRedisPersistenceClient(client)
++	if err := pingRedisWithRetries(ctx, wrapped); err != nil {
++		_ = wrapped.close()
++		return nil, err
++	}
++	return wrapped, nil
++}
++
++func newStandaloneRedisPersistenceClient(client *redis.Client) *redisPersistenceClient {
++	return &redisPersistenceClient{
++		Cmdable: client,
++		watch:   client.Watch,
++		forEachMaster: func(ctx context.Context, fn func(context.Context, *redis.Client) error) error {
++			return fn(ctx, client)
++		},
++		close: client.Close,
++	}
++}
++
++func newClusterRedisPersistenceClient(client *redis.ClusterClient) *redisPersistenceClient {
++	return &redisPersistenceClient{
++		Cmdable:       client,
++		watch:         client.Watch,
++		forEachMaster: client.ForEachMaster,
++		close:         client.Close,
++	}
++}
++
++func readRedisPassword(path string) (string, error) {
++	if path == "" {
++		return "", nil
++	}
++	passwordBytes, err := os.ReadFile(path)
++	if err != nil {
++		return "", fmt.Errorf("read Redis password file: %w", err)
++	}
++	password := strings.TrimRight(string(passwordBytes), "\r\n")
++	if strings.TrimSpace(password) == "" {
++		return "", fmt.Errorf("Redis password file is empty")
++	}
++	return password, nil
++}
++
++func redisCredentialsProvider(ctx context.Context) (func() (string, string), error) {
++	if *redisUseIAMAuth == "false" {
++		slog.InfoContext(ctx, "Skipping Google IAM authentication for Redis connection")
++		return nil, nil
++	}
++	creds, err := google.FindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
++	if err != nil {
++		return nil, fmt.Errorf("find default credentials for Redis IAM auth: %w", err)
++	}
++	tokenSource := creds.TokenSource
++	slog.InfoContext(ctx, "Using Google IAM authentication for Redis connection")
++	return func() (string, string) {
++		tok, err := tokenSource.Token()
+ 		if err != nil {
+-			return nil, err
+-		}
+-		clusterOpts.TLSConfig = tlsConfig
+-	}
+-
+-	if *redisUseIAMAuth != "false" {
+-		creds, err := google.FindDefaultCredentials(ctx, "https://www.googleapis.com/auth/cloud-platform")
+-		if err != nil {
+-			return nil, fmt.Errorf("find default credentials for Redis IAM auth: %w", err)
+-		}
+-		tokenSource := creds.TokenSource
+-		clusterOpts.CredentialsProvider = func() (string, string) {
+-			tok, err := tokenSource.Token()
+-			if err != nil {
+-				slog.Error("Failed to fetch Redis IAM token", slog.Any("err", err))
+-				return "default", ""
+-			}
+-			return "default", tok.AccessToken
+-		}
+-		slog.InfoContext(ctx, "Using Google IAM authentication for Redis connection")
+-	} else {
+-		slog.InfoContext(ctx, "Skipping Google IAM authentication for Redis connection")
+-	}
+-
+-	client := redis.NewClusterClient(clusterOpts)
+-	if err := pingRedisWithRetries(ctx, client); err != nil {
+-		return nil, err
+-	}
+-	return client, nil
++			slog.Error("Failed to fetch Redis IAM token", slog.Any("err", err))
++			return "default", ""
++		}
++		return "default", tok.AccessToken
++	}, nil
+ }
+ 
+ func buildRedisTLSConfig(ctx context.Context) (*tls.Config, error) {
+@@ -298,7 +394,7 @@
+ 	return tlsConfig, nil
+ }
+ 
+-func pingRedisWithRetries(ctx context.Context, client *redis.ClusterClient) error {
++func pingRedisWithRetries(ctx context.Context, client interface{ Ping(context.Context) *redis.StatusCmd }) error {
+ 	var pingErr error
+ 	for i := 0; i < 30; i++ {
+ 		pingErr = client.Ping(ctx).Err()
+--- a/cmd/ateapi/internal/store/ateredis/ateredis.go
++++ b/cmd/ateapi/internal/store/ateredis/ateredis.go
+@@ -73,7 +73,7 @@
+ var _ store.Interface = (*Persistence)(nil)
+ 
+ // NewPersistence creates a new Persistence.
+-func NewPersistence(redisClient *redis.ClusterClient) *Persistence {
++func NewPersistence(redisClient redisClient) *Persistence {
+ 	return &Persistence{
+ 		rdb: redisClient,
+ 	}
+--- /dev/null
++++ b/cmd/ateapi/redis_test.go
+@@ -0,0 +1,158 @@
++package main
++
++import (
++	"context"
++	"errors"
++	"os"
++	"path/filepath"
++	"testing"
++
++	"github.com/agent-substrate/substrate/cmd/ateapi/internal/store/ateredis"
++	"github.com/agent-substrate/substrate/pkg/proto/ateapipb"
++	"github.com/alicebob/miniredis/v2"
++	"github.com/redis/go-redis/v9"
++)
++
++func TestReadRedisPassword(t *testing.T) {
++	path := filepath.Join(t.TempDir(), "password")
++	if err := os.WriteFile(path, []byte("secret\r\n"), 0600); err != nil {
++		t.Fatal(err)
++	}
++	password, err := readRedisPassword(path)
++	if err != nil || password != "secret" {
++		t.Fatalf("readRedisPassword() = %q, %v; want secret", password, err)
++	}
++	if err := os.WriteFile(path, []byte(" \r\n"), 0600); err != nil {
++		t.Fatal(err)
++	}
++	if _, err := readRedisPassword(path); err == nil {
++		t.Fatal("readRedisPassword() accepted an empty password file")
++	}
++	if _, err := readRedisPassword(filepath.Join(t.TempDir(), "missing")); err == nil {
++		t.Fatal("readRedisPassword() accepted a missing password file")
++	}
++}
++
++func TestRedisCredentialsProviderRejectsMissingCredentialsFile(t *testing.T) {
++	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", filepath.Join(t.TempDir(), "missing-credentials.json"))
++	original := *redisUseIAMAuth
++	*redisUseIAMAuth = "true"
++	t.Cleanup(func() { *redisUseIAMAuth = original })
++
++	if _, err := redisCredentialsProvider(context.Background()); err == nil {
++		t.Fatal("redisCredentialsProvider() accepted a missing ADC credentials file")
++	}
++}
++
++func TestStandaloneRedisPasswordAuthAndPersistenceTransaction(t *testing.T) {
++	server, err := miniredis.Run()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer server.Close()
++	server.RequireAuth("secret")
++
++	ctx := context.Background()
++	noPasswordClient := redis.NewClient(&redis.Options{Addr: server.Addr()})
++	if err := noPasswordClient.Ping(ctx).Err(); err == nil {
++		t.Fatal("Redis accepted a client without a password")
++	}
++	_ = noPasswordClient.Close()
++
++	wrongPasswordClient := redis.NewClient(&redis.Options{Addr: server.Addr(), Password: "wrong"})
++	if err := wrongPasswordClient.Ping(ctx).Err(); err == nil {
++		t.Fatal("Redis accepted a wrong password")
++	}
++	_ = wrongPasswordClient.Close()
++
++	client := redis.NewClient(&redis.Options{Addr: server.Addr(), Password: "secret"})
++	defer client.Close()
++	wrapped := newStandaloneRedisPersistenceClient(client)
++	if err := wrapped.Ping(ctx).Err(); err != nil {
++		t.Fatalf("Redis rejected the correct password: %v", err)
++	}
++
++	persistence := ateredis.NewPersistence(wrapped)
++	worker := &ateapipb.Worker{
++		WorkerNamespace: "kagent", WorkerPool: "pool", WorkerPod: "worker-1", Ip: "127.0.0.1",
++	}
++	if err := persistence.CreateWorker(ctx, worker); err != nil {
++		t.Fatalf("CreateWorker() error = %v", err)
++	}
++	if err := persistence.UpdateWorker(ctx, worker, 1); err != nil {
++		t.Fatalf("UpdateWorker() error = %v", err)
++	}
++	stored, err := persistence.GetWorker(ctx, "kagent", "pool", "worker-1")
++	if err != nil {
++		t.Fatalf("GetWorker() error = %v", err)
++	}
++	if stored.GetVersion() != 2 {
++		t.Fatalf("stored version = %d, want 2", stored.GetVersion())
++	}
++
++	calls := 0
++	err = wrapped.ForEachMaster(ctx, func(_ context.Context, master *redis.Client) error {
++		calls++
++		if master != client {
++			t.Fatal("standalone master iterator returned a different client")
++		}
++		return nil
++	})
++	if err != nil || calls != 1 {
++		t.Fatalf("standalone ForEachMaster() calls=%d error=%v; want one call", calls, err)
++	}
++}
++
++func TestConnectStandaloneRedisWithoutPassword(t *testing.T) {
++	server, err := miniredis.Run()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer server.Close()
++
++	originalMode := *redisMode
++	originalAddress := *redisClusterAddress
++	originalPasswordFile := *redisPasswordFile
++	originalIAMAuth := *redisUseIAMAuth
++	originalNoTLS := *redisNoTLS
++	*redisMode = "standalone"
++	*redisClusterAddress = server.Addr()
++	*redisPasswordFile = ""
++	*redisUseIAMAuth = "false"
++	*redisNoTLS = true
++	t.Cleanup(func() {
++		*redisMode = originalMode
++		*redisClusterAddress = originalAddress
++		*redisPasswordFile = originalPasswordFile
++		*redisUseIAMAuth = originalIAMAuth
++		*redisNoTLS = originalNoTLS
++	})
++
++	client, err := connectRedis(context.Background())
++	if err != nil {
++		t.Fatalf("connectRedis() without a password failed: %v", err)
++	}
++	defer client.close()
++	if err := client.Ping(context.Background()).Err(); err != nil {
++		t.Fatalf("standalone Redis Ping() without a password failed: %v", err)
++	}
++}
++
++func TestRedisPersistenceClientDelegatesClusterMasterIteration(t *testing.T) {
++	client := redis.NewClient(&redis.Options{Addr: "127.0.0.1:1"})
++	defer client.Close()
++	wantedErr := errors.New("cluster iterator invoked")
++	called := false
++	wrapped := &redisPersistenceClient{
++		Cmdable: client,
++		watch: client.Watch,
++		forEachMaster: func(context.Context, func(context.Context, *redis.Client) error) error {
++			called = true
++			return wantedErr
++		},
++	}
++	err := wrapped.ForEachMaster(context.Background(), func(context.Context, *redis.Client) error { return nil })
++	if !called || !errors.Is(err, wantedErr) {
++		t.Fatalf("ForEachMaster() called=%t error=%v; want cluster delegation", called, err)
++	}
++}

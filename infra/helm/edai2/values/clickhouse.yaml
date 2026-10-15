@@ -1,6 +1,105 @@
+# bitnami/clickhouse 9.4.4 (repo: https://charts.bitnami.com/bitnami).
+# Key rationale vs chart schema (`helm show values bitnami/clickhouse --version 9.4.4`):
+# - auth.existingSecret: real key (was top-level `existingSecret`, which does not exist);
+#   wires ExternalSecret `clickhouse`.
+# - auth.existingSecretKey=password: chart default is `admin-password`; the ExternalSecret
+#   syncs key `password` (chart helper falls back to `admin-password` when empty).
+# - replicaCount=1: was `replicas` (no such key); default 3 replicas/shard. Single replica
+#   fits compact capacity.
+# - keeper.replicaCount=1: default 3 Keeper nodes (each with its own 8Gi PVC); single Keeper
+#   keeps the PVC total within the 80Gi ceiling.
+# - shards=1, persistence.size=8Gi, service.type=ClusterIP: real keys, unchanged.
+# - retentionDays=7: documentation-only key (no chart-level retention key; retention is
+#   enforced by owning topics). Kept: chart has no strict schema, template ignores it.
+# - image.registry/repository/tag + keeper.image.registry/repository/tag (verified via
+#   `helm show values bitnami/clickhouse --version 9.4.4`: top-level `image.*` for
+#   shards, `keeper.image.*` for Keeper; `defaultInitContainers.volumePermissions`
+#   left at default enabled=false so `bitnami/os-shell` is not rendered — benign,
+#   absence asserted in tests):
+#   chart defaults `docker.io/bitnami/clickhouse:25.7.5-debian-12-r0` and
+#   `docker.io/bitnami/clickhouse-keeper:25.7.5-debian-12-r0` are ImagePullBackOff
+#   live (`not found`; `bitnami/clickhouse*` repos are EMPTY, count 0 — Bitnami
+#   Secure-Images migration removed versioned tags). `helm show chart` gives
+#   appVersion 25.7.5. Official upstream
+#   `docker.io/clickhouse/clickhouse-server:25.7.5` PULLS but its entrypoint is
+#   INCOMPATIBLE with the bitnami chart layout (CrashLoop: needs
+#   CLICKHOUSE_USER/PASSWORD + writable users.d) — ABANDONED. Fix uses
+#   Bitnami-layout images via the legacy registry, exact chart-default tags
+#   (verified to EXIST): `docker.io/bitnamilegacy/clickhouse:25.7.5-debian-12-r0`
+#   and `docker.io/bitnamilegacy/clickhouse-keeper:25.7.5-debian-12-r0`.
+#   Only `repository` is overridden; `tag` keeps the chart default
+#   (25.7.5-debian-12-r0 on both keys — no `latest`, no digest override).
+# - global.security.allowInsecureImages=true: REQUIRED escape hatch — chart verifies
+#   images are bitnami originals (NOTES.txt:80; readme "image verification",
+#   see https://github.com/bitnami/charts/issues/30850). Re-verified 2026-10-09
+#   with legacy repos: `helm template` exits 0 both with the hatch true and
+#   with `--set global.security.allowInsecureImages=false` (no template-time
+#   hard error; identical workload images either way), but the hatch is KEPT:
+#   the verification fires at deploy time on non-bitnami-original images and
+#   `bitnamilegacy/*` is non-bitnami, so dropping it risks the leased upgrade
+#   failing. Conservative keep; no effect on rendered images.
+#   Real chart key (`helm show values` global.security.allowInsecureImages, default false).
+# - 2026-10-14 Topic 24 ClickHouse version exception (user-approved recovery):
+#   Langfuse chart 2.1.4 / app 4.50.0 requires ClickHouse >=25.12 (26.4
+#   recommended); retained 25.7.5 lacks `enable_full_text_index` for migration
+#   39 (`events_full`). Shard moves to official
+#   `docker.io/clickhouse/clickhouse-server:26.4` (app 26.4.5.143, digest
+#   sha256:10c8dfc39d3fa015f3fbf44d77efa8f794a004e0ae1e509fbd1d4dfac88bb006
+#   pinned at deploy). Native entrypoint retained (`/entrypoint.sh`, no
+#   command/args override); password aliased via CLICKHOUSE_PASSWORD_FILE to
+#   the chart-mounted secret; writable users.d via emptyDir; data path
+#   `/bitnami/clickhouse/data/` verified live (exec ls + config.xml <path>).
+#   Keeper stays `bitnamilegacy/clickhouse-keeper:25.7.5-debian-12-r0`.
+# - EDAI2 Topic 24 LOCAL capacity-tuning (no lease): keeper+shard 0.5->0.25
+#   each (mem keep 512Mi each). Schema: `helm show values
+#   bitnami/clickhouse --version 9.4.4` top-level `resources: {}` +
+#   `resourcesPreset: small` (500m/512Mi requests, 750m/768Mi limits) ignored
+#   when `resources` set + `keeper.resources: {}` + `keeper.resourcesPreset:
+#   small` (same). Keys `resources.requests` + `keeper.resources.requests` are
+#   real (bitnami common preset pattern; template-proof renders StatefulSets
+#   clickhouse-keeper + clickhouse-shard0 requests 250m/512Mi, no limits).
+#   Mem keep 512Mi each.
 service: { type: ClusterIP }
-existingSecret: clickhouse
+global: { security: { allowInsecureImages: true } }
+auth: { existingSecret: clickhouse, existingSecretKey: password }
 shards: 1
-replicas: 1
+replicaCount: 1
+resources: { requests: { cpu: 250m, memory: 512Mi } }
+image:
+  registry: docker.io
+  repository: clickhouse/clickhouse-server
+  tag: "26.4"
+  digest: sha256:10c8dfc39d3fa015f3fbf44d77efa8f794a004e0ae1e509fbd1d4dfac88bb006
+keeper:
+  replicaCount: 1
+  resources: { requests: { cpu: 250m, memory: 512Mi } }
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/clickhouse-keeper
+# 2026-10-14 version-exception adapter (official 26.4 entrypoint needs env
+# alias + writable users.d; data path verified live /bitnami/clickhouse/data).
+extraEnvVars:
+  - name: CLICKHOUSE_USER
+    value: default
+  - name: CLICKHOUSE_PASSWORD_FILE
+    value: /opt/bitnami/clickhouse/secrets/password
+extraVolumes:
+  - name: users-d
+    emptyDir: {}
+  - name: ch-logs
+    emptyDir: {}
+extraVolumeMounts:
+  - name: users-d
+    mountPath: /etc/clickhouse-server/users.d
+  - name: ch-logs
+    mountPath: /var/log/clickhouse-server
+  # Native image default <path> is /var/lib/clickhouse (its own config.d is
+  # the only one it reads; the chart's Bitnami-layout configdFiles never
+  # load). Mount the retained data root (PVC subdir `data/`, verified live to
+  # hold data/metadata/store) exactly there via subPath. The chart's own
+  # /bitnami/clickhouse mount stays as-is (harmless).
+  - name: data
+    mountPath: /var/lib/clickhouse
+    subPath: data
 persistence: { size: 8Gi }
 retentionDays: 7

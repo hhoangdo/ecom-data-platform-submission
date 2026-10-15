@@ -3,7 +3,7 @@ serviceAccount:
   name: edai2-drift-agent
   annotations: {}
 proxy:
-  url: http://agentgateway-proxy.edai2.svc.cluster.local:15000
+  url: http://edai2-private-gateway.edai2.svc.cluster.local:8080
 substrate:
   # Topic 16's chart must require a non-empty Terraform-provided value at render time.
   bucketName: ""
@@ -52,4 +52,4 @@ sandboxAgents:
             - kube-dns.kube-system.svc.cluster.local
             - api.ate-system.svc.cluster.local
             - atenet-router.ate-system.svc.cluster.local
-            - agentgateway-proxy.edai2.svc.cluster.local
+            - edai2-private-gateway.edai2.svc.cluster.local

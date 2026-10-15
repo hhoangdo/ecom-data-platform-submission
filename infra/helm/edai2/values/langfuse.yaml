@@ -1,8 +1,34 @@
-service: { type: ClusterIP }
-existingSecret: langfuse
-postgres: { existingSecret: postgres }
-clickhouse: { existingSecret: clickhouse, shards: 1, replicas: 1 }
-valkey: { existingSecret: valkey }
-gcsPrefix: langfuse-events/
-retentionDays: 7
-minio: { enabled: false }
+# langfuse/langfuse 2.1.4 (repo: https://langfuse.github.io/langfuse-k8s).
+# Key rationale vs chart schema (`helm show values langfuse/langfuse --version 2.1.4`):
+# This 2.x chart bundles PostgreSQL + Valkey + ClickHouse (operator CRs) + SeaweedFS
+# sub-stores, ALL enabled by default. Bundled stores are forbidden on the compact core
+# (duplicate data stores exclusion + PVC budget: bundled ClickHouse alone defaults to
+# 100Gi). Every bundled store is therefore disabled and pointed at the platform
+# releases deployed earlier in the Topic 24 order (release == chart short name):
+# - postgresql.deploy=false, host=postgres-postgresql (platform postgres primary Service).
+#   postgresql.auth.existingSecret=postgres wires ExternalSecret `postgres`
+#   (userPasswordKey default `password` matches the synced key).
+# - redis.deploy=false, host=valkey-primary (platform valkey primary Service).
+#   redis.auth.existingSecret=valkey + existingSecretPasswordKey=password match the synced key.
+# - clickhouse.deploy=false, host=clickhouse (platform clickhouse Service).
+#   clickhouse.auth.existingSecret=clickhouse + existingSecretKey=password match the synced
+#   key. deploy=false also skips the ClickHouse-operator CRD validation, so offline
+#   `helm template` proves clean with no extra flags.
+# - s3.deploy=false: disables bundled SeaweedFS. storageProvider=gcs + eventUpload.prefix
+#   preserve the previous `gcsPrefix: langfuse-events/` + `minio.enabled=false` intent with
+#   real keys (`minio` does not exist in 2.x; SeaweedFS via s3.deploy is the bundled S3).
+#   GCS auth uses Workload Identity (no JSON keys); bucket/credentials are leased-agent
+#   runtime inputs.
+# - langfuse.web.service.type=ClusterIP: real key (was top-level `service`; default ClusterIP).
+# - langfuse salt/encryptionKey + nextauth secretKeyRefs wire ExternalSecret `langfuse`
+#   (keys salt/encryption-key/nextauth-secret).
+# - retentionDays has no chart-level key (event retention is GCS-lifecycle, owning topic).
+langfuse:
+  web: { service: { type: ClusterIP } }
+  salt: { secretKeyRef: { name: langfuse, key: salt } }
+  encryptionKey: { secretKeyRef: { name: langfuse, key: encryption-key } }
+  nextauth: { secret: { secretKeyRef: { name: langfuse, key: nextauth-secret } } }
+postgresql: { deploy: false, host: postgres-postgresql, auth: { existingSecret: postgres } }
+redis: { deploy: false, host: valkey-primary, auth: { existingSecret: valkey, existingSecretPasswordKey: password } }
+clickhouse: { deploy: false, host: clickhouse, auth: { existingSecret: clickhouse, existingSecretKey: password }, cluster: { enabled: false } }
+s3: { deploy: false, storageProvider: gcs, eventUpload: { prefix: langfuse-events/ }, mediaUpload: { maxContentLength: "1000000000" } }

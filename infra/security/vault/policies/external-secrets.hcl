@@ -1,0 +1,14 @@
+path "kv/data/edai2/facade/gateway-entry" { capabilities = ["read"] }
+path "kv/data/edai2/ingress/chat-basic-auth" { capabilities = ["read"] }
+path "kv/data/edai2/jenkins/controller" { capabilities = ["read"] }
+path "kv/data/edai2/kagent/gateway-keys" { capabilities = ["read"] }
+path "kv/data/edai2/platform/agentregistry" { capabilities = ["read"] }
+path "kv/data/edai2/platform/airflow" { capabilities = ["read"] }
+path "kv/data/edai2/platform/clickhouse" { capabilities = ["read"] }
+path "kv/data/edai2/platform/datahub" { capabilities = ["read"] }
+path "kv/data/edai2/platform/grafana" { capabilities = ["read"] }
+path "kv/data/edai2/platform/langfuse" { capabilities = ["read"] }
+path "kv/data/edai2/platform/opensearch" { capabilities = ["read"] }
+path "kv/data/edai2/platform/postgres" { capabilities = ["read"] }
+path "kv/data/edai2/platform/redpanda" { capabilities = ["read"] }
+path "kv/data/edai2/platform/valkey" { capabilities = ["read"] }

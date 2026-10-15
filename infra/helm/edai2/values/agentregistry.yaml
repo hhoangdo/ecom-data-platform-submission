@@ -1,3 +1,15 @@
 service: { type: ClusterIP }
-existingSecret: agentregistry
+config:
+  existingSecret: agentregistry
+  disableBuiltinSeed: "true"
+database:
+  postgres:
+    # Required chart-validation input; MUST be replaced by topic24_postrender.py.
+    url: postgresql://topic24-secret-reference.invalid/agentregistry
+    bundled: { enabled: false }
+image:
+  registry: ghcr.io
+  repository: agentregistry-dev/agentregistry
+  name: server
+  tag: "0.2.1"
 version: "0.3.3"

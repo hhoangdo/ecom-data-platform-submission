@@ -1,3 +1,88 @@
-service: { type: ClusterIP }
-existingSecret: datahub
-opensearch: { external: true }
+# datahub/datahub 1.1.6 (repo: https://helm.datahubproject.io).
+# Key rationale vs chart schema (`helm show values datahub/datahub --version 1.1.6`
+# + pulled chart templates, metadata-only):
+# - datahub-gms.service.type + datahub-frontend.service.type = ClusterIP: REQUIRED.
+#   Both subcharts default LoadBalancer (subcharts/datahub-gms/values.yaml +
+#   subcharts/datahub-frontend/values.yaml `service.type: LoadBalancer`); private core
+#   forbids LoadBalancer. Compact frontend replicaCount defaults to 1; no bundled stores
+#   in this chart (prerequisites are a separate release, not installed here).
+# - global.sql.datasource.{host,port,url,driver,database,username.secretRef/secretKey,
+#   password.secretRef/secretKey}: real keys. GMS Deployment renders EBEAN_DATASOURCE_*
+#   with secretKeyRef when username/password are maps
+#   (subcharts/datahub-gms/templates/deployment.yaml EBEAN blocks) + the commented
+#   `## Use below for usage of PostgreSQL` block documents
+#   `jdbc:postgresql://...` + `org.postgresql.Driver`. Wires GMS SQL to platform
+#   postgres `postgres-postgresql.edai2:5432`, db `datahub`, creds via ExternalSecret
+#   `postgres` (keys username/password; database key exists for platform wiring).
+#   system-update Job (datahubSystemUpdate.sql.setup createDatabase/createTables true,
+#   default) creates the `datahub` DB/tables on first run. NO literals.
+# - global.kafka.bootstrap.server=redpanda.edai2:9093: real key (default
+#   `prerequisites-kafka:9092`). Platform redpanda internal Kafka listener is 9093
+#   (`helm show values redpanda/redpanda --version 26.2.4` listeners.kafka.port=9093;
+#   Service `redpanda` exposes kafka 9093). SASL left default-off on both sides
+#   (redpanda chart default disabled per values/redpanda.yaml; datahub
+#   global.kafka.iam.enabled=false default) -> no SASL secret needed; record residual risk.
+# - global.elasticsearch.host=opensearch-cluster-master.edai2 + port 9200: real keys
+#   (default host already `opensearch-cluster-master`, i.e. the platform opensearch
+#   Service; made explicit with namespace suffix). skipcheck='false' + useSSL='false':
+#   real keys pinning chart defaults (values lines 729/731) -> plaintext `http://`
+#   inside the private pod network until Topics 27/31 re-enable TLS (residual risk;
+#   basic-auth still enforced, no public ingress). skipcheck=true would skip wait AND
+#   runtime checks (NOT a fix). `insecure` left default-off: it does NOT propagate to
+#   the GMS Deployment (it inlines HOST/PORT/SKIP/USE_SSL/auth only,
+#   subcharts/datahub-gms/templates/deployment.yaml 268-296, grep-proven).
+# - global.elasticsearch.auth.username=admin + password.secretRef/secretKey: real keys
+#   (commented `# auth:` block, values lines 750-757: username + password.value/
+#   secretRef/secretKey; system-update Job env via templates/datahub-upgrade/_upgrade.tpl
+#   71-81, GMS Deployment via deployment.yaml 278-289, shared helper
+#   templates/_helpers.tpl 624-663 `datahub.elasticsearch.connection.env`).
+#   username `admin` is the well-known default Security-Plugin account NAME
+#   (identifier, not credential -- exception recorded in the test docstring).
+#   password refs ExternalSecret `opensearch` (keys username/password), target/keys
+#   cross-asserted in test. NO literals anywhere.
+# - Removed stub keys `existingSecret` + `opensearch.external`: NO such top-level keys
+#   in chart schema/values; they were ignored at render. ExternalSecret `datahub`
+#   remains the credential handoff for owning topics (not referenced here).
+# - Residual risks: (1) redpanda SASL-off: if broker later enforces SASL, GMS Kafka
+#   client (no SASL env) will auth-fail; watch GMS logs for SASL/AUTH errors +
+#   `KAFKA_BOOTSTRAP_SERVER` connectivity. (2) opensearch is plaintext HTTP until
+#   Topics 27/31 re-enable TLS (private ClusterIP-only network; basic-auth via
+#   ELASTICSEARCH_USERNAME/PASSWORD secretKeyRef still enforced -- expect 401, not
+#   timeout, without creds). (3) postgres `datahub` DB must be created
+#   by system-update (createDatabase true); watch system-update Job logs.
+datahub-gms: { service: { type: ClusterIP }, resources: { requests: { cpu: 100m, memory: 512Mi } } }
+datahub-frontend: { service: { type: ClusterIP } }
+# EDAI2 Topic 24 LOCAL capacity-tuning (no lease): datahub fat defaults tuned
+# (real keys, `helm show values datahub/datahub --version 1.1.6`).
+# - acryl-datahub-actions 300m->100m (mem 256Mi keep, not fat; key
+#   `acryl-datahub-actions.resources.requests`; template-proof renders Deployment
+#   datahub-acryl-datahub-actions 100m/256Mi).
+# - datahub-gms mem 1Gi->512Mi (cpu 100m keep, not fat; key
+#   `datahub-gms.resources.requests`; renders 100m/512Mi).
+# - datahubSystemUpdate Jobs 300m/2Gi->100m/512Mi each (transient hooks, tuned
+#   for hook footprint; excluded from steady-state sums; key
+#   `datahubSystemUpdate.resources.requests`; renders Jobs datahub-system-update
+#   + datahub-system-update-nonblk 100m/512Mi).
+# Frontend 100m/512Mi NOT fat (== thresholds) left; mae/mce consumers render 0
+# workloads left; ingestion-cron CronJob transient left. Do NOT touch limits.
+acryl-datahub-actions: { resources: { requests: { cpu: 100m, memory: 256Mi } } }
+datahubSystemUpdate: { resources: { requests: { cpu: 100m, memory: 512Mi } } }
+global:
+  sql:
+    datasource:
+      host: postgres-postgresql.edai2:5432
+      port: '5432'
+      url: jdbc:postgresql://postgres-postgresql.edai2:5432/datahub
+      driver: org.postgresql.Driver
+      database: datahub
+      username: { secretRef: postgres, secretKey: username }
+      password: { secretRef: postgres, secretKey: password }
+  kafka: { bootstrap: { server: redpanda.edai2:9093 } }
+  elasticsearch:
+    host: opensearch-cluster-master.edai2
+    port: '9200'
+    skipcheck: 'false'
+    useSSL: 'false'
+    auth:
+      username: admin
+      password: { secretRef: opensearch, secretKey: password }
