@@ -9,6 +9,7 @@
 > - Screenshots: viewport PNG + SHA + machine link + eyeball check is enough.
 > - Study-mode relaxation v1 (study-first, single-agent): plan-doc SHA pins and manifest-byte equality are LOG-ONLY — record computed vs listed values, never block. Image remote-digest equality stays HARD.
 > - Safety gates stay HARD: live budget preflight, exact kubeconfig/context, capacity ceilings. Numeric gates (p95, gains, startup) are record-and-continue `Partial`, one bounded retry max. No mid-run approvals.
+> - PoC-first sprint (trial ends 2026-10-25): this topic is the readiness unlock — demo win = canonical `canonical-evidence-<sha>` index built + retrieval Ready flip + drift Section 03 activation with `import.json`. Do the local chart fixes FIRST with no lease (drift Job `/data/section03` mount, mesh-CR `description`/schema fields, `section03_report.md` re-pin) via owning topics, then run the lease. Benchmark numerics stay `Partial`. One lease, time-box, suspend pools-zero after, log spend/remaining/trial-hours.
 
 **Goal:** Produce measured, hash-bound proof for the RAG pipeline/lineage, serial two-model inference optimization, and agent warm-up/startup-cost improvement.
 

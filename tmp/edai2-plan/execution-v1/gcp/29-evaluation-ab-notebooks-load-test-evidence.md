@@ -9,6 +9,7 @@
 > - Screenshots: viewport PNG + SHA + machine link + eyeball check is enough.
 > - Study-mode relaxation v1 (study-first, single-agent): plan-doc SHA pins and manifest-byte equality are LOG-ONLY — record computed vs listed values, never block. Image remote-digest equality stays HARD.
 > - Safety gates stay HARD: live budget preflight, exact kubeconfig/context, capacity ceilings. Numeric gates (eval/A-B/coverage/mutation/Locust) are record-and-continue `Partial`, one bounded retry max. No mid-run approvals.
+> - PoC-first sprint (trial ends 2026-10-25): demo win = one 60-case eval run with recorded numbers + both notebooks executed + Locust run recorded. Tuning retries, promotion decisions, coverage/mutation thresholds, p95 gates stay `Partial`. Keep disable-routes + suspend at end. One lease, time-box, log spend/remaining/trial-hours.
 
 **Goal:** Produce reproducible evaluation, two isolated A/B experiments, executed agent notebooks, test-quality evidence, Locust performance evidence, agent-test UI proof, and two runtime-backed novel-idea proofs.
 

@@ -9,6 +9,7 @@
 > - Screenshots: viewport PNG + SHA + machine link + eyeball check is enough. `grafana_ab.png` may be placeholder until Topic 29 finalizes — mark stale, let Topic 31 refresh once.
 > - Study-mode relaxation v1 (study-first, single-agent): plan-doc SHA pins and manifest-byte equality are LOG-ONLY — record computed vs listed values, never block. Image remote-digest equality stays HARD.
 > - Safety gates stay HARD: live budget preflight, exact kubeconfig/context, capacity ceilings. Alert/trace-exactness gates are record-and-continue `Partial`, one bounded retry max. No mid-run approvals.
+> - PoC-first sprint (trial ends 2026-10-25): demo win = Grafana/Loki/Tempo/Langfuse visible + temporary HTTPS/TLS + six Jenkins pages as-is. Alert/trace-exactness and screenshot-QA prose stay `Partial`. Keep disable-ingress + suspend at end. One lease, time-box, log spend/remaining/trial-hours.
 
 **Goal:** Prove required telemetry, end-to-end trace continuity, temporary HTTPS/auth/rate limiting, and six existing Jenkins delivery records through contextual, fail-closed UI evidence.
 

@@ -9,6 +9,7 @@
 > - `vault_status.png`: viewport PNG + SHA + machine link + eyeball check is enough.
 > - Study-mode relaxation v1 (study-first, single-agent): plan-doc SHA pins and manifest-byte equality are LOG-ONLY — record computed vs listed values, never block. Image remote-digest equality stays HARD.
 > - Safety gates stay HARD: live budget preflight, exact kubeconfig/context, capacity ceilings, encrypted recovery sink. Fingerprint equality is record-and-continue `Partial` — record the diff, don't waive. No mid-run approvals.
+> - PoC-first sprint (trial ends 2026-10-25): demo win = encrypted backup manifest + Vault pod-delete auto-unseal + suspend/resume with post-resume smoke. Full-subsystem fingerprint equality stays `Partial`. Keep always-end-suspended. One lease for recovery+resume first pass, time-box, log spend/remaining/trial-hours.
 
 **Goal:** Prove encrypted backup, Vault Raft/KMS recovery, suspended-to-resumed persistence, and ordered service recovery without exposing recovery material or leaving billable runtime active.
 

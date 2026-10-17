@@ -9,6 +9,7 @@
 > - Screenshots: viewport PNG + SHA + machine link + eyeball check is enough. Skip temp-PNG/signature/decode/atomic + proves/does-not prose for now.
 > - Study-mode relaxation v1 (study-first, single-agent): plan-doc SHA pins and manifest-byte equality are LOG-ONLY — record computed vs listed values, never block. Image remote-digest equality stays HARD.
 > - Safety gates stay HARD: live budget preflight, exact kubeconfig/context, capacity ceilings. Numeric/forensic gates are record-and-continue `Partial`, one bounded retry max. No mid-run approvals.
+> - PoC-first sprint (trial ends 2026-10-25): demo win = registry publish/read-back + KEDA 1->2->1 + one Helm rollback + chat smoke where possible. Actor/pod-UID overlap proof, model/index rollback, strict cooldown timing stay `Partial`. Services may expose zero ready endpoints (readiness needs Topic 28) — chats then degrade to `Partial`; do not burn lease retrying. One lease, time-box, suspend pools-zero after, log spend/remaining/trial-hours.
 
 **Goal:** Prove the three logical sandboxed agents are independently usable, registered, securely routed, genuinely multi-instance under KEDA, and recoverable across Helm, model, and index rollback paths.
 

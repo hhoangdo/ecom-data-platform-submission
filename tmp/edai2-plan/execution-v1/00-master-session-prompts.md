@@ -6,6 +6,18 @@ This is the copy/paste control plane for 33 topic-specific agent sessions (Codex
 
 This package creates planning artifacts only. The later topic sessions implement EDAI2 on the current checkout (`feature/implement-edai2`). They must never create a worktree or branch, switch branches, stage, commit, push, or open a PR unless the user separately asks. Study-only first iteration: happy-path working evidence wins; hard numeric gates may stay `Partial` (see per-topic simplified run box).
 
+## PoC-first sprint directive (GCP trial ends 2026-10-25)
+
+Study-only project, ~8 days of trial left (console 2026-10-17: ~₫6,056,164 credit remaining of ₫7,889,850; ends 2026-10-25). For Topics 26-31: a working demo beats production hardening. Ship every main component working; forensic exactness can stay `Partial` and finalize later.
+
+- HARD stays HARD: live budget preflight, exact kubeconfig/context (never default), commit/digest equality, no secrets in evidence/logs, one bounded retry, safe-stop discipline.
+- Partial-allowed by default: BuildKit overlap-zero forensics, UID/session-overlap proofs, cooldown-timing exactness, temp-PNG/signature/decode/atomic screenshot prose, model/index rollback paths, tuning retries, benchmark-numeric gates, coverage/mutation thresholds. Record measured values honestly and hand off.
+- Demo-win first per topic (defined in each topic file's PoC-first box); stop burning lease/budget once the demo win lands or the single bounded retry is spent.
+- Suspend to pools-zero between topics; one lease per topic, TTL <=6h; finish all mutation by 2026-10-24; Topic 31 teardown before 2026-10-25.
+- Every Completion Record logs current spend, remaining credit, and trial-hours-left alongside status.
+- Local chart/test fixes need no lease and burn no trial: do them suspended, anytime, before the lease run that needs them.
+- Numeric topic order is kept (dependencies require it). Topic 28 is the readiness unlock (canonical index + Section 03 activation); prioritize its local-fix prerequisites early.
+
 ## Locked sources
 
 | Source | Required SHA-256 |
@@ -1242,6 +1254,7 @@ Purpose: EDAI2 Task 9 KEDA, agents, HA, registry, rollback exercises
 Classification: GCP mutation
 Primary rubric responsibility: E7, E13-E15, E19-E21, E24
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/25-jenkins-six-workload-deploy.md` Completion Record
+PoC-first sprint (trial ends 2026-10-25): plan the topic file's PoC-first scope; demo-working wins, forensic/numeric gates Partial-allowed. See the sprint directive in `00-master-session-prompts.md`.
 
 This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
@@ -1259,6 +1272,7 @@ Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/26-keda-agent-ha-registry-rollbacks.md`
 Purpose: EDAI2 Task 9 KEDA, agents, HA, registry, rollback exercises
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/25-jenkins-six-workload-deploy.md` Completion Record
+PoC-first sprint (trial ends 2026-10-25): demo-working wins; forensic/numeric gates may stay Partial; suspend to pools-zero between topics; record spend/remaining/trial-hours. See the sprint directive in `00-master-session-prompts.md`.
 
 Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
@@ -1280,6 +1294,7 @@ Purpose: EDAI2 Tasks 10-11 observability, HTTPS, and six Jenkins records
 Classification: GCP evidence
 Primary rubric responsibility: E35-E43, E45-E47, E50-E55
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/26-keda-agent-ha-registry-rollbacks.md` Completion Record
+PoC-first sprint (trial ends 2026-10-25): plan the topic file's PoC-first scope; demo-working wins, forensic/numeric gates Partial-allowed. See the sprint directive in `00-master-session-prompts.md`.
 
 This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
@@ -1297,6 +1312,7 @@ Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/27-observability-https-jenkins-evidence.md`
 Purpose: EDAI2 Tasks 10-11 observability, HTTPS, and six Jenkins records
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/26-keda-agent-ha-registry-rollbacks.md` Completion Record
+PoC-first sprint (trial ends 2026-10-25): demo-working wins; forensic/numeric gates may stay Partial; suspend to pools-zero between topics; record spend/remaining/trial-hours. See the sprint directive in `00-master-session-prompts.md`.
 
 Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
@@ -1318,6 +1334,7 @@ Purpose: EDAI2 Task 12 canonical RAG and model benchmark evidence
 Classification: GCP evidence lease
 Primary rubric responsibility: E5, E8-E9, E26
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/27-observability-https-jenkins-evidence.md` Completion Record
+PoC-first sprint (trial ends 2026-10-25): plan the topic file's PoC-first scope; demo-working wins, forensic/numeric gates Partial-allowed. See the sprint directive in `00-master-session-prompts.md`.
 
 This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
@@ -1335,6 +1352,7 @@ Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/28-rag-inference-benchmarks.md`
 Purpose: EDAI2 Task 12 canonical RAG and model benchmark evidence
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/27-observability-https-jenkins-evidence.md` Completion Record
+PoC-first sprint (trial ends 2026-10-25): demo-working wins; forensic/numeric gates may stay Partial; suspend to pools-zero between topics; record spend/remaining/trial-hours. See the sprint directive in `00-master-session-prompts.md`.
 
 Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
@@ -1356,6 +1374,7 @@ Purpose: EDAI2 Task 12 evaluation, A/B, notebooks, load, runtime safety proof
 Classification: GCP evidence lease
 Primary rubric responsibility: E22-E23, E25, E27-E31, E44, E56-E57, E61-E62
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/28-rag-inference-benchmarks.md` Completion Record
+PoC-first sprint (trial ends 2026-10-25): plan the topic file's PoC-first scope; demo-working wins, forensic/numeric gates Partial-allowed. See the sprint directive in `00-master-session-prompts.md`.
 
 This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
@@ -1373,6 +1392,7 @@ Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/29-evaluation-ab-notebooks-load-test-evidence.md`
 Purpose: EDAI2 Task 12 evaluation, A/B, notebooks, load, runtime safety proof
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/28-rag-inference-benchmarks.md` Completion Record
+PoC-first sprint (trial ends 2026-10-25): demo-working wins; forensic/numeric gates may stay Partial; suspend to pools-zero between topics; record spend/remaining/trial-hours. See the sprint directive in `00-master-session-prompts.md`.
 
 Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
@@ -1394,6 +1414,7 @@ Purpose: EDAI2 Task 12 persistence, Vault recovery, suspend/resume fingerprints
 Classification: GCP evidence lease
 Primary rubric responsibility: E58
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/29-evaluation-ab-notebooks-load-test-evidence.md` Completion Record
+PoC-first sprint (trial ends 2026-10-25): plan the topic file's PoC-first scope; demo-working wins, forensic/numeric gates Partial-allowed. See the sprint directive in `00-master-session-prompts.md`.
 
 This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
@@ -1411,6 +1432,7 @@ Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/30-persistence-vault-recovery-resume.md`
 Purpose: EDAI2 Task 12 persistence, Vault recovery, suspend/resume fingerprints
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/29-evaluation-ab-notebooks-load-test-evidence.md` Completion Record
+PoC-first sprint (trial ends 2026-10-25): demo-working wins; forensic/numeric gates may stay Partial; suspend to pools-zero between topics; record spend/remaining/trial-hours. See the sprint directive in `00-master-session-prompts.md`.
 
 Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 
@@ -1432,6 +1454,7 @@ Purpose: EDAI2 Task 12 final screenshot audit, manifest sealing, teardown
 Classification: GCP evidence lease/teardown
 Primary rubric responsibility: Cross-cutting evidence gate
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/30-persistence-vault-recovery-resume.md` Completion Record
+PoC-first sprint (trial ends 2026-10-25): plan the topic file's PoC-first scope; demo-working wins, forensic/numeric gates Partial-allowed. See the sprint directive in `00-master-session-prompts.md`.
 
 This is the read-only planning phase in a two-phase agent session. Use `rtk` prefix if installed, else run commands directly. Use relevant available skills. Read the entire topic file, the applicable parts of both source plans, and `tmp/rubic-check/Coursework Tracking (Public).xlsx`/Sheet3. Verify the three locked SHA-256 values recorded in the topic file and start with `rtk git status --short --branch`. Stay in the current checkout and branch. Do not create/switch branches, create worktrees, edit files, stage, commit, push, deploy, install, or change local/cloud runtime state in this phase. Preserve unrelated user work.
 
@@ -1449,6 +1472,7 @@ Repository: current checkout (`<repo-root>`)
 Authoritative topic file: `tmp/edai2-plan/execution-v1/gcp/31-final-screenshot-qa-teardown.md`
 Purpose: EDAI2 Task 12 final screenshot audit, manifest sealing, teardown
 Required predecessor records: `tmp/edai2-plan/execution-v1/gcp/30-persistence-vault-recovery-resume.md` Completion Record
+PoC-first sprint (trial ends 2026-10-25): demo-working wins; forensic/numeric gates may stay Partial; suspend to pools-zero between topics; record spend/remaining/trial-hours. See the sprint directive in `00-master-session-prompts.md`.
 
 Re-read the topic file and your planning handoff. Recompute the three locked source hashes and run `rtk git status --short --branch` before edits. Stay in the existing checkout and branch. Do not create/switch branches or worktrees, and do not stage, commit, push, or open a PR. Preserve unrelated changes. Run `rtk git ls-files --stage` before edits and require the final listing to be byte-for-byte identical. Pre-existing staged entries are user-owned; do not stage or unstage them. Use your agent's edit tool (e.g. `apply_patch`) for repository text edits; `uv add` is the sole dependency-manager write exception and its diff must be inspected. Make recipes invoke `uv run`; operator-facing Make commands use `make` (prefix `rtk` if installed).
 

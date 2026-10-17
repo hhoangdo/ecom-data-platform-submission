@@ -8,6 +8,7 @@
 > - Happy-path first: per-image pass/fail list + `run_manifest.json` (strict-partial, Topic 32 pending allowed) + `teardown.json` wins. One bounded recapture per rejected image max; else mark `Partial/Missing`, keep prior valid file.
 > - QA bar first pass: PNG exists + decodes + eyeball at original resolution + hash linked. Full 8-byte signature/full-load/atomic/proves-does-not prose deferred.
 > - Study-mode relaxation v1: plan-doc SHA pins are LOG-ONLY — record computed vs listed values, never block. Safety gates (budget, context, capacity) stay HARD. One bounded recapture per rejected image max; otherwise mark `Partial`/`Missing` and continue.
+> - PoC-first sprint (trial ends 2026-10-25): demo win = per-image pass/fail list + run manifest + seal + TEARDOWN completed before 2026-10-25 (calendar-critical — schedule this topic no later than Oct 24). QA prose stays `Partial`. Read-only audit first, fresh <=2h lease only if repair needed.
 
 **Goal:** Fail-closed audit every required Section 03 and EDAI2 screenshot against its machine evidence, perform at most one bounded repair capture, generate the cross-cutting run manifest, and leave all GCP runtime suspended with no public forwarding rule.
 
