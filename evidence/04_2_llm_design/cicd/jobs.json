@@ -1,0 +1,89 @@
+{
+ "commit_sha": "7233469eef8519aeb059da03a924bb6a180bed5b",
+ "jobs": [
+  {
+   "chart": "worker",
+   "commit_sha": "7233469eef8519aeb059da03a924bb6a180bed5b",
+   "deployment_ready_available": "1/1",
+   "digest_match": true,
+   "expected_digest": "sha256:cd7f2c83c4f7354799f59fd7eca0167ed10ab214fe8c0f1177ac5e4558b01cf0",
+   "helm_status_deployed": true,
+   "image": "us-central1-docker.pkg.dev/project-a7c45c4e-f589-4b40-b8b/edai2-rag-index/edai2-rag-index:7233469eef8519aeb059da03a924bb6a180bed5b",
+   "job": "edai2-rag-index",
+   "pod_image_digest": "sha256:cd7f2c83c4f7354799f59fd7eca0167ed10ab214fe8c0f1177ac5e4558b01cf0",
+   "remote_digest": "sha256:cd7f2c83c4f7354799f59fd7eca0167ed10ab214fe8c0f1177ac5e4558b01cf0",
+   "workload": "rag-index"
+  },
+  {
+   "chart": "worker",
+   "commit_sha": "7233469eef8519aeb059da03a924bb6a180bed5b",
+   "deployment_ready_available": "1/1",
+   "digest_match": true,
+   "expected_digest": "sha256:cad9029bf1212f01cbfa80c4e2725bcf296fab768eed7f3ede6b790ee2851ab3",
+   "helm_status_deployed": true,
+   "image": "us-central1-docker.pkg.dev/project-a7c45c4e-f589-4b40-b8b/edai2-feast-offline-writer/edai2-feast-offline-writer:7233469eef8519aeb059da03a924bb6a180bed5b",
+   "job": "edai2-feast-offline-writer",
+   "pod_image_digest": "sha256:cad9029bf1212f01cbfa80c4e2725bcf296fab768eed7f3ede6b790ee2851ab3",
+   "remote_digest": "sha256:cad9029bf1212f01cbfa80c4e2725bcf296fab768eed7f3ede6b790ee2851ab3",
+   "workload": "feast-offline-writer"
+  },
+  {
+   "chart": "worker",
+   "commit_sha": "7233469eef8519aeb059da03a924bb6a180bed5b",
+   "deployment_ready_available": "1/1",
+   "digest_match": true,
+   "expected_digest": "sha256:102582eb6f57e88e6947b5c8bf269a400d5abd1669cbf7437662cdcc2cd4b393",
+   "helm_status_deployed": true,
+   "image": "us-central1-docker.pkg.dev/project-a7c45c4e-f589-4b40-b8b/edai2-feast-online-writer/edai2-feast-online-writer:7233469eef8519aeb059da03a924bb6a180bed5b",
+   "job": "edai2-feast-online-writer",
+   "pod_image_digest": "sha256:102582eb6f57e88e6947b5c8bf269a400d5abd1669cbf7437662cdcc2cd4b393",
+   "remote_digest": "sha256:102582eb6f57e88e6947b5c8bf269a400d5abd1669cbf7437662cdcc2cd4b393",
+   "workload": "feast-online-writer"
+  },
+  {
+   "chart": "service-agent",
+   "commit_sha": "7233469eef8519aeb059da03a924bb6a180bed5b",
+   "deployment_ready_available": "/",
+   "digest_match": true,
+   "expected_digest": "sha256:f2c6b244213ad10639dfb5a9744cd931e8a83a5b1d370f335ea76f6ad26123ef",
+   "helm_status_deployed": true,
+   "image": "us-central1-docker.pkg.dev/project-a7c45c4e-f589-4b40-b8b/edai2-retrieval-agent/edai2-retrieval-agent:7233469eef8519aeb059da03a924bb6a180bed5b",
+   "job": "edai2-retrieval-agent",
+   "pod_image_digest": "sha256:f2c6b244213ad10639dfb5a9744cd931e8a83a5b1d370f335ea76f6ad26123ef",
+   "remote_digest": "sha256:f2c6b244213ad10639dfb5a9744cd931e8a83a5b1d370f335ea76f6ad26123ef",
+   "workload": "retrieval-agent"
+  },
+  {
+   "chart": "service-agent",
+   "commit_sha": "7233469eef8519aeb059da03a924bb6a180bed5b",
+   "deployment_ready_available": "/",
+   "digest_match": true,
+   "expected_digest": "sha256:01c2bcc575268ef8701585b62309c966b85ef1b91e40c0b01dcf55c411f0a70f",
+   "helm_status_deployed": true,
+   "image": "us-central1-docker.pkg.dev/project-a7c45c4e-f589-4b40-b8b/edai2-drift-agent/edai2-drift-agent:7233469eef8519aeb059da03a924bb6a180bed5b",
+   "job": "edai2-drift-agent",
+   "pod_image_digest": "sha256:01c2bcc575268ef8701585b62309c966b85ef1b91e40c0b01dcf55c411f0a70f",
+   "remote_digest": "sha256:01c2bcc575268ef8701585b62309c966b85ef1b91e40c0b01dcf55c411f0a70f",
+   "workload": "drift-agent"
+  },
+  {
+   "chart": "service-agent",
+   "commit_sha": "7233469eef8519aeb059da03a924bb6a180bed5b",
+   "deployment_ready_available": "/",
+   "digest_match": true,
+   "expected_digest": "sha256:fd1fbbc7c24106bd21a404d0b53f73ee5a7a18acbda0b25d2d00d3206ac4fd40",
+   "helm_status_deployed": true,
+   "image": "us-central1-docker.pkg.dev/project-a7c45c4e-f589-4b40-b8b/edai2-coordinator/edai2-coordinator:7233469eef8519aeb059da03a924bb6a180bed5b",
+   "job": "edai2-coordinator",
+   "pod_image_digest": "sha256:fd1fbbc7c24106bd21a404d0b53f73ee5a7a18acbda0b25d2d00d3206ac4fd40",
+   "remote_digest": "sha256:fd1fbbc7c24106bd21a404d0b53f73ee5a7a18acbda0b25d2d00d3206ac4fd40",
+   "workload": "coordinator"
+  }
+ ],
+ "path": "direct-helm (Jenkins flags absent, study-debt)",
+ "waves": [
+  "rag-index,feast-offline-writer,feast-online-writer",
+  "retrieval-agent,drift-agent",
+  "coordinator"
+ ]
+}

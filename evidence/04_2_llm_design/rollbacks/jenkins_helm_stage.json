@@ -1,0 +1,26 @@
+{
+ "atomic_rollback_observed": [
+  {
+   "after": "uninstalled, nothing left",
+   "cause": "RemoteMCPServer missing required spec.description",
+   "release": "edai2-retrieval-agent"
+  },
+  {
+   "after": "uninstalled, nothing left",
+   "cause": "AgentgatewayPolicy spec.workload not in schema",
+   "release": "edai2-retrieval-agent"
+  },
+  {
+   "after": "uninstalled, nothing left",
+   "cause": "Deployment Available 0/1 after 10m (/readyz 503, no live index pre-28)",
+   "release": "edai2-retrieval-agent"
+  }
+ ],
+ "atomic_success": [
+  "edai2-rag-index",
+  "edai2-feast-offline-writer",
+  "edai2-feast-online-writer"
+ ],
+ "commit_sha": "7233469eef8519aeb059da03a924bb6a180bed5b",
+ "services_final": "plain installs (no --atomic): boot-clean /healthz 200, /readyz 503 structural; revisions recorded in jobs.json"
+}

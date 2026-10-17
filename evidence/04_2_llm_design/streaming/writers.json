@@ -1,0 +1,15 @@
+{
+ "commit_sha": "7233469eef8519aeb059da03a924bb6a180bed5b",
+ "deployments": {
+  "feast-offline-writer": "1/1",
+  "feast-online-writer": "1/1",
+  "rag-index": "1/1"
+ },
+ "live_execution": false,
+ "note": "smoke_release.py is a fail-closed stub: live smoke belongs to a future GKE evidence topic (use --dry-run). Writer Deployments rag-index/feast-offline-writer/feast-online-writer are Available 1/1 on images with --serve; --serve parks (sleep loop), the live consumer loop is owning-topic work.",
+ "stub_output": {
+  "live_execution": false,
+  "release": null,
+  "streaming_writers": true
+ }
+}
