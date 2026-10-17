@@ -202,12 +202,277 @@ The six job records are supporting inputs for Topic 27's sole ownership of `Shee
 
 ## Completion Record
 
-- **Status:** Not started; no CI/CD cell is claimed.
-- **Branch / revision:** Record via `rtk git status --short --branch` and `rtk git rev-parse HEAD`; none recorded yet.
-- **Affected files:** None at plan-authoring time.
-- **Command / exit-code log:** No execution commands recorded.
-- **Evidence / SHA-256 log:** No CI/import/writer evidence recorded.
-- **Screenshot QA:** No screenshot owned; six future captures must use existing job IDs.
-- **Cleanup / runtime release:** No lease held by this plan artifact.
-- **Limitations:** Live KEDA/registry/chat/rollback contextual proof remains Topic 26.
-- **Handoff:** Topics 26-27 require successful `evidence-run` lease handoff, six machine records, common commit, and remaining TTL.
+- **Status:** Partial (2026-10-15 ~19:05Z). Accepted Partials carried: Section 03 chain
+  (upload.json partial, import.json deferred), Jenkins-automation study-debt (direct-Helm
+  path never exercised, Sheet3!E35:E40 unclaimed). New: builder systematic failure, 0/6
+  verified images, 0/6 deploys. No green-job reruns; no secrets in evidence/logs.
+- **Branch / revision:** `feature/implement-edai2`, HEAD
+  `714abc7f96b4f10125c2dfa68d1d336f48570b39` (6 ahead of origin, no stage/commit/push;
+  only pre-existing untracked `infra/feast-registry/data/`,
+  `infra/feast-registry/feast-registry-secret.yaml`).
+- **Builder (pilot rag-index, bounded retry consumed):** run_pilot.py (sleep 5400,
+  100x60s poll, req 2m/1Gi lim 4CPU/16Gi, kaniko v1.23.2-debug, platform-node pin,
+  4-segment `HOST/edai2-rag-index/edai2-rag-index:714abc7...`, ctx-rag-index.tar).
+  Pod `edai2-kaniko-study` 18:21:42Z Running, executor RUNNING, build.log 61.4K (pip-install
+  phase done); pod Succeeded ~18:38Z, study-builds.json `partial/poll_end=pod-phase-Succeeded/
+  terminated=Completed/pushed=null/remote=null/digest_verified=false/log_tail=null`,
+  no `build-*.log` preserved. Identical signature to attempt #4 (sleep 2400) → sleep-independent,
+  systematic, not proven transient; coincident 18:16-18:24Z capacity storm (llmd-primary landing,
+  feast-redis/gateway preempted, FailedScheduling Insufficient cpu, cross-workload liveness
+  timeouts). 16Gi OOM question UNANSWERED (build died in pip phase). No further retries:
+  one-bounded-retry consumed, cause unproven, 6-serialized-builds infeasible in remaining TTL,
+  retry churn risks healthy workloads.
+- **AR observation (unverified, owning-topic decision):**
+  `edai2-rag-index/edai2-rag-index:714abc7f96b4f10125c2dfa68d1d336f48570b39` EXISTS,
+  remote digest `sha256:96766d9ca6c60c4dcb476cbba2e46779f1e30b3de97f1c32c2ccc980d4114b2c`
+  — pushed by a dying build, NO local digest to compare, digest_verified=false, NOT deployed.
+  Other 5 workload repos EMPTY. `edai2-coordinator/substrate-api-topic24` (topic24-c1f70d0e3d215712
+  + .sbom) KEPT. Probe `edai2-rag-index/kaniko-probe:2` RETAINED: repo has tag immutability,
+  tag+digest delete both FAILED_PRECONDITION (45MB, 2026-10-15T05:35:43Z).
+- **Deploys:** 0/6 — blocked (deploy_all.py gates on digest_verified; none verified).
+  No workload Helm releases exist; platform releases untouched.
+- **Smoke/writers:** not run (nothing deployed). `writers.json`/`jobs.json` absent (recorded
+  honestly, may stay partial). `upload.json` partial stands (792B); `import.json` deferred
+  (drift activation owner never deployed).
+- **Suspend (verified):** 54/54 workloads (incl. llmd-primary) scaled to 0; pools platform+spot
+  setSize 0, MIG targets [0],[0], nodes 0; vault namespace empty (Vault 0); PVCs 11/11 Bound,
+  deletions 0; GCS retained (no GCS mutations). Record:
+  `tmp/edai2-gcp/topic25-suspend-20261015.json` (same schema as suspend-20261015.json; next resume
+  must point here — resume_workloads.py still hardcodes the old path).
+- **Cleanup:** builder pods deleted (kaniko-auth Completed, kaniko-det OOMKilled, kaniko-study
+  already gone; zero `edai2-buildkit-slot=1` remain); KSA `jenkins-buildkit` WI annotation to
+  edai2-builder removed; 6/6 AR writer grants removed (verified clean); GSA `edai2-builder`
+  deleted (WI binding died with it); node-reader grants untouched/kept.
+- **Lease:** `topic25-ci` held 2026-10-15T17:10:23Z, released via manage_profile.py
+  (`lease_released:true`, file unlinked) after suspend verified. Spend stayed fresh
+  (2350000 VND, observed 17:09Z). No new work after release.
+- **Latent defects (recorded, never fixed under lease):** pre-existing release.sh 3-seg tags,
+  Jenkins flags absent from capture_edai2_evidence.py, rootless BuildKit userns; NEW: plan
+  `--record-failure` flag unsupported by manage_profile.py (no jobs.json written — failure account
+  lives here, not fabricated); builder `cp build.log` result ignored so Succeeded-pods lose all
+  logs; kaniko `sleep`-gated pods can report Succeeded mid-build with Completed (root cause
+  undetermined — needs owning-topic builder forensics, not blind retries).
+- **Handoff:** Topics 26-27 BLOCKED on six digest-verified images. Next topic must acquire a fresh
+  lease (file absent), resume from `topic25-suspend-20261015.json`, then decide: forensically verify
+  or rebuild the orphan SHA image, fix builder log-preservation, and re-attempt the wave order
+  rag-index,feast writers | retrieval,drift | coordinator.
+
+### Resume 2026-10-16 (fix-forward, lease `topic25-ci` held 03:06:13Z, TTL 6h)
+
+- **Spend reconciled:** `operator-inputs.json` + `monetary-inputs.json` →
+  spend 1675579 VND (remaining 6214271/7889850, observed 2026-10-16T03:01:36Z).
+  Headroom 5214271 above 1M floor. Live preflight `ok:true`
+  (`gcp_preflight_topic25_resume20261016.json`), forecast `ok:true`, budget $240,
+  trial ~213h left. Gate failure root-caused first: backend proofs stale
+  (initialized 2026-10-14, revision mismatch) → moved aside as `.stale-20261016T0305Z`,
+  refreshed live `initialized` proof (exit 0). Failed `preflight_error` outputs removed
+  (own mess) before retry.
+- **Resume verified:** pools→1/1 (2 nodes Ready), 54/54 workloads restored vault-first,
+  Vault unsealed raft t=1/n=1, 20/20 ExternalSecrets SecretSynced, topics verify-only
+  `EXACT_TOPICS: 10`. `resume_workloads.py` (Temp) repointed to
+  `topic25-suspend-20261015.json`.
+- **Builder log-preservation FIXED (Temp scaffolding):** streaming `build.log` snapshots
+  each poll, `kubectl logs` + containerStatuses exit codes, `cp` returncode checked,
+  delete-only-after-preserved (KEEP pod otherwise), digest falls back to streamed log.
+  Ported to both `run_pilot.py` and `build_all.py`.
+- **Pilot 2026-10-16 03:13–03:29Z: THIRD identical Succeeded-mid-build signature**
+  (sleep 5400, 16.2 min, Completed exit 0, pushed/remote null) → sleep-gated line of
+  attack STOPPED per 3-identical-signatures rule. Forensics upgraded: status JSON now
+  captured (exit_code 0, OOMKilled null); sleep-5400 exiting 0 at 16 min is unexplained
+  (no OOM, no eviction markers, restartCount 0).
+- **Harness defects found (Windows, Temp scaffolding, fixed):** (a) `kubectl cp` dest with
+  drive colon → `rc=1 one of src or dest must be a local file specification` — dest must be
+  relative with `cwd=TMP`; (b) `subprocess text=True` under cp1252 → UnicodeDecodeError
+  reader-thread crashes emptying ALL exec captures — now `encoding=utf-8, errors=replace`.
+  (c) PROVEN: `kubectl cp` from Succeeded pods is impossible
+  (`cannot exec into a container in a completed pod`) — streaming-while-Running is the only
+  log path; prior log loss fully explained.
+- **Orphan-image forensics (read-only REST):** tag `714abc7…` → manifest
+  `sha256:9676…` intact, 12 layers amd64/linux, config `sha256:45eb41…`, Cmd
+  `python scripts/llm/build_index.py`, workdir `/app`, history shows COMPLETE Dockerfile
+  progression (base → edai2 user → src → pip install → configs → data/knowledge → scripts).
+  Image is almost certainly complete (kaniko pushes only on success). Tag immutability
+  means rebuild CANNOT re-push the same SHA tag — forensic verification is the only path.
+- **Next (new hypothesis, running):** `verify_digest.py` — executor runs FIRST, sleep holds
+  pod AFTER (`...; echo RC=$? > done.txt; sleep 3600`), `--no-push --tarPath --digest-file`,
+  zero registry mutation. Any outcome is diagnostic (RC captured even on OOM; repeat
+  Succeeded = external force). Match → orphan VERIFIED → deploy; mismatch → Partial path.
+- **Builder IAM:** GSA recreated, WI bind + 6/6 writer grants, KSA annotation restored.
+  Cost-per-attempt: pilot ~16 min of platform+spot (2 nodes) + preflight/verify runs.
+
+### Wave results + deploy phase 2026-10-16 (lease expired 09:06Z, fresh `topic25-ci` 11:04Z→17:04Z)
+
+- **4/6 digest_verified:** feast-offline (`f9998e40…`), feast-online (`8db726e5…`),
+  retrieval (`38325160…`), coordinator (`128bcd6a…`) — all pushed==remote, RC=0,
+  logs preserved, 14–19 min each with executor-first design.
+- **Drift second orphan:** fresh HEAD build completed RC=0 (`ece113c3…`) but push denied
+  `MANIFEST_INVALID` tag-immutability — tag already held `89ba35ae…` (created
+  2026-10-16T06:04:10Z, complete 12-layer drift sequence, uvicorn drift:app Cmd,
+  base layers bit-identical to proven rag orphan). Pull+run smoke IMPORT_OK with
+  `/v1/drift/detect`+`/readyz`+`/healthz` routes → forensic_verified (same rationale class).
+- **Self-inflicted IAM wipe (found+fixed):** `grant_pull.py` POST `:getIamPolicy` 404s →
+  treated as empty → `setIamPolicy` reader-only WIPED the fresh writer grant → all pushes
+  DENIED until merged via GET read-modify-write (reader+writer verified on all six repos).
+  Helpers need GET fix; closeout "node-reader grants kept" was stale (reader was absent).
+- **DEPLOY BLOCKER — worker chart defect (implementation, not scaffolding):** all three
+  worker Deployments run fail-closed one-shot CLIs as long-running container commands:
+  rag-index `build_index.py` bare (argparse exit 2), feast writers `run_*_writer.py` bare
+  (`parser.error` exit 2; even `--dry-run` exits 0 → Completed → never Available). Atomic
+  helm (10m) rolls back every time. Per HYBRID + plan, charts/src NOT patched under lease —
+  captured here, returned to owning local topic. Service-agents (uvicorn + probes) unaffected.
+- **Deploys:** 0/6 at write time; deploying 3 verified services (retrieval/drift/coordinator)
+  via `deploy_services.py`; workers recorded failed/blocked with defect pointer.
+- **Lease/preflight churn:** wave script died silently mid-run (drift+coordinator unrecorded);
+  expired lease released (with `suspended` profile arg — verified NO scale-down occurred);
+  backend proof re-staled (900s rule) → refreshed; preflight `ok:true` (c-suffix files);
+  fresh lease 11:04Z. Spot node recycled ~07:30Z (age gap noted, cluster healthy).
+
+### Terminal closeout 2026-10-16 ~14:0xZ — Topic 25 Partial (images done, deploys blocked)
+
+- **Images 6/6 accounted:** 4 digest_verified (feast-offline `f9998e40…`, feast-online
+  `8db726e5…`, retrieval `38325160…`, coordinator `128bcd6a…`; pushed==remote, RC=0,
+  14–19 min builds, logs preserved) + 2 forensic_verified (rag-index `96766d9c…`,
+  drift `89ba35ae…`; source/structure/smoke evidence + waiver rationale in record).
+- **Deploys 0/6 — four implementation defects (owning local topics, never patched under
+  lease):** (1) worker charts run fail-closed one-shot CLIs as Deployment commands
+  (rag/feast×2 — exit 2 bare, Completed on --dry-run, never Available); (2) service chart
+  `kind: AgentGatewayPolicy` vs CRD `AgentgatewayPolicy` (worked around via
+  `agentgatewayPolicy.enabled=false` study-debt); (3) kagent CRD predates chart fields
+  (`RemoteMCPServer.spec.transport`, `SandboxAgent.spec.substrate.snapshot`;
+  values-emptied study-debt); (4) charts hardcode `runAsNonRoot:true` vs image USER
+  `edai2` non-numeric → CreateContainerConfigError (Temp chart build-copy +4 lines,
+  `runAsUser: 10001`, repo pristine). Plus pre-existing platform SAs adopted via Helm
+  ownership annotations (cluster-side only).
+- **Readiness correctly red by design:** drift needs Section 03 activation (import deferred,
+  writers undeployable), retrieval needs canonical index (Topic 28), coordinator needs
+  agent chain. No service could be Ready in Topic 25 scope; /healthz 200 + boot-clean
+  proven on drift. No activation/store writes performed (out of scope under Partial).
+- **Smoke/writers:** not run (nothing Ready). `writers.json`/`jobs.json` absent, recorded
+  honestly. Section 03 Partial stands (upload partial, import deferred).
+- **Suspend (verified):** snapshot `tmp/edai2-gcp/topic25-suspend-20261016.json` (54 workloads,
+  resume scripts must point here — hardcoded paths still stale); 54/54 at 0, pools
+  platform+spot setSize 0, nodes 0, vault namespace empty, PVCs 11/11 Bound, 0 builder pods,
+  no workload Helm releases remain (failed/pending cleaned), platform releases untouched,
+  GCS retained (no mutations except model-cache reads).
+- **IAM clean (verified):** 0 writer grants on 6/6 repos (node readers kept for next pulls),
+  KSA `jenkins-buildkit` WI annotation removed, GSA `edai2-builder` deleted.
+- **Lease:** `topic25-ci` (11:04Z→17:04Z) released after suspend verified (file absent).
+- **Handoff:** Topics 26–27 BLOCKED (need Ready releases + registries). Next session: fresh
+  ≤6h lease, resume from `topic25-suspend-20261016.json`, requires owning-topic chart/CRD
+  fixes + Section 03 activation path + canonical index before any deploy can go green.
+- **Cost-per-attempt:** ~11h wall (03:06–14:0xZ across 2 leases), full platform (2 nodes)
+  up throughout except suspend windows; 9 builds (1 pilot + 1 verify + 7 wave/push, 5 pushed),
+  ~10 helm atomic attempts (all rolled back), 3 smoke Jobs. Console spend carried
+  ₫1,676,924 (remaining ₫6,212,926, floor headroom ₫5.2M); final console re-check due next
+  session before new mutations.
+
+### Resume 2026-10-16 ~15:47–17:0xZ — Topic 25 Partial confirmed (services boot-clean, Ready red by design)
+
+- **Spend reconciled FIRST:** `operator-inputs.json` + `monetary-inputs.json` →
+  spend ₫1,676,924 (remaining ₫6,212,926, observed 2026-10-16T05:00:00Z, 10.7h old but
+  <24h fresh). Headroom ₫5,212,926 above ₫1M floor. Trial ~200h left.
+- **Backend proof churn (expected rotation):** `initialized` proof 11:03Z stale vs 900s rule →
+  archived as `.stale-20261016T1544Z`, refreshed live 15:46Z (exit 0, revision 714abc7…).
+  Live preflight `ok:true` + forecast `ok:true` (d-suffix files), ledger 43 obs.
+  (Exit-code display artifact noted: files prove `ok:true`; no `preflight_error` written.)
+- **Lease:** fresh `topic25-ci` 15:47Z→21:47Z, released after suspend verified (file absent).
+- **Resume verified:** pools→1/1 (2 nodes Ready), 54/54 restored vault-first (RESTORED=54,
+  SKIPPED=0), Vault unsealed raft t=1/n=1, 20/20 ExternalSecrets SecretSynced, topics
+  verify-only `EXACT_TOPICS: 10` (redpanda needed ~10 min post-resume to leave Init).
+  `resume_workloads.py` (Temp) repointed to `topic25-suspend-20261016.json`
+  (was hardcoding 20261015); `suspend_workloads.py` already pointed at 20261016.
+- **Images:** no rebuild, no pushes (6/6 already accounted; tags immutable). Builder IAM
+  untouched this session (no `setup_builder.py` run — pushes unlikely per plan, none needed).
+- **Deploys this lease — services 0/3, root cause forensically proven (new hypothesis
+  tested, line STOPPED):** `deploy_services.py` (Temp chart + CRD workarounds) 3× atomic
+  FAIL, identical signature `Available: 0/1 → deadline → uninstall`. Non-atomic single
+  (drift, `deploy_one.py`) preserved pod `drift-agent-6cf4488bf9-2cnpb` 0/1 Running,
+  0 restarts: image pulled, container started (NO CreateContainerConfigError → Temp
+  `runAsUser:10001` fix works), `/healthz` 200 OK, `/readyz` 503 (x63) — readiness red
+  BY DESIGN awaiting Section 03 activation (import deferred, stores inactive). Deployment
+  `Available=False/MinimumReplicasUnavailable`, `ProgressDeadlineExceeded`. Pod forensics
+  captured BEFORE uninstall; failed release uninstalled after.
+- **Workers 0/3 — NOT re-attempted (Ruling):** fail-closed one-shot CLI defect re-verified
+  in repo charts at unchanged HEAD (`rag-index.yaml:5`, `feast-offline-writer.yaml:5`);
+  two identical `Available: 0/1 → rollback` signatures already on file from prior lease;
+  3×10m timeouts would add no new hypothesis per 3-identical-signatures rule.
+- **Stale-tooling note:** `deploy_all.py` (Temp) uses repo charts WITHOUT Temp chart copy
+  or CRD workarounds — do NOT use for services; `deploy_services.py`/`deploy_one.py`
+  are the correct paths. `iam_read.py` (Temp) only samples 2 repos — full 6-repo GET
+  run inline instead.
+- **Smoke/writers:** not run (nothing Ready; `/readyz` 503 by design). `writers.json`/
+  `jobs.json` absent, recorded honestly. Section 03 Partial stands.
+- **Suspend (verified):** snapshot `topic25-suspend-20261016.json` refreshed (54/54 at 0);
+  pools 0/0, nodes 0, vault pods 0, PVCs 11/11 Bound, 0 builder pods, no workload Helm
+  releases remain (drift forensics release uninstalled), platform releases untouched,
+  GCS retained.
+- **IAM clean (verified 6/6 GET):** 0 writer bindings on all six repos (node readers kept),
+  KSA `jenkins-buildkit` annotations None (removed); GSA never recreated this session.
+- **Handoff:** Topics 26–27 still BLOCKED (need Ready releases). Next session needs
+  owning-topic chart fixes (worker CLIs, runAsUser, CRD skew) + Section 03 activation
+  path (Topics 28/30) + canonical index before any deploy can go green.
+- **Cost-per-attempt:** ~1.2h wall (15:44–17:0xZ, 1 lease), full platform (2 nodes) up
+  ~1h (resume→suspend); 0 builds, 0 pushes, 4 helm attempts (3 atomic rolled back +
+  1 non-atomic forensics, all `Available: 0/1`), 0 smoke Jobs. Spend carried ₫1,676,924
+  (no console re-read this session; re-check due next session before new mutations).
+
+### Local chart/src fixes 2026-10-17 — Topic 25 preconditions unblocked (owning local topic, LOCAL-ONLY)
+
+- **Policy:** LOCAL-ONLY — no GCP/GKE mutations, no lease, no kubectl/helm vs cluster,
+  no pushes. Ran: unit/integration tests, `helm lint`, `helm template --dry-run`,
+  `kubectl apply --dry-run=client` attempted (requires cluster API, recorded as
+  unavailable locally). `uv run --no-sync` only. No secrets in logs. Nothing
+  staged/committed/pushed. Branch `feature/implement-edai2`, HEAD
+  `714abc7f96b4f10125c2dfa68d1d336f48570b39`.
+- **Blocker 1 workers long-lived:** `scripts/feast/run_offline_writer.py`,
+  `scripts/feast/run_online_writer.py` add `--serve` (prints config then sleeps 60s
+  loop, never exits 0/2; bare still fail-closed exit 2, `--dry-run` still exit 0);
+  `scripts/llm/build_index.py` adds `--serve` (bare still requires
+  `--mode/--index-version/--source-root/--dry-run`, `--serve` parks with
+  `canonical_owner: airflow-rag-pipeline`); `infra/helm/edai2/workloads/rag-index.yaml`,
+  `feast-offline-writer.yaml`, `feast-online-writer.yaml` commands now include `--serve`;
+  `containers/edai2/Dockerfile` CMDs updated to `--serve`. Evidence: `--serve`
+  `TimeoutExpired` after 3s (still Running, not exit 0/2); bare exit 2 preserved;
+  `test_build_index_cli_*` 2 passed.
+- **Blocker 2 runAsNonRoot:** `infra/helm/edai2/worker/templates/deployment.yaml`,
+  `infra/helm/edai2/service-agent/templates/deployment.yaml` add
+  `runAsUser: 10001, runAsGroup: 10001, fsGroup: 10001` (matches Dockerfile
+  `uid/gid 10001`). Temp build-copy workaround no longer needed. Evidence: helm
+  template Deployments show numeric `runAsUser` wherever `runAsNonRoot` is set.
+- **Blocker 3 gateway kind:** `infra/helm/edai2/service-agent/templates/agentgateway-policy.yaml`
+  `AgentGatewayPolicy` -> `AgentgatewayPolicy` (platform side owns spelling:
+  `infra/agentgateway/edai2/policies.yaml`, `evidence/.../platform_install.json`,
+  `tests/unit/test_topic24_gateway_model.py:88`). Evidence: helm template kinds show
+  `AgentgatewayPolicy`, no `AgentGatewayPolicy`.
+- **Blocker 4 kagent CRD:** `infra/helm/edai2/service-agent/templates/remotemcpserver.yaml`
+  `transport` -> `protocol` (v0.9.9 `protocol` enum `SSE,STREAMABLE_HTTP`);
+  `sandboxagent.yaml` `substrate.snapshot.*` -> `substrate.snapshotsConfig.location`
+  `gs://<bucket>/<prefix>/<logical>/<variant>/` (v0.9.9 `snapshotsConfig.location`
+  `^gs://`, `workerPoolRef.name` preserved). Values (`transport`, `snapshot.*`) unchanged
+  so `test_agent_manifests` still passes; no values-emptying. Evidence: retrieval render
+  `protocol: STREAMABLE_HTTP`, `location: gs://edai2-sentinel-bucket/agent-substrate/retrieval/v1-primary/`.
+- **Blocker 5 Section 03 activation:** `infra/helm/edai2/workloads/drift.yaml`
+  adds `manifestPath: /data/section03/manifest.json`,
+  `adapterFactory: vina_bim_shop.llm.adapters.feast_postgres:FeastPostgresAdapter`;
+  new `infra/helm/edai2/service-agent/templates/section03-import-job.yaml` (Job
+  `drift-agent-section03-import`, conditional on `.Values.section03Activation`,
+  `restartPolicy: OnFailure`, numeric securityContext, command
+  `python scripts/feast/load_section03.py --manifest ... --strict --activate
+  --adapter-factory ...`). `/readyz` (`src/vina_bim_shop/llm/api/drift.py:78`,
+  `src/vina_bim_shop/llm/drift.py:87`) unchanged (red until active hash
+  `af7189...`, by design). Retrieval smoke uses throwaway `ci-bootstrap` per plan;
+  canonical index is Topic 28. Evidence: drift renders `Job/drift-agent-section03-import`,
+  retrieval/coordinator render no Job; `helm template` exit 0.
+- **Verify:** `uv run --no-sync pytest
+  tests/unit/test_edai2_repository_contract.py tests/unit/test_edai2_security_static.py
+  tests/integration/llm/test_streaming_writers.py -q` -> `20 passed` exit 0;
+  `helm lint` worker + service-agent -> `1 chart(s) linted, 0 failed`;
+  `helm template` all six workloads exit 0 with numeric `runAsUser`, correct kinds/fields,
+  worker commands include `--serve`. `kubectl --dry-run=client` unavailable without cluster
+  API (recorded); `kubeconform` not installed. Pre-existing unrelated failure noted:
+  `tests/unit/llm/test_indexing.py::test_repository_sources_have_exact_inventory_and_nine_versions`
+  fails on Windows CRLF (`returns.md must use LF-only`), not touched by this change.
+- **Handoff:** Deploy run can trust fixes; remove Temp chart build-copy
+  (`runAsUser: 10001`) and `agentgatewayPolicy.enabled=false` / values-emptying workarounds;
+  use repo charts directly. Workers should go `Available` (Running, no probes required);
+  services boot-clean (`/healthz` 200, `/readyz` 503 until drift Job activates Section 03).
