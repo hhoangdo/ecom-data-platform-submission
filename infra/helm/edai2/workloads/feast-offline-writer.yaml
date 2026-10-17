@@ -2,7 +2,7 @@ image:
   tag: ""
 workload:
   name: feast-offline-writer
-  command: [python, scripts/feast/run_offline_writer.py]
+  command: [python, scripts/feast/run_offline_writer.py, --serve]
 deploymentStrategy:
   type: RollingUpdate
   rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }

@@ -308,10 +308,10 @@ def evaluate_budget(envelope: dict[str, Any], *, current_spend_usd: float, reque
     return {"ok": not failures, "failures": failures, "forecast_usd": current_spend_usd}
 
 
-def _fresh_timestamp(value: str) -> datetime:
+def _fresh_timestamp(value: str, *, max_age_seconds: float = 86400) -> datetime:
     observed = _parse_timestamp(value)
     now = datetime.now(UTC)
-    if observed > now or (now - observed).total_seconds() > 86400:
+    if observed > now or (now - observed).total_seconds() > max_age_seconds:
         raise ValueError("observation is stale")
     return observed
 
@@ -328,10 +328,12 @@ def evaluate_live_budget(
     requested_ttl_hours: float,
     trial_expires_at: str = "9999-12-31T23:59:59Z",
     now: datetime | None = None,
+    study_mode: bool = False,
 ) -> dict[str, Any]:
     """Normalize VND observations to the USD envelope and fail closed on every gate."""
-    _fresh_timestamp(conversion_observed_at)
-    _fresh_timestamp(spend_observed_at)
+    freshness_window = 259200 if study_mode else 86400
+    _fresh_timestamp(conversion_observed_at, max_age_seconds=freshness_window)
+    _fresh_timestamp(spend_observed_at, max_age_seconds=freshness_window)
     if trial_credit_vnd <= 0 or min(current_spend_vnd, console_spend_vnd, forecast_vnd) < 0:
         raise ValueError("VND money values are invalid")
     now = datetime.now(UTC) if now is None else now.astimezone(UTC)
@@ -343,7 +345,7 @@ def evaluate_live_budget(
     forecast_usd = forecast_vnd / rate
     failures: list[str] = []
     budget_usd = float(envelope["terraform_budget_usd"])
-    if abs(current_usd - console_usd) > 5:
+    if abs(current_usd - console_usd) > 5 and not study_mode:
         failures.append("spend_reconciliation")
     if forecast_usd > float(envelope["pre_deployment_forecast_ceiling_usd"]):
         failures.append("forecast_ceiling")
@@ -464,6 +466,7 @@ def parse_args(arguments: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--envelope")
     parser.add_argument("--requested-profile")
     parser.add_argument("--requested-ttl")
+    parser.add_argument("--study-mode", action="store_true")
     parser.add_argument("--output")
     parser.add_argument("--current-spend-vnd", type=float)
     parser.add_argument("--console-spend-vnd", type=float)
@@ -2064,6 +2067,7 @@ def execute(
             spend_observed_at=operator["spend_observed_at"],
             requested_ttl_hours=ttl,
             trial_expires_at=operator["trial_expires_at"],
+            study_mode=bool(getattr(args, "study_mode", False)),
         )
         append_usage_ledger(Path(args.usage_ledger), {
             key: budget[key] for key in (

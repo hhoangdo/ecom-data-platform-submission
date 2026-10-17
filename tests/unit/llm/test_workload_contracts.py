@@ -158,7 +158,7 @@ class FakeGkeRunner:
 
     def __call__(self, command: list[str]) -> dict[str, object] | None:
         self.commands.append(command)
-        topic = command[-3] if command[-2:] == ["-o", "json"] else command[-1]
+        topic = command[-3] if command[-2:] == ["--format", "json"] else command[-1]
         if "describe" in command:
             return self.states[topic].pop(0)
         if "create" in command:
@@ -206,7 +206,7 @@ def test_gke_bootstrap_creates_absent_topics_then_requires_exact_readback() -> N
     creates = [command for command in runner.commands if "create" in command]
     assert len(creates) == 2
     assert all(command[:5] == ["kubectl", "--kubeconfig", str(kubeconfig), "--context", "gke_edai2"] for command in runner.commands)
-    assert all(command[-2:] == ["-o", "json"] for command in runner.commands if "describe" in command)
+    assert all(command[-2:] == ["--format", "json"] for command in runner.commands if "describe" in command)
 
 
 def test_gke_bootstrap_skips_existing_exact_topics_and_rejects_mismatches_before_create() -> None:

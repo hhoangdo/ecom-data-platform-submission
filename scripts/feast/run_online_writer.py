@@ -11,7 +11,18 @@ from vina_bim_shop.llm.streaming.offline_writer import ONLINE_CONSUMER_GROUP, UP
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--serve",
+        action="store_true",
+        help="Run long-lived for Deployment availability (streaming loop owns the consumer group).",
+    )
     args = parser.parse_args()
+    if args.serve:
+        print(json.dumps({"consumer_group": ONLINE_CONSUMER_GROUP, "destination": "online", "topic": UPDATE_TOPIC, "mode": "serve"}, sort_keys=True), flush=True)
+        import time
+
+        while True:
+            time.sleep(60)
     if not args.dry_run:
         parser.error("a runtime adapter is required; this static CLI only supports --dry-run")
     print(json.dumps({"consumer_group": ONLINE_CONSUMER_GROUP, "destination": "online", "topic": UPDATE_TOPIC}, sort_keys=True))

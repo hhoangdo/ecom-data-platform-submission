@@ -130,3 +130,27 @@ def test_profile_render_requires_ttl_for_active_profiles_and_is_dry_run_only() -
         module.render_profile(profiles, "core", None, dry_run=True)
     plan = module.render_profile(profiles, "core", "2h", dry_run=True)
     assert plan == {"dry_run": True, "profile": "core", "ttl_hours": 2, "resources": {"platform_nodes": 1}}
+
+
+def test_study_mode_relaxes_spend_reconciliation_and_freshness() -> None:
+    from datetime import timedelta
+
+    module = _module()
+    now = datetime.now(UTC)
+    stale_48h = (now - timedelta(hours=48)).isoformat().replace("+00:00", "Z")
+    envelope = {"terraform_budget_usd": 240, "pre_deployment_forecast_ceiling_usd": 180, "ceilings": {"evidence_session_ttl_hours": 6}}
+    result = module.evaluate_live_budget(
+        envelope,
+        current_spend_vnd=1676924,
+        console_spend_vnd=2600000,
+        forecast_vnd=2600000,
+        trial_credit_vnd=7889850,
+        conversion_observed_at=stale_48h,
+        spend_observed_at=stale_48h,
+        requested_ttl_hours=6,
+        trial_expires_at="2026-10-25T00:00:00Z",
+        now=now,
+        study_mode=True,
+    )
+    assert result["ok"] is True
+    assert "spend_reconciliation" not in result["failures"]

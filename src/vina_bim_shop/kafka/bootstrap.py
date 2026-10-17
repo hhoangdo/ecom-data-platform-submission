@@ -57,7 +57,7 @@ def _gke_rpk(topic: str, topic_config: dict[str, object], *, namespace: str, sta
 def _gke_describe(topic: str, *, namespace: str, statefulset: str, kubeconfig: Path, context: str) -> list[str]:
     return [
         *_gke_prefix(namespace=namespace, statefulset=statefulset, kubeconfig=kubeconfig, context=context),
-        "describe", topic, "-o", "json",
+        "describe", topic, "--format", "json",
     ]
 
 

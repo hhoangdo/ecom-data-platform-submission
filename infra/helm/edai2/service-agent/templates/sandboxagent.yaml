@@ -13,11 +13,7 @@ spec:
   declarative: {{ toYaml .sandboxAgent.declarative | nindent 4 }}
   substrate:
     workerPoolRef: {{ toYaml .sandboxAgent.substrate.workerPoolRef | nindent 6 }}
-    snapshot:
-      bucketName: {{ required "substrate.bucketName is required" $.Values.substrate.bucketName | quote }}
-      prefix: {{ .snapshot.prefix | quote }}
-      logicalAgent: {{ .snapshot.logicalAgent | quote }}
-      runtimeVariant: {{ .snapshot.runtimeVariant | quote }}
-      suffix: {{ .snapshot.suffix | quote }}
+    snapshotsConfig:
+      location: {{ printf "gs://%s/%s/%s/%s%s" (required "substrate.bucketName is required" $.Values.substrate.bucketName) .snapshot.prefix .snapshot.logicalAgent .snapshot.runtimeVariant .snapshot.suffix | quote }}
 ---
 {{- end }}

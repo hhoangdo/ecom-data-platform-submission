@@ -5,7 +5,7 @@ metadata:
   name: {{ .name }}
   namespace: {{ $.Values.namespace }}
 spec:
-  transport: {{ .transport }}
+  protocol: {{ .transport }}
   url: {{ .url | quote }}
 ---
 {{- end }}

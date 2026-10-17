@@ -1,0 +1,44 @@
+{{- if .Values.section03Activation }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.workload.name }}-section03-import
+  namespace: {{ .Values.namespace }}
+  annotations:
+    edai2.section03-activation-owner: {{ .Values.section03Activation.owner | quote }}
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Values.workload.name }}-section03-import
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: section03-import
+          image: "{{ required "image.repository is required" .Values.image.repository }}:{{ required "image.tag is required" .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - python
+            - {{ .Values.section03Activation.verifier | quote }}
+            - --manifest
+            - {{ required "section03Activation.manifestPath is required" .Values.section03Activation.manifestPath | quote }}
+            - --strict
+            - --activate
+            - --adapter-factory
+            - {{ required "section03Activation.adapterFactory is required" .Values.section03Activation.adapterFactory | quote }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+{{- end }}

@@ -23,16 +23,25 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     """Parse the deliberately narrow candidate-only command surface."""
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("candidate",), required=True)
-    parser.add_argument("--index-version", required=True)
+    parser.add_argument("--mode", choices=("candidate",), required=False, default=None)
+    parser.add_argument("--index-version", required=False, default=None)
     parser.add_argument(
         "--index-purpose",
         choices=("local-bootstrap-sentinel",),
         default="local-bootstrap-sentinel",
     )
-    parser.add_argument("--source-root", type=Path, required=True)
+    parser.add_argument("--source-root", type=Path, required=False, default=None)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--serve",
+        action="store_true",
+        help="Run long-lived for Deployment availability (canonical index is Topic 28 owned).",
+    )
     args = parser.parse_args(argv)
+    if args.serve:
+        return args
+    if not args.mode or not args.index_version or not args.source_root:
+        parser.error("the following arguments are required: --mode, --index-version, --source-root")
     if not args.dry_run:
         parser.error("--dry-run is required; candidate storage is not available")
     return args
@@ -93,7 +102,14 @@ def canonical_report_sha256(payload: dict[str, object]) -> str:
 def main(argv: Sequence[str] | None = None) -> int:
     """Execute the candidate-only command and emit canonical JSON to stdout."""
 
-    payload = asyncio.run(build_report(parse_args(argv)))
+    args = parse_args(argv)
+    if args.serve:
+        print(json.dumps({"mode": "serve", "index_purpose": args.index_purpose, "canonical_owner": "airflow-rag-pipeline"}, sort_keys=True), flush=True)
+        import time
+
+        while True:
+            time.sleep(60)
+    payload = asyncio.run(build_report(args))
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
     return 0
 

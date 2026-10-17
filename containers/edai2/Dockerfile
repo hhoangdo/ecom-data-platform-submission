@@ -12,7 +12,7 @@ COPY scripts ./scripts
 USER edai2
 
 FROM runtime AS rag_index
-CMD ["python", "scripts/llm/build_index.py"]
+CMD ["python", "scripts/llm/build_index.py", "--serve"]
 
 FROM runtime AS retrieval_agent
 CMD ["uvicorn", "vina_bim_shop.llm.api.retrieval:app", "--host", "0.0.0.0", "--port", "8080"]
@@ -24,7 +24,7 @@ FROM runtime AS coordinator
 CMD ["uvicorn", "vina_bim_shop.llm.api.chat:app", "--host", "0.0.0.0", "--port", "8080"]
 
 FROM runtime AS feast_offline_writer
-CMD ["python", "scripts/feast/run_offline_writer.py"]
+CMD ["python", "scripts/feast/run_offline_writer.py", "--serve"]
 
 FROM runtime AS feast_online_writer
-CMD ["python", "scripts/feast/run_online_writer.py"]
+CMD ["python", "scripts/feast/run_online_writer.py", "--serve"]

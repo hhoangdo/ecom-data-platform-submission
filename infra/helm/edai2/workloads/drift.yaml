@@ -30,5 +30,7 @@ section03Activation:
   owner: drift-jenkins-helm-release
   verifier: scripts/feast/load_section03.py
   requiredMode: "--strict --activate"
+  manifestPath: /data/section03/manifest.json
+  adapterFactory: vina_bim_shop.llm.adapters.feast_postgres:FeastPostgresAdapter
   sameHash: noop
   failure: restore-prior-active-version-and-remain-unready

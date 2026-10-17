@@ -1,6 +1,6 @@
 {{- if .Values.agentgatewayPolicy.enabled }}
 apiVersion: agentgateway.dev/v1alpha1
-kind: AgentGatewayPolicy
+kind: AgentgatewayPolicy
 metadata:
   name: {{ .Values.workload.name }}
   namespace: {{ .Values.namespace }}
