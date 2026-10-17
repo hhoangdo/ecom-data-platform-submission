@@ -151,7 +151,7 @@ def test_canonical_section03_consumer_contract_is_strict_and_read_only() -> None
     assert manifest_path.read_bytes() == manifest_before
 
 
-def test_study_mode_carves_out_only_stale_runtime_manifests(monkeypatch, capsys) -> None:
+def test_study_mode_passes_through_strict_when_tree_matches_pins(monkeypatch, capsys) -> None:
     monkeypatch.setenv("EDAI2_STUDY_MODE", "1")
     repo_root = Path(__file__).resolve().parents[3]
     manifest_path = (
@@ -160,7 +160,7 @@ def test_study_mode_carves_out_only_stale_runtime_manifests(monkeypatch, capsys)
     verifier = _load_verifier(repo_root)
     manifest = _verify_study_manifest(verifier, manifest_path)
     assert manifest["bundle_id"] == SECTION03_BUNDLE_ID
-    assert "study-debt" in capsys.readouterr().out
+    assert "study-debt" not in capsys.readouterr().out
     rubric = manifest["rubric_cells"]
     assert {cell: (entry["points"], entry["status"]) for cell, entry in rubric.items()} == {
         "E32": (1, "Satisfied"),
@@ -170,3 +170,38 @@ def test_study_mode_carves_out_only_stale_runtime_manifests(monkeypatch, capsys)
     assert manifest["consumer_contract"]["training_join"]["sha256"] == (
         "d1ffb48689373260e2e47f2ea9e14c45e6bc9e8543561a57924b1e21fa4afbdd"
     )
+
+
+def _copy_runs_tree(repo_root: Path, dest: Path) -> Path:
+    import shutil
+
+    src = repo_root / "evidence" / "03_data_generator_improvement"
+    shutil.copytree(src / "runs", dest / "runs")
+    manifest = json.loads((src / "section03_manifest.json").read_text(encoding="utf-8"))
+    manifest_copy = dest / "section03_manifest.json"
+    manifest_copy.write_text(json.dumps(manifest), encoding="utf-8")
+    return manifest_copy
+
+
+def test_study_mode_carves_out_only_stale_runtime_manifests(monkeypatch, capsys, tmp_path) -> None:
+    """Carve-out fires only for the two stale runtime keys, after byte-verifying the rest."""
+    import pytest
+
+    monkeypatch.setenv("EDAI2_STUDY_MODE", "1")
+    repo_root = Path(__file__).resolve().parents[3]
+    manifest_path = _copy_runs_tree(repo_root, tmp_path)
+    verifier = _load_verifier(repo_root)
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    stale = tmp_path / manifest["artifacts"]["spark_runtime_manifest"]["path"]
+    stale.write_bytes(stale.read_bytes() + b"\n")
+    carved = _verify_study_manifest(verifier, manifest_path)
+    assert carved["bundle_id"] == SECTION03_BUNDLE_ID
+    assert "study-debt" in capsys.readouterr().out
+
+    manifest_path = _copy_runs_tree(repo_root, tmp_path / "second")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    victim = tmp_path / "second" / manifest["artifacts"]["training_join"]["path"]
+    victim.write_bytes(victim.read_bytes() + b"\n")
+    with pytest.raises(ValueError, match="training_join"):
+        _verify_study_manifest(verifier, manifest_path)
