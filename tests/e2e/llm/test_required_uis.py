@@ -135,6 +135,184 @@ def _signed_inventory(capture, entry: dict[str, object]) -> tuple[dict[str, obje
     return inventory, capture.inventory_signature(inventory)
 
 
+class _FakeLocator:
+    def __init__(self, text: str) -> None:
+        self._text = text
+
+    def inner_text(self, timeout: int | None = None) -> str:
+        return self._text
+
+
+class _FakePage:
+    _topic26_resources: tuple = ()
+
+    def __init__(self, text: str) -> None:
+        self._text = text
+        self.shots: list[str] = []
+
+    def goto(self, url: str, wait_until: str | None = None, timeout: int | None = None) -> None:
+        self.url = url
+
+    def locator(self, selector: str) -> _FakeLocator:
+        return _FakeLocator(self._text)
+
+    def screenshot(self, path: str, full_page: bool = False) -> None:
+        from PIL import Image, ImageDraw
+
+        image = Image.new("RGB", (1600, 1000), color=(24, 80, 160))
+        ImageDraw.Draw(image).rectangle((100, 100, 500, 300), fill=(240, 180, 40))
+        image.save(path, "PNG")
+        self.shots.append(path)
+
+
+def _topic26_kubeconfig(tmp_path: Path, context: str = "gke_edai2_test") -> Path:
+    kubeconfig = tmp_path / "kubeconfig.yaml"
+    kubeconfig.write_text(f"apiVersion: v1\ncontexts:\n- name: {context}\n  context: {{}}\n", encoding="utf-8")
+    return kubeconfig
+
+
+def _topic26_inventory(capture, key: str = "agentregistry_ui") -> tuple[dict, str, dict]:
+    entry = {"namespace": "edai2", "service_name": key, "service_uid": key + "-uid", "service_port": 443, "target_port": 8080, "selector_sha256": "a" * 64, "ready_endpoint_uids": [key + "-endpoint"]}
+    inventory = {"private_endpoints": {k: entry | {"service_name": k} for k in capture.PRIVATE_ENDPOINT_KEYS}}
+    return inventory, capture.inventory_signature(inventory), entry
+
+
+def test_topic26_capture_choices_map_to_owned_pngs() -> None:
+    """Only the two Topic 26 screenshots may flow through the Topic 26 capture path."""
+    capture = _load_capture_module()
+
+    assert set(capture.TOPIC26_CAPTURES) == {"agentregistry-agents", "keda-scale"}
+    assert capture.TOPIC26_CAPTURES["agentregistry-agents"]["filename"] == "agentregistry_agents.png"
+    assert capture.TOPIC26_CAPTURES["keda-scale"]["filename"] == "keda_scale.png"
+    for choice, spec in capture.TOPIC26_CAPTURES.items():
+        assert spec["endpoint_key"] in capture.PRIVATE_ENDPOINT_KEYS
+        assert capture.REQUIRED_VIEWS[spec["filename"]]
+        assert spec["proves"] and spec["does_not_prove"] and len(spec["proves"]) <= 500
+
+
+def test_topic26_capture_rejects_unknown_choice_viewport_and_filename(tmp_path: Path) -> None:
+    """An unknown capture, wrong viewport, or mismatched output filename fails closed."""
+    capture = _load_capture_module()
+    kubeconfig = _topic26_kubeconfig(tmp_path)
+    inventory, signature, _ = _topic26_inventory(capture)
+    machine = tmp_path / "registry.json"
+    machine.write_text('{}\n', encoding="utf-8")
+    base = dict(kubeconfig=kubeconfig, context="gke_edai2_test", inventory=inventory, inventory_signature=signature,
+        tunnel_ttl="10m", local_port=40123, viewport="1600x1000", output=tmp_path / "agentregistry_agents.png",
+        manifest=tmp_path / "ui_manifest.json", machine_evidence=machine, revision="a" * 40,
+        page_factory=lambda: _FakePage("Agent Registry title retrieval drift coordinator"), process_factory=None,
+        reserve_port=lambda: 40123, readiness=lambda: None, workspace=tmp_path)
+
+    class Process:
+        pid = 4242
+        def terminate(self): pass
+        def wait(self, timeout): pass
+        def poll(self): return 0
+
+    with pytest.raises(ValueError, match="unknown Topic 26 capture"):
+        capture.run_topic26_capture(capture="unknown", **{**base, "process_factory": lambda *a: Process()})
+    with pytest.raises(ValueError, match="viewport"):
+        capture.run_topic26_capture(capture="agentregistry-agents", **{**base, "viewport": "800x600", "process_factory": lambda *a: Process()})
+    with pytest.raises(ValueError, match="filename"):
+        capture.run_topic26_capture(capture="agentregistry-agents", **{**base, "output": tmp_path / "grafana_http.png", "process_factory": lambda *a: Process()})
+
+
+def test_topic26_capture_tunnels_and_links_machine_evidence(tmp_path: Path) -> None:
+    """A tunneled capture links the exact machine evidence hash in the manifest."""
+    capture = _load_capture_module()
+    kubeconfig = _topic26_kubeconfig(tmp_path)
+    inventory, signature, _ = _topic26_inventory(capture)
+    machine = tmp_path / "registry.json"
+    machine.write_text(json.dumps({"agents": ["retrieval"]}), encoding="utf-8")
+
+    class Process:
+        pid = 4242
+        def terminate(self): pass
+        def wait(self, timeout): pass
+        def poll(self): return 0
+
+    entry = capture.run_topic26_capture(
+        capture="agentregistry-agents", kubeconfig=kubeconfig, context="gke_edai2_test", inventory=inventory,
+        inventory_signature=signature, tunnel_ttl="10m", local_port=40123, viewport="1600x1000",
+        output=tmp_path / "agentregistry_agents.png", manifest=tmp_path / "ui_manifest.json", machine_evidence=machine,
+        revision="a" * 40,
+        page_factory=lambda: _FakePage("Agent Registry title retrieval drift coordinator versions digests"),
+        process_factory=lambda *a: Process(), reserve_port=lambda: 40123, readiness=lambda: None, workspace=tmp_path,
+    )
+
+    assert entry["path"] == "agentregistry_agents.png"
+    assert (tmp_path / "agentregistry_agents.png").is_file()
+    assert entry["linked_machine_evidence"] == [{"path": "registry.json", "sha256": hashlib.sha256(machine.read_bytes()).hexdigest()}]
+
+
+def test_manifest_linkage_rejects_hash_mismatch(tmp_path: Path) -> None:
+    """Mutating linked machine evidence after capture invalidates the manifest."""
+    capture = _load_capture_module()
+    kubeconfig = _topic26_kubeconfig(tmp_path)
+    inventory, signature, _ = _topic26_inventory(capture)
+    machine = tmp_path / "registry.json"
+    machine.write_text(json.dumps({"agents": ["retrieval"]}), encoding="utf-8")
+
+    class Process:
+        pid = 4242
+        def terminate(self): pass
+        def wait(self, timeout): pass
+        def poll(self): return 0
+
+    capture.run_topic26_capture(
+        capture="agentregistry-agents", kubeconfig=kubeconfig, context="gke_edai2_test", inventory=inventory,
+        inventory_signature=signature, tunnel_ttl="10m", local_port=40123, viewport="1600x1000",
+        output=tmp_path / "agentregistry_agents.png", manifest=tmp_path / "ui_manifest.json", machine_evidence=machine,
+        revision="a" * 40,
+        page_factory=lambda: _FakePage("Agent Registry title retrieval drift coordinator versions digests"),
+        process_factory=lambda *a: Process(), reserve_port=lambda: 40123, readiness=lambda: None, workspace=tmp_path,
+    )
+    machine.write_text(json.dumps({"agents": ["tampered"]}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="hash mismatch"):
+        capture._validate_existing_manifest(tmp_path / "ui_manifest.json", tmp_path, "a" * 40, workspace=tmp_path)
+
+
+def test_topic26_verify_rejects_foreign_pngs(tmp_path: Path) -> None:
+    """Only the two owned Topic 26 screenshots verify through the Topic 26 path."""
+    capture = _load_capture_module()
+    manifest = tmp_path / "ui_manifest.json"
+    manifest.write_text("[]", encoding="utf-8")
+    machine = tmp_path / "telemetry.json"
+    machine.write_text('{}\n', encoding="utf-8")
+
+    def writer(path: Path) -> None:
+        from PIL import Image, ImageDraw
+        image = Image.new("RGB", (1600, 1000), color=(24, 80, 160))
+        ImageDraw.Draw(image).rectangle((100, 100, 500, 300), fill=(240, 180, 40))
+        image.save(path, "PNG")
+
+    capture.record_capture(
+        final_path=tmp_path / "agentregistry_agents.png", root=tmp_path, writer=writer,
+        source="https://127.0.0.1:40123/agentregistry", revision="a" * 40,
+        visible_selectors=capture.REQUIRED_VIEWS["agentregistry_agents.png"],
+        machine_evidence=[str(machine)], proves="Registry agents are visible.",
+        does_not_prove="Chat routing is deferred.", manifest_path=manifest, workspace=tmp_path,
+    )
+    capture.verify_topic26_screenshots(manifest, tmp_path, ["agentregistry_agents.png"], workspace=tmp_path)
+
+    with pytest.raises(ValueError, match="Topic 26"):
+        capture.verify_topic26_screenshots(manifest, tmp_path, ["grafana_http.png"], workspace=tmp_path)
+
+
+def test_tunnel_writer_rejects_missing_selectors(tmp_path: Path) -> None:
+    """A UI missing required selectors must not produce a screenshot."""
+    capture = _load_capture_module()
+    writer = capture._tunnel_page_writer(
+        "https://127.0.0.1:40123/agentregistry",
+        capture.REQUIRED_VIEWS["agentregistry_agents.png"],
+        page_factory=lambda: _FakePage("Agent Registry title retrieval"),
+    )
+
+    with pytest.raises(ValueError, match="selector"):
+        writer(tmp_path / "out.png")
+
+
 def test_locked_view_anchor_table_is_literal_and_complete() -> None:
     """Any abbreviated anchor permits a context-free substitute screenshot."""
     capture = _load_capture_module()

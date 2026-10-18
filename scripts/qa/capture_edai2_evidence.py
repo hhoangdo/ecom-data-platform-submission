@@ -10,8 +10,11 @@ import math
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
+import tempfile
+import time
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
@@ -85,6 +88,20 @@ REQUIRED_VIEWS = {
     "jenkins_feast_online.png": ["Jenkins job edai2-feast-online-writer", "build number", "SUCCESS", "common full commit SHA"],
 }
 LOCKED_FILENAMES = tuple(REQUIRED_VIEWS)
+TOPIC26_CAPTURES = {
+    "agentregistry-agents": {
+        "filename": "agentregistry_agents.png",
+        "endpoint_key": "agentregistry_ui",
+        "proves": "Three logical agents with versions and digest context are visible.",
+        "does_not_prove": "It does not prove chat-time routing.",
+    },
+    "keda-scale": {
+        "filename": "keda_scale.png",
+        "endpoint_key": "grafana_ui",
+        "proves": "KEDA replica transition with timestamps and replica identities is visible.",
+        "does_not_prove": "It does not prove distinct actor placement; machine evidence does.",
+    },
+}
 _PNG = b"\x89PNG\r\n\x1a\n"
 _SECRET = re.compile(r"(?i)(password|token|secret|api[_-]?key|customer[_-]?id|bearer|authorization|[\w.+-]+@[\w.-]+\.[a-z]{2,})")
 _SECRET_KEY = re.compile(r"(?i)(password|token|secret|api[_-]?key|customer[_-]?id|bearer|authorization)")
@@ -1790,6 +1807,160 @@ def _browser_writer_with_state(url: str, selectors: list[str], storage_state: Pa
     return writer
 
 
+def _anonymous_page_factory():
+    from playwright.sync_api import sync_playwright
+
+    manager = sync_playwright().start()
+    browser = manager.chromium.launch()
+    context = browser.new_context(viewport={"width": 1600, "height": 1000})
+    page = context.new_page()
+    page._topic26_resources = (context, browser, manager)  # type: ignore[attr-defined]
+    return page
+
+
+def _tunnel_page_writer(
+    url: str, selectors: list[str], page_factory: Callable[[], object] | None = None
+) -> Callable[[Path], None]:
+    """Capture one tunneled private UI after asserting required selectors."""
+    factory = page_factory or _anonymous_page_factory
+
+    def writer(destination: Path) -> None:
+        page = factory()
+        resources = getattr(page, "_topic26_resources", ())
+        try:
+            page.goto(url, wait_until="networkidle", timeout=60_000)
+            body = page.locator("body").inner_text(timeout=10_000)
+            if _BAD_PAGE.search(body) or _SECRET.search(body) or re.search(r"\b\d{4,}[- ]\d{4,}[- ]\d{4,}\b", body):
+                raise ValueError("tunneled page is unsafe")
+            missing = [selector for selector in selectors if selector.lower() not in body.lower()]
+            if missing:
+                raise ValueError(f"required selectors not visible: {missing}")
+            page.screenshot(path=str(destination), full_page=False)
+        finally:
+            for resource in resources:
+                resource.close() if hasattr(resource, "close") else resource.stop()
+
+    return writer
+
+
+def _capture_png_bytes(writer: Callable[[Path], None]) -> bytes:
+    with tempfile.TemporaryDirectory(prefix="topic26-capture-") as tmp:
+        path = Path(tmp) / "capture.png"
+        writer(path)
+        return path.read_bytes()
+
+
+def verify_topic26_screenshots(
+    manifest_path: Path, root: Path, names: list[str], revision: str | None = None, workspace: Path | None = None
+) -> None:
+    """Verify exactly the two Topic 26 owned screenshots against the manifest."""
+    allowed = {"agentregistry_agents.png", "keda_scale.png"}
+    if not names or set(names) - allowed:
+        raise ValueError("Topic 26 screenshot set is invalid")
+    entries = _validate_existing_manifest(manifest_path, root, revision or _manifest_revision(manifest_path), workspace=workspace)
+    actual = {entry["path"] for entry in entries}
+    if not set(names).issubset(actual):
+        raise ValueError("Topic 26 screenshot is missing")
+
+
+def run_topic26_capture(
+    *,
+    capture: str,
+    kubeconfig: Path,
+    context: str,
+    inventory: dict,
+    inventory_signature: str,
+    tunnel_ttl: str,
+    local_port: int,
+    viewport: str,
+    output: Path,
+    manifest: Path,
+    machine_evidence: Path,
+    revision: str,
+    page_factory: Callable[[], object],
+    process_factory: Callable[..., object],
+    reserve_port: Callable[[], int],
+    readiness: Callable[[], None],
+    workspace: Path | None = None,
+) -> dict[str, object]:
+    """Tunnel to the private endpoint, screenshot it, and link machine evidence."""
+    spec = TOPIC26_CAPTURES.get(capture)
+    if spec is None:
+        raise ValueError("unknown Topic 26 capture")
+    if viewport != "1600x1000":
+        raise ValueError("Topic 26 viewport must be 1600x1000")
+    if Path(output).name != spec["filename"]:
+        raise ValueError("Topic 26 output filename mismatch")
+    try:
+        payload = json.loads(Path(machine_evidence).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("machine evidence is invalid") from error
+    if not isinstance(payload, dict) or _has_secret(payload):
+        raise ValueError("machine evidence is unsafe")
+    observed = validate_private_endpoint(inventory, spec["endpoint_key"], inventory_signature)
+    url = f"https://127.0.0.1:{local_port}/{spec['endpoint_key']}"
+    writer = _tunnel_page_writer(url, REQUIRED_VIEWS[spec["filename"]], page_factory)
+    png = run_private_capture(
+        kubeconfig=kubeconfig, context=context, inventory=inventory, inventory_signature=inventory_signature,
+        key=spec["endpoint_key"], observed=observed, loopback_only=True, tunnel_ttl=tunnel_ttl,
+        runtime_root=Path(manifest).parent / ".topic26-tunnel", reserve_port=reserve_port,
+        process_factory=process_factory, readiness=readiness,
+        capture_callback=lambda _info: _capture_png_bytes(writer),
+    )
+    if not isinstance(png, bytes):
+        raise ValueError("capture callback must return PNG bytes")
+    return record_capture(
+        final_path=Path(output), root=Path(manifest).parent,
+        writer=lambda destination: destination.write_bytes(png),
+        source=url, revision=revision, visible_selectors=REQUIRED_VIEWS[spec["filename"]],
+        machine_evidence=[str(machine_evidence)], proves=spec["proves"], does_not_prove=spec["does_not_prove"],
+        manifest_path=Path(manifest), workspace=workspace,
+    )
+
+
+def _subprocess_process_factory(command: list[str], stdout_path: Path, stderr_path: Path) -> object:
+    """Spawn a port-forward child whose stdio is owned by the runtime root."""
+    stdout_handle = open(stdout_path, "wb")  # noqa: PTH123
+    try:
+        stderr_handle = open(stderr_path, "wb")  # noqa: PTH123
+    except BaseException:
+        stdout_handle.close()
+        raise
+    try:
+        process = subprocess.Popen(command, stdout=stdout_handle, stderr=stderr_handle)
+    except BaseException:
+        stdout_handle.close()
+        stderr_handle.close()
+        raise
+    stdout_handle.close()
+    stderr_handle.close()
+    return process
+
+
+def _ephemeral_port() -> int:
+    sock = socket.socket()
+    try:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+    finally:
+        sock.close()
+
+
+def _tcp_readiness(port: int, timeout_s: int = 60) -> Callable[[], None]:
+    def wait_ready() -> None:
+        deadline = time.monotonic() + timeout_s
+        while True:
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=2):
+                    return
+            except OSError:
+                if time.monotonic() > deadline:
+                    raise TimeoutError(f"port {port} never became ready") from None
+                time.sleep(1)
+
+    return wait_ready
+
+
 def _playwright_page_factory(storage_state: Path):
     from playwright.sync_api import sync_playwright
 
@@ -2364,6 +2535,11 @@ def main() -> int:
     parser.add_argument("--verify-platform-exclusions")
     parser.add_argument("--forbid")
     parser.add_argument("--strict", action="store_true")
+    parser.add_argument("--capture", choices=tuple(TOPIC26_CAPTURES))
+    parser.add_argument("--viewport")
+    parser.add_argument("--manifest")
+    parser.add_argument("--machine-evidence")
+    parser.add_argument("--verify-screenshots")
     args = parser.parse_args()
     if args.verify_vault_bootstrap or args.verify_model_cache:
         if not args.strict or (args.verify_vault_bootstrap and args.verify_model_cache):
@@ -2454,6 +2630,57 @@ def main() -> int:
         except (ValueError, subprocess.CalledProcessError, OSError) as error:
             parser.error(str(error))
         print(json.dumps({"built": Path(args.output).name}, sort_keys=True))
+        return 0
+    if (
+        args.verify_screenshots is None
+        and args.capture is None
+        and (not args.verify_observability_contract or not args.strict)
+    ):
+        parser.error("local verification requires --verify-observability-contract --strict; live capture is GCP-owned")
+    if args.verify_screenshots is not None:
+        if args.manifest is None:
+            parser.error("--verify-screenshots requires --manifest")
+        try:
+            verify_topic26_screenshots(
+                Path(args.manifest), Path(args.manifest).parent, args.verify_screenshots.split(",")
+            )
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+        print(json.dumps({"verified": args.verify_screenshots}, sort_keys=True))
+        return 0
+    if args.capture is not None:
+        for name in (
+            "kubeconfig", "context", "platform_inventory", "inventory_signature", "tunnel_ttl",
+            "viewport", "output", "manifest", "machine_evidence",
+        ):
+            if getattr(args, name) is None:
+                parser.error(f"Topic 26 capture requires --{name.replace('_', '-')}")
+        if not args.loopback_only:
+            parser.error("Topic 26 capture requires --loopback-only")
+        if args.local_port is not None and not 1024 < args.local_port <= 65535:
+            parser.error("--local-port must be an ephemeral non-privileged port")
+        if (
+            args.private_endpoint_key is not None
+            and args.private_endpoint_key != TOPIC26_CAPTURES[args.capture]["endpoint_key"]
+        ):
+            parser.error("Topic 26 capture derives its own private endpoint")
+        try:
+            inventory = json.loads(Path(args.platform_inventory).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            parser.error(str(error))
+        port = args.local_port or _ephemeral_port()
+        try:
+            entry = run_topic26_capture(
+                capture=args.capture, kubeconfig=Path(args.kubeconfig), context=args.context,
+                inventory=inventory, inventory_signature=args.inventory_signature, tunnel_ttl=args.tunnel_ttl,
+                local_port=port, viewport=args.viewport, output=Path(args.output), manifest=Path(args.manifest),
+                machine_evidence=Path(args.machine_evidence), revision=_revision(),
+                page_factory=_anonymous_page_factory, process_factory=_subprocess_process_factory,
+                reserve_port=lambda: port, readiness=_tcp_readiness(port),
+            )
+        except (OSError, ValueError, RuntimeError, TimeoutError) as error:
+            parser.error(str(error))
+        print(json.dumps({"captured": entry["path"], "sha256": entry["sha256"]}, sort_keys=True))
         return 0
     if not args.verify_observability_contract or not args.strict:
         parser.error("local verification requires --verify-observability-contract --strict; live capture is GCP-owned")

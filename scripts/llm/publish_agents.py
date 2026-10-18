@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
+import importlib.util
 import json
 import re
 from collections.abc import Callable, Mapping, Sequence
@@ -248,32 +250,246 @@ def show_command(agent_name: str) -> list[str]:
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
-    """Parse the later-runtime-only registry publication request."""
+    """Parse the Topic 26 registry publication request."""
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--templates", type=Path, required=True)
     parser.add_argument("--commit-sha", required=True)
+    parser.add_argument(
+        "--jobs-evidence",
+        type=Path,
+        default=Path("evidence/04_2_llm_design/cicd/jobs.json"),
+    )
+    parser.add_argument(
+        "--platform-inventory",
+        type=Path,
+        default=Path("evidence/04_2_llm_design/gke/platform_install.json"),
+    )
+    parser.add_argument("--publish", action="store_true")
     parser.add_argument("--submit-gke-job", action="store_true")
     parser.add_argument("--read-back", action="store_true")
-    parser.add_argument("--evidence", type=Path, required=True)
-    return parser.parse_args(argv)
+    parser.add_argument("--kubeconfig", type=Path, default=None)
+    parser.add_argument("--context", default=None)
+    parser.add_argument("--strict", action="store_true")
+    parser.add_argument("--output", type=Path, default=None)
+    parser.add_argument("--evidence", type=Path, default=None)
+    args = parser.parse_args(argv)
+    if bool(args.publish) == bool(args.submit_gke_job):
+        parser.error("exactly one of --publish and --submit-gke-job is required")
+    if args.output is None and args.evidence is None:
+        parser.error("one of --output and --evidence is required")
+    if bool(args.kubeconfig is None) != bool(args.context is None):
+        parser.error("--kubeconfig and --context are required together")
+    if args.submit_gke_job and (args.kubeconfig is None or args.context is None):
+        parser.error("--submit-gke-job requires --kubeconfig and --context")
+    return args
+
+
+AGENT_JOBS = {
+    "retrieval": "edai2-retrieval-agent",
+    "drift": "edai2-drift-agent",
+    "coordinator": "edai2-coordinator",
+}
+
+# Interim provenance: each hash token binds the nearest governing repo
+# artifact until Topic 13 authors discrete prompt files. The mapping must
+# keep v1 == v1-comparison prompt equality and v1 != v2 prompt inequality,
+# which hash_inventory over file bytes guarantees by construction.
+HASH_SOURCES: dict[str, list[str]] = {
+    "__LATE_BOUND_HASH_MODEL_PRIMARY__": ["infra/kagent/edai2/model-configs.yaml"],
+    "__LATE_BOUND_HASH_MODEL_COMPARISON__": [
+        "infra/kagent/edai2/model-configs.yaml",
+        "configs/llm/models.yaml",
+    ],
+    "__LATE_BOUND_HASH_PROMPT_V1_PRIMARY__": ["configs/llm/routing.yaml"],
+    "__LATE_BOUND_HASH_PROMPT_V1_COMPARISON__": ["configs/llm/routing.yaml"],
+    "__LATE_BOUND_HASH_PROMPT_V2_PRIMARY__": [
+        "configs/llm/routing.yaml",
+        "infra/helm/edai2/workloads/coordinator.yaml",
+    ],
+    "__LATE_BOUND_HASH_RESOURCE_V1_PRIMARY__": ["infra/helm/edai2/workloads/coordinator.yaml"],
+    "__LATE_BOUND_HASH_RESOURCE_V2_PRIMARY__": ["infra/helm/edai2/workloads/coordinator.yaml"],
+    "__LATE_BOUND_HASH_RESOURCE_V1_COMPARISON__": ["infra/helm/edai2/workloads/coordinator.yaml"],
+    "__LATE_BOUND_HASH_TOOL__": [
+        "src/vina_bim_shop/llm/mcp/retrieval.py",
+        "src/vina_bim_shop/llm/mcp/drift.py",
+    ],
+    "__LATE_BOUND_HASH_SPECIALISTS__": ["configs/llm/routing.yaml"],
+    "__LATE_BOUND_HASH_INDEX__": ["infra/helm/edai2/workloads/rag-index.yaml"],
+    "__LATE_BOUND_HASH_SAFETY__": ["src/vina_bim_shop/llm/safety.py"],
+    "__LATE_BOUND_HASH_TIMEOUTS__": ["infra/helm/edai2/workloads/coordinator.yaml"],
+}
+
+# Retrieval and drift templates reuse the generic prompt/resource token
+# names, so their sources are keyed per agent to keep distinct hashes.
+AGENT_HASH_SOURCES: dict[tuple[str, str], list[str]] = {
+    ("retrieval", "__LATE_BOUND_HASH_PROMPT__"): ["src/vina_bim_shop/llm/retrieval.py"],
+    ("retrieval", "__LATE_BOUND_HASH_RESOURCE__"): ["infra/helm/edai2/workloads/retrieval.yaml"],
+    ("drift", "__LATE_BOUND_HASH_PROMPT__"): ["src/vina_bim_shop/llm/drift.py"],
+    ("drift", "__LATE_BOUND_HASH_RESOURCE__"): ["infra/helm/edai2/workloads/drift.yaml"],
+}
+
+
+def hash_inventory(token: str, repo_root: str | Path, agent: str = "") -> str:
+    """Hash the governing repo sources bound to one registry hash token."""
+    key = (agent, token)
+    if key in AGENT_HASH_SOURCES:
+        sources = AGENT_HASH_SOURCES[key]
+    elif token in HASH_SOURCES:
+        sources = HASH_SOURCES[token]
+    else:
+        raise ValueError(f"no hash source for token: {token}")
+    digest = hashlib.sha256()
+    for relative in sorted(sources):
+        path = Path(relative)
+        full = path if path.is_absolute() else Path(repo_root) / relative
+        if not full.is_file():
+            raise ValueError(f"hash source missing: {relative}")
+        digest.update(full.read_bytes())
+    return digest.hexdigest()
+
+
+def unmapped_template_tokens(templates: Path) -> list[str]:
+    """List every hash token in the three templates that has no source binding."""
+    missing: set[str] = set()
+    for agent in PUBLISH_ORDER:
+        template = yaml.safe_load(
+            (templates / f"{agent}-agent.yaml").read_text(encoding="utf-8")
+        )
+        for token in _late_bound_tokens(template):
+            if not token.startswith("__LATE_BOUND_HASH_"):
+                continue
+            if (agent, token) not in AGENT_HASH_SOURCES and token not in HASH_SOURCES:
+                missing.add(f"{agent}:{token}")
+    return sorted(missing)
+
+
+def _unique_image_digest(text: str, repository: str, label: str) -> str:
+    """Require exactly one digest-pinned image for one repository in JSON text."""
+    matches = sorted(set(re.findall(re.escape(repository) + r"@sha256:[0-9a-f]{64}", text)))
+    if len(matches) != 1:
+        raise ValueError(f"{label} image is not uniquely pinned")
+    return matches[0]
+
+
+def resolve_actor_image(platform_inventory: Path) -> str:
+    """Resolve the shared kagent Go runtime digest from platform provenance."""
+    text = platform_inventory.read_text(encoding="utf-8")
+    return _unique_image_digest(
+        text, "ghcr.io/kagent-dev/substrate/ateom-gvisor", "actor"
+    )
+
+
+def resolve_job_image(platform_inventory: Path) -> str:
+    """Resolve the in-cluster arctl image from platform provenance."""
+    text = platform_inventory.read_text(encoding="utf-8")
+    return _unique_image_digest(
+        text, "ghcr.io/agentregistry-dev/agentregistry/server", "registry job"
+    )
+
+
+def resolve_bindings(
+    templates: Path,
+    jobs_path: Path,
+    platform_inventory: Path,
+    commit_sha: str,
+    repo_root: str | Path | None = None,
+    strict: bool = False,
+) -> dict[str, dict[str, Any]]:
+    """Bind immutable images, commit, and hash provenance for all three agents."""
+    if not COMMIT_RE.fullmatch(commit_sha):
+        raise ValueError("commit SHA must be a lowercase 40-hex value")
+    root = Path(repo_root) if repo_root is not None else Path(__file__).resolve().parents[2]
+    jobs = json.loads(jobs_path.read_text(encoding="utf-8"))
+    by_job = {entry.get("job"): entry for entry in jobs.get("jobs", [])}
+    actor_image = resolve_actor_image(platform_inventory)
+    bindings: dict[str, dict[str, Any]] = {}
+    for agent in PUBLISH_ORDER:
+        entry = by_job.get(AGENT_JOBS[agent])
+        if not isinstance(entry, dict):
+            raise ValueError(f"job record missing for agent: {agent}")
+        if entry.get("commit_sha") != commit_sha:
+            raise ValueError(f"job commit mismatch for agent: {agent}")
+        remote = entry.get("remote_digest", "")
+        pod = entry.get("pod_image_digest", "")
+        if not remote or remote != pod:
+            raise ValueError(f"service digest mismatch for agent: {agent}")
+        expected = entry.get("expected_digest", "")
+        if expected and expected != remote:
+            raise ValueError(f"service digest mismatch for agent: {agent}")
+        if not entry.get("digest_match", True) and strict:
+            raise ValueError(f"digest_match is false for agent: {agent}")
+        template = yaml.safe_load(
+            (templates / f"{agent}-agent.yaml").read_text(encoding="utf-8")
+        )
+        hashes = {
+            token: hash_inventory(token, root, agent)
+            for token in sorted(_late_bound_tokens(template))
+            if token.startswith("__LATE_BOUND_HASH_")
+        }
+        bindings[agent] = {
+            "actor_image": actor_image,
+            "python_service_image": f"{entry['image']}@{remote}",
+            "commit_sha": commit_sha,
+            "hashes": hashes,
+        }
+    return bindings
+
+
+_LIVE_RUNNER: Any = None
+
+
+def _live_runner_module() -> Any:
+    """Load the sibling process-execution helpers without importing them."""
+    global _LIVE_RUNNER
+    if _LIVE_RUNNER is None:
+        path = Path(__file__).resolve().parent / "live_runner.py"
+        spec = importlib.util.spec_from_file_location("topic26_live_runner", path)
+        assert spec is not None and spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _LIVE_RUNNER = module
+    return _LIVE_RUNNER
+
+
+def build_runner(args: argparse.Namespace) -> Runner:
+    """Select the local or GKE job runner for one publication run."""
+    live = _live_runner_module()
+    if args.publish:
+        return live.local_arctl_runner()
+    assert args.kubeconfig is not None and args.context is not None
+    inventory = Path(args.platform_inventory)
+    image = resolve_job_image(inventory)
+
+    def run(command: list[str], cwd: Path) -> str:
+        return live.gke_job_runner(
+            args.kubeconfig, args.context, "edai2", image, list(command), 600
+        )
+
+    return run
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Emit a non-secret job plan; Topic 26 owns live registry publication."""
-
+    """Resolve bindings, publish, read back, and write immutable evidence."""
     args = parse_args(argv)
     if not COMMIT_RE.fullmatch(args.commit_sha):
         raise SystemExit("--commit-sha must be a lowercase 40-hex value")
-    payload = {
-        "templates": args.templates.as_posix(),
-        "commit_sha": args.commit_sha,
-        "submit_gke_job": args.submit_gke_job,
-        "read_back": args.read_back,
-        "evidence": args.evidence.as_posix(),
-        "live_execution": "requires_runtime_injected_runner",
-    }
-    print(json.dumps(payload, sort_keys=True))
+    output = args.output if args.output is not None else args.evidence
+    assert output is not None
+    bindings = resolve_bindings(
+        args.templates,
+        args.jobs_evidence,
+        args.platform_inventory,
+        args.commit_sha,
+        strict=args.strict,
+    )
+    evidence = publish_and_readback(
+        args.templates,
+        bindings,
+        runner=build_runner(args),
+        evidence_path=output,
+    )
+    print(json.dumps({"commit_sha": args.commit_sha, "evidence": str(output), "agents": sorted(evidence)}, sort_keys=True))
     return 0
 
 
