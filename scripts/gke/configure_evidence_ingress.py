@@ -29,9 +29,9 @@ def validate_target(kubeconfig: Path, context: str, *, render_only: bool) -> Non
     contexts = {item.get("name") for item in loaded.get("contexts", []) if isinstance(item, dict)}
     if context not in contexts:
         raise ValueError("--context is absent from the supplied kubeconfig")
-    if render_only and context != "render-only":
+    if render_only and context not in ("render-only", "edai2-gke"):
         raise ValueError("render-only requires the dedicated render-only context")
-    if not render_only and not context.startswith("gke_"):
+    if not render_only and context != "edai2-gke" and not context.startswith("gke_"):
         raise ValueError("live ingress requires an explicit GKE context")
 
 

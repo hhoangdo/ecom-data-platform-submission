@@ -5,17 +5,44 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import re
 import time
 import urllib.request
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-
 Runner = Callable[[list[str], Path], str]
 HttpPost = Callable[[str, dict], dict]
 
 PII_MARKERS = ("customer_id=",)
+
+STABLE_LABELS = ("service", "route", "agent", "tool", "model_version", "agent_config", "index_version", "status", "safety_action", "log_scope")
+TRACE_CHAIN = (
+    ("nginx/chat", None), ("facade", "nginx/chat"), ("agentgateway", "facade"),
+    ("coordinator", "agentgateway"), ("llm-d", "agentgateway"), ("specialist", "agentgateway"),
+    ("specialist-agentgateway", "specialist"), ("matching MCP", "specialist-agentgateway"),
+    ("retrieval/drift API", "matching MCP"), ("Feast/PostgreSQL", "retrieval/drift API"),
+)
+REQUIRED_TELEMETRY_METRICS = (
+    "edai2_chat_requests_total", "edai2_api_tool_calls_total", "edai2_api_tool_failures_total",
+    "edai2_retrieval_request_duration_seconds_bucket", "edai2_active_index_updated_timestamp_seconds",
+    "edai2_container_memory_usage_ratio", "edai2_persistent_volume_usage_ratio",
+    "edai2_agent_calls_total", "edai2_mcp_calls_total", "edai2_llm_input_tokens_total",
+    "edai2_llm_output_tokens_total", "edai2_llm_total_tokens_total",
+    "edai2_llm_generation_seconds_bucket", "edai2_llm_ttft_seconds_bucket",
+    "edai2_safety_actions_total", "edai2_container_cpu_usage_ratio",
+    "container_network_receive_bytes_total", "edai2_experiment_samples_total",
+    "edai2_experiment_quality_score",
+)
+TELEMETRY_KINDS = ("http", "compute", "llm", "agents", "logs", "traces", "alerts")
+ALERT_THRESHOLDS = {
+    "EDAI2ApiToolFailureHigh": ("failure_ratio", 0.05),
+    "EDAI2RetrievalP95High": ("p95_seconds", 0.75),
+    "EDAI2ActiveIndexStale": ("age_seconds", 86400),
+    "EDAI2MemoryHigh": ("usage_ratio", 0.90),
+    "EDAI2DiskHigh": ("usage_ratio", 0.80),
+}
 
 _LIVE_RUNNER: Any = None
 
@@ -70,6 +97,19 @@ def _write_evidence(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def verify_namespace(*, expected: str, actual: str, context: str) -> None:
+    """Fail closed unless the expected namespace equals the actual namespace.
+
+    Releases live in ``default`` while Deployments live in ``edai2``; any
+    rollback path that assumes a single namespace must name both sides
+    explicitly and stop on mismatch before mutating the cluster.
+    """
+    if not expected or not actual:
+        raise ValueError(f"namespace is missing for {context}")
+    if expected != actual:
+        raise ValueError(f"namespace mismatch for {context}: expected={expected} actual={actual}")
+
+
 def _helm_history(helm: Runner, release: str, cwd: Path) -> list[dict]:
     history = json.loads(helm(["history", release, "-o", "json"], cwd))
     if not isinstance(history, list) or not history:
@@ -88,8 +128,16 @@ def prove_helm_rollback(
     readyz_url: str,
     prior_revision: int | None = None,
     cwd: Path = Path("."),
+    expected_namespace: str | None = None,
+    actual_namespace: str | None = None,
 ) -> dict:
     """Inject a failing release value, then atomically restore the prior revision."""
+    if expected_namespace is not None or actual_namespace is not None:
+        verify_namespace(
+            expected=expected_namespace or "",
+            actual=actual_namespace or "",
+            context="helm-release-vs-deployment",
+        )
     history = _helm_history(helm, release, cwd)
     deployed = [entry["revision"] for entry in history if entry.get("status") == "deployed"]
     if prior_revision is None:
@@ -149,8 +197,16 @@ def prove_model_rollback(
     delete_one_healthy: bool,
     active_active_replicas: int = 2,
     cwd: Path = Path("."),
+    expected_namespace: str | None = None,
+    actual_namespace: str | None = None,
 ) -> dict:
     """Prove an invalid model image digest never serves, then restore the live digest."""
+    if expected_namespace is not None or actual_namespace is not None:
+        verify_namespace(
+            expected=expected_namespace or "",
+            actual=actual_namespace or "",
+            context="model-release-vs-deployment",
+        )
     observed = json.loads(kubectl(["get", "deployment", primary, "--namespace", namespace, "-o", "json"], cwd))
     try:
         containers = observed["spec"]["template"]["spec"]["containers"]
@@ -349,6 +405,182 @@ def run_agent_chats(
     return evidence
 
 
+def prove_gateway_auth_rate_limit(
+    *,
+    http_get: Callable[[str, dict | None], dict],
+    chat_url: str,
+    auth_headers: dict,
+    expected_unauthenticated: int = 401,
+    accepted_rps: int = 1,
+    burst: int = 5,
+    expected_over_limit: int = 429,
+) -> dict:
+    """Prove exact 401/accepted/burst/429 behavior with no 503.
+
+    The first call carries no credentials and must return the exact
+    unauthenticated status. The next `burst` credentialed calls must avoid both
+    429 and 503; the following immediate call must return the exact over-limit
+    status. Any 503 fails closed: the controller is misconfigured, not limiting.
+    Only statuses and counts enter the evidence; headers never do.
+    """
+    _ = accepted_rps
+    attempts: list[int] = []
+    unauthenticated = http_get(chat_url, None).get("status")
+    attempts.append(unauthenticated)
+    if unauthenticated != expected_unauthenticated:
+        raise ValueError(f"unauthenticated chat status {unauthenticated} != {expected_unauthenticated}")
+    accepted = 0
+    for _ in range(burst):
+        status = http_get(chat_url, auth_headers).get("status")
+        attempts.append(status)
+        if status == 503:
+            raise ValueError("chat route returned 503 instead of rate limiting")
+        if status == expected_over_limit:
+            raise ValueError("chat route limited inside the accepted burst")
+        accepted += 1
+    over_limit = http_get(chat_url, auth_headers).get("status")
+    attempts.append(over_limit)
+    if over_limit == 503:
+        raise ValueError("chat route returned 503 instead of rate limiting")
+    if over_limit != expected_over_limit:
+        raise ValueError("chat route over-limit status not observed")
+    return {
+        "unauthenticated_status": unauthenticated,
+        "accepted": accepted,
+        "burst": burst,
+        "over_limit_status": over_limit,
+        "saw_503": False,
+        "attempts": attempts,
+        "at": _utcnow(),
+    }
+
+
+_EVIDENCE_SECRET = re.compile(r"(?i)(password|secret|api[_-]?key|customer[_-]?id|bearer|authorization|[\w.+-]+@[\w.-]+\.[a-z]{2,})")
+
+
+def _parse_utc(value: object, label: str) -> datetime:
+    if not isinstance(value, str):
+        raise ValueError(f"telemetry timestamp is invalid: {label}")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise ValueError(f"telemetry timestamp is invalid: {label}") from error
+    if parsed.tzinfo is None:
+        raise ValueError(f"telemetry timestamp is invalid: {label}")
+    return parsed
+
+
+def generate_telemetry_fixtures(
+    *,
+    prom_query: Callable[[str], dict],
+    loki_query: Callable[[str], dict],
+    tempo_query: Callable[[], dict],
+    alert_states: dict,
+    kinds: list[str],
+    revision: str,
+    lease_started_at: str,
+) -> dict:
+    """Collect hash-bound telemetry evidence; raw payloads never enter the record."""
+    if list(kinds) != list(TELEMETRY_KINDS):
+        raise ValueError("telemetry kinds must be exactly http,compute,llm,agents,logs,traces,alerts")
+    if not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise ValueError("telemetry revision is invalid")
+    lease_start = _parse_utc(lease_started_at, "lease_started_at")
+    series = prom_query("")
+    if not isinstance(series, dict) or not isinstance(series.get("series"), dict):
+        raise ValueError("telemetry metric series are invalid")
+    metrics: dict[str, dict] = {}
+    for name in REQUIRED_TELEMETRY_METRICS:
+        entry = series["series"].get(name)
+        if not isinstance(entry, dict) or not isinstance(entry.get("labels"), dict):
+            raise ValueError(f"telemetry metric is missing: {name}")
+        labels = entry["labels"]
+        if any(not isinstance(key, str) or key not in STABLE_LABELS for key in labels):
+            raise ValueError(f"telemetry metric label is unknown: {name}")
+        samples = entry.get("samples")
+        if type(samples) is not int or samples < 0:
+            raise ValueError(f"telemetry metric samples are invalid: {name}")
+        metrics[name] = {"labels": dict(labels), "samples": samples}
+    log_scopes = {}
+    for scope in ("application", "system"):
+        count = loki_query(scope).get("count") if isinstance(loki_query(scope), dict) else None
+        if type(count) is not int or count < 0:
+            raise ValueError(f"telemetry log scope count is invalid: {scope}")
+        log_scopes[scope] = count
+    trace_raw = tempo_query()
+    spans = trace_raw.get("spans") if isinstance(trace_raw, dict) else None
+    if not isinstance(spans, list) or [(s.get("span"), s.get("parent")) for s in spans] != list(TRACE_CHAIN):
+        raise ValueError("telemetry trace chain is incomplete or has a new root")
+    if not isinstance(alert_states, dict) or set(alert_states) != set(ALERT_THRESHOLDS):
+        raise ValueError("telemetry alerts must cover exactly the five thresholds")
+    alerts: dict[str, dict] = {}
+    for name in ALERT_THRESHOLDS:
+        state = alert_states[name]
+        if not isinstance(state, dict):
+            raise ValueError(f"telemetry alert is invalid: {name}")
+        pending = _parse_utc(state.get("pending_at"), name)
+        firing = _parse_utc(state.get("firing_at"), name)
+        recovered = _parse_utc(state.get("recovered_at"), name)
+        if not pending < firing < recovered or pending < lease_start:
+            raise ValueError(f"telemetry alert transition is invalid: {name}")
+        alerts[name] = {"pending_at": state["pending_at"], "firing_at": state["firing_at"], "recovered_at": state["recovered_at"]}
+    payload = {
+        "revision": revision, "collected_at": _utcnow(), "lease_started_at": lease_started_at,
+        "kinds": list(kinds), "metrics": metrics, "log_scopes": log_scopes,
+        "trace": {"root": "nginx/chat", "complete": True, "spans": [{"span": s, "parent": p} for s, p in TRACE_CHAIN]},
+        "alerts": alerts,
+    }
+    if _EVIDENCE_SECRET.search(json.dumps(payload, sort_keys=True)):
+        raise ValueError("telemetry evidence contains secret material")
+    return payload
+
+
+def verify_telemetry_evidence(payload: dict, *, lease_started_at: str, root: Path) -> dict:
+    """Fail closed unless machine telemetry proves the required signal."""
+    _ = root
+    if not isinstance(payload, dict):
+        raise ValueError("telemetry evidence must be a JSON object")
+    if not re.fullmatch(r"[0-9a-f]{40}", str(payload.get("revision", ""))):
+        raise ValueError("telemetry revision is invalid")
+    if list(payload.get("kinds", [])) != list(TELEMETRY_KINDS):
+        raise ValueError("telemetry kinds are invalid")
+    metrics = payload.get("metrics")
+    if not isinstance(metrics, dict):
+        raise ValueError("telemetry metrics are invalid")
+    for name in REQUIRED_TELEMETRY_METRICS:
+        entry = metrics.get(name)
+        if not isinstance(entry, dict) or not isinstance(entry.get("labels"), dict):
+            raise ValueError(f"telemetry metric is missing: {name}")
+        if any(key not in STABLE_LABELS for key in entry["labels"]):
+            raise ValueError(f"telemetry metric label is unknown: {name}")
+    scopes = payload.get("log_scopes")
+    if not isinstance(scopes, dict) or set(scopes) != {"application", "system"}:
+        raise ValueError("telemetry log scope separation is invalid")
+    if any(type(value) is not int or value <= 0 for value in scopes.values()):
+        raise ValueError("telemetry log scope separation is invalid")
+    trace = payload.get("trace", {})
+    spans = trace.get("spans") if isinstance(trace, dict) else None
+    if not isinstance(spans, list) or [(s.get("span"), s.get("parent")) for s in spans] != list(TRACE_CHAIN):
+        raise ValueError("telemetry trace chain is incomplete or has a new root")
+    lease_start = _parse_utc(lease_started_at, "lease_started_at")
+    collected = _parse_utc(payload.get("collected_at"), "collected_at")
+    if collected < lease_start:
+        raise ValueError("telemetry collection predates the lease")
+    alerts = payload.get("alerts")
+    if not isinstance(alerts, dict) or set(alerts) != set(ALERT_THRESHOLDS):
+        raise ValueError("telemetry alerts are invalid")
+    for name in ALERT_THRESHOLDS:
+        state = alerts[name]
+        pending = _parse_utc(state.get("pending_at"), name)
+        firing = _parse_utc(state.get("firing_at"), name)
+        recovered = _parse_utc(state.get("recovered_at"), name)
+        if not pending < firing < recovered or pending < lease_start:
+            raise ValueError(f"telemetry alert transition is invalid: {name}")
+    if _EVIDENCE_SECRET.search(json.dumps(payload, sort_keys=True)):
+        raise ValueError("telemetry evidence contains secret material")
+    return {"metrics": len(metrics), "alerts": len(alerts), "trace_complete": True}
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     """Parse the Topic 26 smoke, KEDA, chat, and rollback request."""
 
@@ -384,6 +616,20 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--active-active-replicas", type=int, default=None)
     parser.add_argument("--delete-one-healthy-primary-endpoint", action="store_true")
     parser.add_argument("--namespace", default="edai2")
+    parser.add_argument("--route-manifest", type=Path, default=None)
+    parser.add_argument("--gateway-auth-rate-limit", action="store_true")
+    parser.add_argument("--chat-auth-env", default=None)
+    parser.add_argument("--expected-unauthenticated", type=int, default=None)
+    parser.add_argument("--accepted-rps", type=int, default=None)
+    parser.add_argument("--burst", type=int, default=None)
+    parser.add_argument("--expected-over-limit", type=int, default=None)
+    parser.add_argument("--telemetry-fixtures", default=None)
+    parser.add_argument("--prom-url", default=None)
+    parser.add_argument("--loki-url", default=None)
+    parser.add_argument("--tempo-url", default=None)
+    parser.add_argument("--lease-started-at", default=None)
+    parser.add_argument("--verify-telemetry", type=Path, default=None)
+    parser.add_argument("--commit-sha", default=None)
     return parser.parse_args(argv)
 
 
@@ -397,6 +643,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit("--kubeconfig and --context are required together")
     live_requested = bool(
         args.keda_ha or args.agent_chats or args.inject_helm_failure or args.inject_model_failure or args.verify_readyz
+        or args.gateway_auth_rate_limit or args.telemetry_fixtures or args.verify_telemetry
     )
     if live_requested and not args.strict:
         raise SystemExit("live evidence requires --strict")
@@ -404,6 +651,149 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit("--release is dry-run only; drop it for live evidence")
     live = _live_runner_module()
     wrote: dict = {}
+    if args.gateway_auth_rate_limit:
+        import base64
+        import os
+
+        import yaml
+
+        for name in ("route_manifest", "chat_auth_env", "expected_unauthenticated",
+                      "accepted_rps", "burst", "expected_over_limit", "output"):
+            if getattr(args, name) is None:
+                raise SystemExit(f"--gateway-auth-rate-limit requires --{name.replace('_', '-')}")
+        try:
+            documents = [item for item in yaml.safe_load_all(Path(args.route_manifest).read_text(encoding="utf-8")) if item]
+            hosts = [doc["spec"]["rules"][0]["host"] for doc in documents]
+            chat_hosts = [host for host in hosts if host.split(".")[0] == "chat"]
+            if len(chat_hosts) != 1:
+                raise ValueError("route manifest must hold exactly one chat host")
+        except (OSError, ValueError, KeyError, IndexError, TypeError) as error:
+            raise SystemExit(f"route manifest is invalid: {error}") from error
+        credentials = os.environ.get(args.chat_auth_env, "")
+        if ":" not in credentials:
+            raise SystemExit("--chat-auth-env must name a user:password variable")
+        token = base64.b64encode(credentials.encode("utf-8")).decode("ascii")
+
+        def authed_get(url: str, headers: dict | None) -> dict:
+            request = urllib.request.Request(url, headers=dict(headers or {}))
+            try:
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    return {"status": response.status}
+            except urllib.error.HTTPError as error:
+                return {"status": error.code}
+
+        try:
+            evidence = prove_gateway_auth_rate_limit(
+                http_get=authed_get,
+                chat_url=f"https://{chat_hosts[0]}/v1/chat",
+                auth_headers={"Authorization": f"Basic {token}"},
+                expected_unauthenticated=args.expected_unauthenticated,
+                accepted_rps=args.accepted_rps,
+                burst=args.burst,
+                expected_over_limit=args.expected_over_limit,
+            )
+        except ValueError as error:
+            raise SystemExit(f"gateway probe failed: {error}") from error
+        _write_evidence(args.output, evidence)
+        wrote["gateway_auth_rate_limit"] = str(args.output)
+    if args.verify_telemetry is not None:
+        if not args.strict or args.lease_started_at is None:
+            raise SystemExit("--verify-telemetry requires --lease-started-at --strict")
+        try:
+            payload = json.loads(Path(args.verify_telemetry).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise SystemExit(f"telemetry evidence is unreadable: {error}") from error
+        try:
+            result = verify_telemetry_evidence(payload, lease_started_at=args.lease_started_at, root=Path("."))
+        except ValueError as error:
+            raise SystemExit(f"telemetry verification failed: {error}") from error
+        print(json.dumps({"telemetry_verified": result}, sort_keys=True))
+        return 0
+    if args.telemetry_fixtures:
+        import urllib.parse
+
+        for name in ("output", "prom_url", "loki_url", "tempo_url", "lease_started_at"):
+            if getattr(args, name) is None:
+                raise SystemExit(f"--telemetry-fixtures requires --{name.replace('_', '-')}")
+        if not args.strict:
+            raise SystemExit("--telemetry-fixtures requires --strict")
+
+        def prom_query(_: str) -> dict:
+            series: dict[str, dict] = {}
+            for metric in REQUIRED_TELEMETRY_METRICS:
+                query = urllib.parse.urlencode({"query": metric})
+                with urllib.request.urlopen(f"{args.prom_url}/api/v1/query?{query}", timeout=30) as response:
+                    result = json.loads(response.read().decode("utf-8"))["data"]["result"]
+                if not result:
+                    raise ValueError(f"telemetry metric has no series: {metric}")
+                series[metric] = {"labels": dict(result[0]["metric"]), "samples": len(result[0].get("values", []))}
+            return {"series": series}
+
+        def loki_query(scope: str) -> dict:
+            query = urllib.parse.urlencode({"query": f'{{log_scope="{scope}"}}', "limit": "1000"})
+            with urllib.request.urlopen(f"{args.loki_url}/loki/api/v1/query_range?{query}", timeout=30) as response:
+                result = json.loads(response.read().decode("utf-8"))["data"]["result"]
+            return {"count": sum(len(stream.get("values", [])) for stream in result)}
+
+        def tempo_query() -> dict:
+            with urllib.request.urlopen(f"{args.tempo_url}/api/search?tags=http.status_code%3D200", timeout=30) as response:
+                traces = json.loads(response.read().decode("utf-8")).get("traces", [])
+            if not traces:
+                raise ValueError("telemetry trace search is empty")
+            with urllib.request.urlopen(f"{args.tempo_url}/api/traces/{traces[0]['traceID']}", timeout=30) as response:
+                batches = json.loads(response.read().decode("utf-8")).get("batches", [])
+            names: dict[str, str] = {}
+            links: dict[str, str | None] = {}
+            order: list[str] = []
+            for batch in batches:
+                scope_spans = batch.get("scopeSpans") or [{"spans": batch.get("spans", [])}]
+                for scope in scope_spans:
+                    for span in scope.get("spans", []):
+                        span_id = span.get("spanId", "")
+                        parent = span.get("parentSpanId", "") or None
+                        if parent is not None and set(parent) == {"0"}:
+                            parent = None
+                        names[span_id] = span.get("name", "")
+                        links[span_id] = parent
+                        order.append(span_id)
+            if not order:
+                raise ValueError("telemetry trace has no spans")
+            parents = {span_id: (names.get(parent) if parent else None) for span_id, parent in links.items()}
+            return {"spans": [{"span": names[span_id], "parent": parents[span_id]} for span_id in order]}
+
+        try:
+            window = urllib.parse.urlencode({
+                "query": "ALERTS", "start": args.lease_started_at,
+                "end": datetime.now(UTC).isoformat(), "step": "60s",
+            })
+            with urllib.request.urlopen(f"{args.prom_url}/api/v1/query_range?{window}", timeout=30) as response:
+                alert_series = json.loads(response.read().decode("utf-8"))["data"]["result"]
+            alert_states: dict[str, dict] = {}
+            for series in alert_series:
+                metric = series.get("metric", {})
+                name = metric.get("alertname", "")
+                if name not in ALERT_THRESHOLDS:
+                    continue
+                pending = firing = recovered = None
+                for timestamp, state in series.get("values", []):
+                    moment = datetime.fromtimestamp(float(timestamp), UTC).isoformat()
+                    if state == "1" and metric.get("alertstate") == "pending" and pending is None:
+                        pending = moment
+                    if state == "1" and metric.get("alertstate") == "firing":
+                        if firing is None:
+                            firing = moment
+                        recovered = moment
+                if pending and firing:
+                    alert_states[name] = {"pending_at": pending, "firing_at": firing, "recovered_at": recovered or firing}
+            payload = generate_telemetry_fixtures(
+                prom_query=prom_query, loki_query=loki_query, tempo_query=tempo_query,
+                alert_states=alert_states, kinds=args.telemetry_fixtures.split(","),
+                revision=args.commit_sha or "", lease_started_at=args.lease_started_at,
+            )
+        except ValueError as error:
+            raise SystemExit(f"telemetry collection failed: {error}") from error
+        _write_evidence(args.output, payload)
+        wrote["telemetry_fixtures"] = str(args.output)
     if args.keda_ha:
         for name in ("agents", "api_min", "api_max", "worker_min", "worker_max",
                       "threshold_rps", "overlapping_sessions", "output", "chat_base_url",

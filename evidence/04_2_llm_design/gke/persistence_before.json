@@ -1,0 +1,249 @@
+{
+  "captured_at": "2026-10-18T16:17:50.066436+00:00",
+  "revision": "e651a86dfb7d509c28c58fe0116cddd3cf6ea1a5",
+  "subsystems": {
+    "agent_registry": {
+      "reason": "agent_registry reader pending owning-topic accessor contract",
+      "status": "deferred"
+    },
+    "clickhouse_langfuse": {
+      "reason": "clickhouse_langfuse reader pending owning-topic accessor contract",
+      "status": "deferred"
+    },
+    "feast": {
+      "reason": "feast reader pending owning-topic accessor contract",
+      "status": "deferred"
+    },
+    "observability": {
+      "reason": "observability reader pending owning-topic accessor contract",
+      "status": "deferred"
+    },
+    "opensearch_datahub": {
+      "reason": "opensearch_datahub reader pending owning-topic accessor contract",
+      "status": "deferred"
+    },
+    "pvc": {
+      "edai2/data-clickhouse-keeper-0": "4797166e-7944-4c89-9fd1-f64f3246b8e8",
+      "edai2/data-clickhouse-shard0-0": "a97c72bd-efa8-4c15-bd58-5cc113656180",
+      "edai2/data-postgres-postgresql-0": "3ab64b32-2132-4f3e-917f-c5ec4aef9d18",
+      "edai2/datadir-redpanda-0": "5fb0021c-44fb-48df-b045-3aded9456bfe",
+      "edai2/jenkins": "ad0bf1e2-e5b4-45bd-8932-d9d8304b4f01",
+      "edai2/logs-airflow-triggerer-0": "71966642-dd4a-4afd-a80f-7971d2cbc92b",
+      "edai2/logs-airflow-worker-0": "44c5e7ee-1f9b-434d-8108-b830867e81b8",
+      "edai2/opensearch-cluster-master-opensearch-cluster-master-0": "07b8e1d4-34fd-431c-887a-0da78f91f210",
+      "edai2/redis-db-airflow-redis-0": "2ae517cd-9f8d-4ad1-a5aa-fff6c6a5a0dd",
+      "edai2/valkey-data-valkey-primary-0": "fea3e98b-51aa-4037-8a1a-07723956ac99",
+      "vault/data-vault-0": "84bbb81c-282b-4d8f-98c3-551d020fddb0"
+    },
+    "redpanda": {
+      "reason": "redpanda reader pending owning-topic accessor contract",
+      "status": "deferred"
+    },
+    "substrate_valkey": {
+      "reason": "substrate_valkey reader pending owning-topic accessor contract",
+      "status": "deferred"
+    },
+    "workloads": {
+      "edai2/agentregistry": {
+        "generation": 15,
+        "replicas": 1
+      },
+      "edai2/airflow-redis": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/airflow-scheduler": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/airflow-statsd": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/airflow-triggerer": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/airflow-webserver": {
+        "generation": 22,
+        "replicas": 1
+      },
+      "edai2/airflow-worker": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/ate-api-server-deployment": {
+        "generation": 14,
+        "replicas": 1
+      },
+      "edai2/ate-controller": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "edai2/atenet-router": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "edai2/clickhouse-keeper": {
+        "generation": 24,
+        "replicas": 1
+      },
+      "edai2/clickhouse-shard0": {
+        "generation": 26,
+        "replicas": 1
+      },
+      "edai2/coordinator": {
+        "generation": 1,
+        "replicas": 1
+      },
+      "edai2/datahub-acryl-datahub-actions": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/datahub-datahub-frontend": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/datahub-datahub-gms": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/dns": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "edai2/drift-agent": {
+        "generation": 1,
+        "replicas": 1
+      },
+      "edai2/edai2-private-gateway": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "edai2/feast-feature-server": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/feast-offline-writer": {
+        "generation": 1,
+        "replicas": 1
+      },
+      "edai2/feast-online-writer": {
+        "generation": 1,
+        "replicas": 1
+      },
+      "edai2/feast-redis-master": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/grafana": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/jenkins": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "edai2/langfuse-web": {
+        "generation": 23,
+        "replicas": 1
+      },
+      "edai2/langfuse-worker": {
+        "generation": 22,
+        "replicas": 1
+      },
+      "edai2/llmd-comparison": {
+        "generation": 1,
+        "replicas": 0
+      },
+      "edai2/llmd-primary": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "edai2/loki": {
+        "generation": 22,
+        "replicas": 1
+      },
+      "edai2/loki-chunks-cache": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/loki-gateway": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/loki-results-cache": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/opensearch-cluster-master": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/postgres-postgresql": {
+        "generation": 22,
+        "replicas": 1
+      },
+      "edai2/prometheus-alertmanager": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/prometheus-kube-state-metrics": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/prometheus-prometheus-pushgateway": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/prometheus-server": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/rag-index": {
+        "generation": 1,
+        "replicas": 1
+      },
+      "edai2/redpanda": {
+        "generation": 23,
+        "replicas": 1
+      },
+      "edai2/redpanda-console": {
+        "generation": 22,
+        "replicas": 1
+      },
+      "edai2/retrieval-agent": {
+        "generation": 1,
+        "replicas": 1
+      },
+      "edai2/tempo": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/valkey-primary": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "kagent/edai2-agents-deployment": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "kagent/kagent-controller": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "kagent/kagent-ui": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "vault/vault": {
+        "generation": 86,
+        "replicas": 1
+      },
+      "vault/vault-agent-injector": {
+        "generation": 19,
+        "replicas": 1
+      }
+    }
+  }
+}

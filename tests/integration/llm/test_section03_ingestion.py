@@ -373,6 +373,20 @@ def test_loader_cli_fails_closed_for_missing_or_invalid_activation_factory(capsy
     assert json.loads(capsys.readouterr().out)["status"] == "failed"
 
 
+def test_loader_cli_rejects_gcs_upload_without_verified_gcs_input(capsys: pytest.CaptureFixture[str]) -> None:
+    """No GCS path validator exists in-repo; uploader flags must fail closed naming the missing input."""
+    cli = _loader_cli()
+    assert cli.main(
+        ["--manifest", str(MANIFEST), "--strict", "--verify-only",
+         "--gcs-prefix", "gs://example-bucket/section03/", "--upload-only", "--verify-upload"],
+    ) == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "failed"
+    assert "GCS" in (payload["error"] or "") or "gcs" in (payload["error"] or "").lower()
+    assert "verified" in (payload["error"] or "").lower()
+    assert "upload.json" in (payload["error"] or "")
+
+
 def test_section03_migration_preserves_exact_columns_constraints_and_btree_indexes() -> None:
     migration = (REPO_ROOT / "infra" / "postgres" / "edai2" / "003_section03_features.sql").read_text(encoding="utf-8").lower()
     for column in ("label_sha256", "stddev_value", "warning_flag", "alert_flag"):

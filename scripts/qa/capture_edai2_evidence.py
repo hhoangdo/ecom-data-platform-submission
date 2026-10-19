@@ -102,8 +102,52 @@ TOPIC26_CAPTURES = {
         "does_not_prove": "It does not prove distinct actor placement; machine evidence does.",
     },
 }
+UI_SETS = {"gateway-observability": (
+    "grafana_http", "grafana_compute", "grafana_llm", "grafana_agents", "grafana_ab",
+    "loki_app_logs", "tempo_trace", "langfuse_trace", "nginx_tls", "chat_auth_rate_limit",
+)}
+UI_SET_SPECS = {
+    "grafana_http": ("grafana", "EDAI2 HTTP RPS/count/failure panels are visible.", "It does not prove alert transitions; telemetry fixtures do."),
+    "grafana_compute": ("grafana", "EDAI2 Compute CPU/RAM/disk/network panels are visible.", "It does not prove capacity headroom."),
+    "grafana_llm": ("grafana", "EDAI2 LLM generation/RTT/TTFT/safety panels are visible.", "It does not prove generation latency gates."),
+    "grafana_agents": ("grafana", "EDAI2 Agents agent/tool call and failure panels are visible.", "It does not prove distinct actor placement."),
+    "grafana_ab": ("grafana", "EDAI2 A-B assignment/arm dashboard is visible; final arm data lands with Topic 29.", "It does not prove the A/B decision."),
+    "loki_app_logs": ("grafana", "Application log_scope rows are visible without merged system logs.", "It does not prove system log health."),
+    "tempo_trace": ("grafana", "Branched Tempo trace with a single root is visible.", "It does not prove every hop latency."),
+    "langfuse_trace": ("langfuse", "Langfuse trace/session with redacted I/O is visible.", "It does not prove model quality."),
+    "nginx_tls": ("retrieval", "HTTPS origin with a valid certificate indicator is visible.", "It does not prove rate limiting; the chat view does."),
+    "chat_auth_rate_limit": ("chat", "401 rejection and 429 rate-limit evidence is visible.", "It does not prove accepted traffic shape."),
+}
+JENKINS_PAGES = {
+    "jenkins_rag_index": "edai2-rag-index",
+    "jenkins_retrieval_agent": "edai2-retrieval-agent",
+    "jenkins_drift_agent": "edai2-drift-agent",
+    "jenkins_coordinator": "edai2-coordinator",
+    "jenkins_feast_offline": "edai2-feast-offline-writer",
+    "jenkins_feast_online": "edai2-feast-online-writer",
+}
+REPORT_VIEWS = (
+    "coverage_and_api_fixtures.png", "ep_bva.png", "mutation.png",
+    "properties_crosshair.png", "locust_report.png",
+)
+TOPIC_SCREENSHOT_SETS = {    27: (
+        "grafana_http.png", "grafana_compute.png", "grafana_llm.png", "grafana_agents.png",
+        "grafana_ab.png", "loki_app_logs.png", "tempo_trace.png", "langfuse_trace.png",
+        "nginx_tls.png", "chat_auth_rate_limit.png", "jenkins_rag_index.png",
+        "jenkins_retrieval_agent.png", "jenkins_drift_agent.png", "jenkins_coordinator.png",
+        "jenkins_feast_offline.png", "jenkins_feast_online.png",
+    ),
+    28: ("airflow_rag_graph.png", "datahub_rag_lineage.png"),
+    29: (
+        "kagent_retrieval_chat.png", "kagent_drift_chat.png", "kagent_coordinator_chat.png",
+        "coverage_and_api_fixtures.png", "ep_bva.png", "mutation.png",
+        "properties_crosshair.png", "locust_report.png",
+    ),
+    30: ("vault_status.png",),
+}
 _PNG = b"\x89PNG\r\n\x1a\n"
 _SECRET = re.compile(r"(?i)(password|token|secret|api[_-]?key|customer[_-]?id|bearer|authorization|[\w.+-]+@[\w.-]+\.[a-z]{2,})")
+_TELEMETRY_SECRET = re.compile(r"(?i)(password|secret|api[_-]?key|customer[_-]?id|token\s*[:=]|bearer|authorization|[\w.+-]+@[\w.-]+\.[a-z]{2,})")
 _SECRET_KEY = re.compile(r"(?i)(password|token|secret|api[_-]?key|customer[_-]?id|bearer|authorization)")
 _SECRET_VALUE = re.compile(r"(?i)(password|token|api[_-]?key|customer[_-]?id|bearer|authorization|^secret$)")
 _EMAIL_VALUE = re.compile(r"(?i)[\w.+-]+@[\w.-]+\.[a-z]{2,}")
@@ -1539,6 +1583,56 @@ def validate_observability_contract(root: Path) -> None:
                     raise ValueError("dashboard merges log scopes")
 
 
+def verify_jenkins_evidence(
+    payload: dict,
+    *,
+    expected_commit: str,
+    expected_jobs: int,
+    require_buildkit_serialization: bool,
+    require_wave_order: bool,
+) -> dict[str, object]:
+    """Fail closed unless existing Jenkins records are immutable and wave-ordered.
+
+    BuildKit serialization is the build/push/deploy digest chain: the image tag
+    must pin the expected commit and remote, pod, and expected digests must be
+    identical, proving no rebuild relabeled the tag. Wave order is the exact
+    ordered partition of job workloads across waves.
+    """
+    if not isinstance(payload, dict):
+        raise ValueError("Jenkins evidence must be a JSON object")
+    commit = payload.get("commit_sha")
+    jobs = payload.get("jobs")
+    waves = payload.get("waves")
+    if commit != expected_commit:
+        raise ValueError("Jenkins evidence commit mismatch")
+    if not isinstance(jobs, list) or len(jobs) != expected_jobs:
+        raise ValueError("Jenkins evidence job count mismatch")
+    for job in jobs:
+        if not isinstance(job, dict) or job.get("commit_sha") != expected_commit:
+            raise ValueError("Jenkins evidence commit mismatch")
+        if require_buildkit_serialization:
+            if job.get("digest_match") is not True:
+                raise ValueError("Jenkins evidence digest mismatch")
+            remote = job.get("remote_digest")
+            pod = job.get("pod_image_digest")
+            expected = job.get("expected_digest")
+            image = job.get("image")
+            if not (isinstance(remote, str) and remote == pod == expected):
+                raise ValueError("Jenkins evidence digest chain is not serialized")
+            if not (isinstance(image, str) and image.endswith(":" + expected_commit)):
+                raise ValueError("Jenkins evidence image does not pin the commit")
+    if require_wave_order:
+        if not isinstance(waves, list) or not waves or not all(isinstance(wave, str) and wave for wave in waves):
+            raise ValueError("Jenkins evidence waves are invalid")
+        ordered = [entry for wave in waves for entry in wave.split(",")]
+        workloads = [job.get("workload") for job in jobs]
+        if len(ordered) != len(workloads) or len(set(ordered)) != len(ordered):
+            raise ValueError("Jenkins evidence wave coverage is invalid")
+        if ordered != workloads:
+            raise ValueError("Jenkins evidence wave order is violated")
+    return {"commit_sha": expected_commit, "jobs": len(jobs)}
+
+
 def _validate_gke_target(kubeconfig: Path, context: str) -> None:
     if not kubeconfig.is_absolute() or not kubeconfig.is_file():
         raise ValueError("absolute readable kubeconfig is required")
@@ -1670,7 +1764,12 @@ def _validate_existing_entry(entry: dict[str, object], root: Path, revision: str
     if timestamp is None or timestamp.tzinfo is None or timestamp < now.replace(hour=0, minute=0, second=0, microsecond=0) or timestamp > now:
         raise ValueError("manifest entry is invalid")
     source = entry["url_or_source"]
-    if not isinstance(source, str) or not source.startswith("https://") or _BAD_PAGE.search(source) or _SECRET.search(source):
+    if not isinstance(source, str) or _BAD_PAGE.search(source) or _SECRET.search(source):
+        raise ValueError("manifest entry is invalid")
+    if relative in REPORT_VIEWS:
+        if not source.startswith("file://"):
+            raise ValueError("manifest entry is invalid")
+    elif not source.startswith("https://"):
         raise ValueError("manifest entry is invalid")
     if entry["commit_or_revision"] != revision or not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise ValueError("manifest entry is invalid")
@@ -1720,11 +1819,28 @@ def _validate_existing_entry(entry: dict[str, object], root: Path, revision: str
         raise ValueError("manifest entry is invalid")
 
 
+def record_rendered_capture(*, final_path: Path, root: Path, writer: Callable[[Path], None], source: str, revision: str, visible_selectors: list[str], machine_evidence: list[str], proves: str, does_not_prove: str, manifest_path: Path, workspace: Path | None = None, replace: Callable[[Path, Path], None] = os.replace) -> dict[str, object]:
+    """Record a locally rendered executed-result view; source is its file URL."""
+    if not source.startswith("file://"):
+        raise ValueError("rendered capture source must be a file URL")
+    if Path(final_path).name not in REPORT_VIEWS:
+        raise ValueError("rendered capture is limited to executed-result views")
+    return record_capture(
+        final_path=final_path, root=root, writer=writer, source=source, revision=revision,
+        visible_selectors=visible_selectors, machine_evidence=machine_evidence,
+        proves=proves, does_not_prove=does_not_prove, manifest_path=manifest_path,
+        workspace=workspace, replace=replace,
+    )
+
+
 def record_capture(*, final_path: Path, root: Path, writer: Callable[[Path], None], source: str, revision: str, visible_selectors: list[str], machine_evidence: list[str], proves: str, does_not_prove: str, manifest_path: Path, workspace: Path | None = None, replace: Callable[[Path, Path], None] = os.replace) -> dict[str, object]:
     root, final_path, manifest_path = root.resolve(), final_path.resolve(), manifest_path.resolve()
     workspace = (Path.cwd() if workspace is None else workspace).resolve()
     expected = REQUIRED_VIEWS.get(final_path.name)
-    safe_source = source.startswith("https://") and not _BAD_PAGE.search(source) and not _SECRET.search(source)
+    if final_path.name in REPORT_VIEWS:
+        safe_source = source.startswith("file://") and not _BAD_PAGE.search(source) and not _SECRET.search(source)
+    else:
+        safe_source = source.startswith("https://") and not _BAD_PAGE.search(source) and not _SECRET.search(source)
     safe_lists = visible_selectors == expected and all(isinstance(item, str) and item for item in machine_evidence)
     if root not in final_path.parents or root not in manifest_path.parents or expected is None or not safe_source or not re.fullmatch(r"[0-9a-f]{40}", revision) or not safe_lists or not machine_evidence or not proves or not does_not_prove or len(proves) > 500 or len(does_not_prove) > 500 or _SECRET.search(proves + does_not_prove):
         raise ValueError("capture metadata is unsafe or incomplete")
@@ -1819,10 +1935,12 @@ def _anonymous_page_factory():
 
 
 def _tunnel_page_writer(
-    url: str, selectors: list[str], page_factory: Callable[[], object] | None = None
+    url: str, selectors: list[str], page_factory: Callable[[], object] | None = None,
+    secret_pattern: re.Pattern[str] | None = None,
 ) -> Callable[[Path], None]:
     """Capture one tunneled private UI after asserting required selectors."""
     factory = page_factory or _anonymous_page_factory
+    forbidden = secret_pattern or _SECRET
 
     def writer(destination: Path) -> None:
         page = factory()
@@ -1830,7 +1948,7 @@ def _tunnel_page_writer(
         try:
             page.goto(url, wait_until="networkidle", timeout=60_000)
             body = page.locator("body").inner_text(timeout=10_000)
-            if _BAD_PAGE.search(body) or _SECRET.search(body) or re.search(r"\b\d{4,}[- ]\d{4,}[- ]\d{4,}\b", body):
+            if _BAD_PAGE.search(body) or forbidden.search(body) or re.search(r"\b\d{4,}[- ]\d{4,}[- ]\d{4,}\b", body):
                 raise ValueError("tunneled page is unsafe")
             missing = [selector for selector in selectors if selector.lower() not in body.lower()]
             if missing:
@@ -1861,6 +1979,1006 @@ def verify_topic26_screenshots(
     actual = {entry["path"] for entry in entries}
     if not set(names).issubset(actual):
         raise ValueError("Topic 26 screenshot is missing")
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _route_hosts(manifest_path: Path) -> dict[str, str]:
+    """Read route hosts from an ingress route manifest (YAML multi-doc)."""
+    try:
+        documents = [item for item in yaml.safe_load_all(manifest_path.read_text(encoding="utf-8")) if item]
+    except (OSError, yaml.YAMLError) as error:
+        raise ValueError("route manifest is invalid") from error
+    hosts: dict[str, str] = {}
+    for document in documents:
+        try:
+            host = document["spec"]["rules"][0]["host"]
+        except (KeyError, IndexError, TypeError) as error:
+            raise ValueError("route manifest is invalid") from error
+        if not isinstance(host, str) or "." not in host:
+            raise ValueError("route manifest is invalid")
+        hosts[host.split(".")[0]] = host
+    if not hosts:
+        raise ValueError("route manifest is invalid")
+    return hosts
+
+
+def _ui_set_machine_files(machine_root: Path, names: list[str]) -> dict[str, list[Path]]:
+    """Resolve machine evidence per UI name; optional A-B files attach when present."""
+    telemetry = machine_root / "observability/telemetry.json"
+    rate_limit = machine_root / "gateway/https_rate_limit.json"
+    agent_ab = machine_root / "evaluation/agent_ab.json"
+    model_ab = machine_root / "evaluation/model_ab.json"
+    if not telemetry.is_file() or not rate_limit.is_file():
+        raise ValueError("UI set machine evidence is missing")
+    files: dict[str, list[Path]] = {}
+    for name in names:
+        if name == "chat_auth_rate_limit":
+            files[name] = [rate_limit]
+        elif name == "grafana_ab" and agent_ab.is_file() and model_ab.is_file():
+            files[name] = [telemetry, agent_ab, model_ab]
+        else:
+            files[name] = [telemetry]
+    return files
+
+
+def _authenticated_page_factory(storage_state: Path) -> object:
+    from playwright.sync_api import sync_playwright
+
+    if not storage_state.is_file():
+        raise ValueError("browser storage state is missing")
+    manager = sync_playwright().start()
+    browser = manager.chromium.launch()
+    context = browser.new_context(viewport={"width": 1600, "height": 1000}, storage_state=str(storage_state))
+    page = context.new_page()
+    page._topic27_resources = (context, browser, manager)  # type: ignore[attr-defined]
+    return page
+
+
+def _parse_named_urls(value: str) -> dict[str, str]:
+    """Parse name=url pairs; URLs stay explicit so no address is ever guessed."""
+    pairs = [item.split("=", 1) for item in value.split(",") if item] if value else []
+    if not pairs or any(len(pair) != 2 or not pair[0] or not pair[1] for pair in pairs):
+        raise ValueError("named URLs are invalid")
+    urls = dict(pairs)
+    if len(urls) != len(pairs):
+        raise ValueError("named URLs are invalid")
+    return urls
+
+
+def capture_ui_set(
+    *,
+    names: list[str],
+    urls: dict[str, str],
+    machine_files: dict[str, list[Path]],
+    screenshots_dir: Path,
+    manifest_path: Path,
+    revision: str,
+    page_factory: Callable[[], object],
+    workspace: Path | None = None,
+) -> list[dict[str, object]]:
+    """Capture one named UI set; every URL is explicit and host-checked by the caller."""
+    expected = UI_SETS["gateway-observability"]
+    if len(names) != len(expected) or set(names) != set(expected):
+        raise ValueError("UI set names must be exactly the gateway-observability set")
+    if set(urls) != set(names) or any(not url.startswith("https://") for url in urls.values()):
+        raise ValueError("UI set URL map is invalid")
+    if set(machine_files) != set(names) or any(not files for files in machine_files.values()):
+        raise ValueError("UI set machine evidence is invalid")
+    screenshots_dir.mkdir(parents=True, exist_ok=True)
+    entries = []
+    for name in names:
+        filename = name + ".png"
+        route, proves, does_not_prove = UI_SET_SPECS[name]
+        host = urls[name].split("://", 1)[1].split("/", 1)[0]
+        if host.split(".")[0] != route:
+            raise ValueError(f"UI set URL host does not match route {route}")
+        entries.append(record_capture(
+            final_path=screenshots_dir / filename, root=screenshots_dir,
+            writer=_tunnel_page_writer(urls[name], REQUIRED_VIEWS[filename], page_factory, _TELEMETRY_SECRET),
+            source=urls[name], revision=revision, visible_selectors=REQUIRED_VIEWS[filename],
+            machine_evidence=[str(path) for path in machine_files[name]],
+            proves=proves, does_not_prove=does_not_prove,
+            manifest_path=manifest_path, workspace=workspace,
+        ))
+    return entries
+
+
+def capture_jenkins_six_pages(
+    *,
+    jobs_path: Path,
+    urls: dict[str, str],
+    screenshots_dir: Path,
+    manifest_path: Path,
+    revision: str,
+    page_factory: Callable[[], object],
+    workspace: Path | None = None,
+    fetch_urls: dict[str, str] | None = None,
+) -> list[dict[str, object]]:
+    """Capture six Jenkins pages in one browser session without rebuilding.
+
+    The single page object is created once and reused; any replay/rebuild URL
+    fails closed, and job identities must match the verified machine record.
+    Recorded URLs use the https loopback form of the Topic 26 tunnel precedent;
+    fetch_urls optionally names the plaintext loopback fetch address.
+    """
+    if set(urls) != set(JENKINS_PAGES):
+        raise ValueError("Jenkins URL map must name exactly the six owned pages")
+    for url in urls.values():
+        lowered = url.lower()
+        if not url.startswith("https://") or "replay" in lowered or "rebuild" in lowered or "buildnow" in lowered:
+            raise ValueError("Jenkins rebuild action is forbidden")
+    try:
+        payload = json.loads(jobs_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("Jenkins machine evidence is invalid") from error
+    known = {job.get("job") for job in payload.get("jobs", [])} if isinstance(payload, dict) else set()
+    if any(JENKINS_PAGES[name] not in known for name in JENKINS_PAGES):
+        raise ValueError("Jenkins job identity is not in the verified record")
+    for name, url in urls.items():
+        if JENKINS_PAGES[name] not in url:
+            raise ValueError("Jenkins URL does not address its verified job")
+    screenshots_dir.mkdir(parents=True, exist_ok=True)
+    page = page_factory()
+    fetch = fetch_urls or {}
+    entries = []
+    for name in JENKINS_PAGES:
+        filename = name + ".png"
+        job = JENKINS_PAGES[name]
+        entries.append(record_capture(
+            final_path=screenshots_dir / filename, root=screenshots_dir,
+            writer=_tunnel_page_writer(fetch.get(name, urls[name]), REQUIRED_VIEWS[filename], lambda: page, _TELEMETRY_SECRET),
+            source=urls[name], revision=revision, visible_selectors=REQUIRED_VIEWS[filename],
+            machine_evidence=[str(jobs_path)],
+            proves=f"Jenkins {job} build page shows SUCCESS at the common commit.",
+            does_not_prove="It does not prove a rebuild; no build was triggered.",
+            manifest_path=manifest_path, workspace=workspace,
+        ))
+    return entries
+
+
+def _render_report_html(title: str, rows: list[tuple[str, str]]) -> str:
+    """Render one executed-result table; every cell is escaped, nothing executes."""
+    import html as _html
+
+    cells = "".join(
+        f"<tr><th>{_html.escape(key)}</th><td>{_html.escape(value)}</td></tr>" for key, value in rows
+    )
+    return f"<!DOCTYPE html><html><head><meta charset='utf-8'><title>{_html.escape(title)}</title></head><body><h1>{_html.escape(title)}</h1><table>{cells}</table></body></html>"
+
+
+REPORT_PROVES = {
+    "coverage_and_api_fixtures": ("Coverage report with totals and suite identity is visible.", "It does not prove mutation quality."),
+    "ep_bva": ("Boundary partition report with passing totals is visible.", "It does not prove production behavior."),
+    "mutation": ("Mutation score with classified status counts is visible.", "It does not prove coverage."),
+    "properties_crosshair": ("Property and bounded CrossHair report is visible.", "It does not prove exhaustive verification."),
+    "locust_report": ("Locust totals, p95, and run duration are visible.", "It does not prove production load shape."),
+}
+
+
+def capture_report_view(
+    *,
+    name: str,
+    html_title: str,
+    rows: list[tuple[str, str]],
+    machine_files: list[Path],
+    screenshots_dir: Path,
+    manifest_path: Path,
+    revision: str,
+    page_factory: Callable[[], object],
+    workspace: Path | None = None,
+) -> dict[str, object]:
+    """Screenshot one rendered executed-result report and link its machine JSON."""
+    filename = name + ".png"
+    if filename not in REPORT_VIEWS or filename not in REQUIRED_VIEWS:
+        raise ValueError("report view is unknown")
+    if not rows or not machine_files:
+        raise ValueError("report view needs rows and machine evidence")
+    screenshots_dir.mkdir(parents=True, exist_ok=True)
+    html_path = screenshots_dir / f".{name}.report.html"
+    html_path.write_text(_render_report_html(html_title, rows), encoding="utf-8")
+    proves, does_not_prove = REPORT_PROVES[name]
+    return record_rendered_capture(
+        final_path=screenshots_dir / filename, root=screenshots_dir,
+        writer=_tunnel_page_writer(html_path.as_uri(), REQUIRED_VIEWS[filename], page_factory, _TELEMETRY_SECRET),
+        source=html_path.as_uri(), revision=revision, visible_selectors=REQUIRED_VIEWS[filename],
+        machine_evidence=[str(path) for path in machine_files],
+        proves=proves, does_not_prove=does_not_prove,
+        manifest_path=manifest_path, workspace=workspace,
+    )
+
+
+def capture_agent_chats(
+    *,
+    agents: list[str],
+    urls: dict[str, str],
+    chat_post: Callable[[str, str], dict],
+    registry_path: Path,
+    notebooks: dict[str, Path],
+    https_evidence: Path,
+    chat_evidence_path: Path,
+    screenshots_dir: Path,
+    manifest_path: Path,
+    revision: str,
+    page_factory: Callable[[], object],
+    workspace: Path | None = None,
+) -> list[dict[str, object]]:
+    """Chat each agent once over the routed endpoint, then capture its live chat view.
+
+    Transcripts enter a machine evidence JSON; screenshots show the live chat UI,
+    so every required selector must be genuinely visible — never rendered in.
+    """
+    expected = ["retrieval", "drift", "coordinator"]
+    if list(agents) != expected:
+        raise ValueError("agent chats must cover retrieval, drift, and coordinator")
+    if set(urls) != set(agents) or any(not url.startswith("https://") for url in urls.values()):
+        raise ValueError("agent chat URL map is invalid")
+    try:
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("agent registry evidence is invalid") from error
+    if not isinstance(registry, dict):
+        raise ValueError("agent registry evidence is invalid")
+    for agent in agents:
+        notebook = notebooks.get(agent)
+        if agent in ("retrieval", "drift") and (notebook is None or not notebook.is_file()):
+            raise ValueError(f"agent notebook evidence is missing: {agent}")
+    screenshots_dir.mkdir(parents=True, exist_ok=True)
+    transcripts: dict[str, dict] = {}
+    for agent in agents:
+        transcript = chat_post(agent, f"Hello {agent}, summarize order status with citations.")
+        if not isinstance(transcript, dict):
+            raise ValueError(f"agent chat response is invalid: {agent}")
+        for field in ("version", "request", "route", "tool", "answer"):
+            if not transcript.get(field):
+                raise ValueError(f"agent chat transcript is incomplete: {agent}")
+        transcripts[agent] = {"agent": agent, **transcript}
+    chat_evidence_path.parent.mkdir(parents=True, exist_ok=True)
+    chat_evidence_path.write_text(json.dumps(transcripts, sort_keys=True) + "\n", encoding="utf-8")
+    entries = []
+    for agent in agents:
+        filename = f"kagent_{agent}_chat.png"
+        linked = [str(registry_path), str(https_evidence), str(chat_evidence_path)]
+        notebook = notebooks.get(agent)
+        if notebook is not None and notebook.is_file():
+            linked.append(str(notebook))
+        entries.append(record_capture(
+            final_path=screenshots_dir / filename, root=screenshots_dir,
+            writer=_tunnel_page_writer(urls[agent], REQUIRED_VIEWS[filename], page_factory, _TELEMETRY_SECRET),
+            source=urls[agent], revision=revision, visible_selectors=REQUIRED_VIEWS[filename],
+            machine_evidence=linked,
+            proves=f"Named {agent} agent with version, request, routing result, and grounded output is visible.",
+            does_not_prove="It does not prove multi-turn conversation.",
+            manifest_path=manifest_path, workspace=workspace,
+        ))
+    return entries
+
+
+def collect_property_crosshair(
+    *,
+    hypothesis_target: str,
+    crosshair_targets: list[str],
+    per_condition_timeout: int,
+    per_path_timeout: int,
+    runner: Callable[[list[str], int], dict],
+    seed: int = 0,
+) -> dict[str, object]:
+    """Run Hypothesis and bounded CrossHair; timeouts are recorded, never passed."""
+    if not hypothesis_target or not crosshair_targets:
+        raise ValueError("property collection needs a hypothesis target and CrossHair targets")
+    if per_condition_timeout <= 0 or per_path_timeout <= 0:
+        raise ValueError("CrossHair timeouts must be positive")
+    hypothesis = runner(
+        [sys.executable, "-m", "pytest", hypothesis_target, "-q", f"--hypothesis-seed={seed}"],
+        600,
+    )
+    crosshair: dict[str, dict] = {}
+    overall = hypothesis.get("exit_code") == 0
+    for target in crosshair_targets:
+        try:
+            outcome = runner(
+                [sys.executable, "-m", "crosshair", "check",
+                 f"--per_condition_timeout={per_condition_timeout}",
+                 f"--per_path_timeout={per_path_timeout}", target],
+                per_condition_timeout + per_path_timeout + 60,
+            )
+        except TimeoutError:
+            crosshair[target] = {"status": "timeout", "counterexample": None, "output_tail": "runner timeout"}
+            overall = False
+            continue
+        status = "pass" if outcome.get("exit_code") == 0 else "fail"
+        if status != "pass":
+            overall = False
+        crosshair[target] = {
+            "status": status, "exit_code": outcome.get("exit_code"),
+            "counterexample": outcome.get("output", "") if status != "pass" else None,
+            "output_tail": str(outcome.get("output", ""))[-500:],
+        }
+    return {
+        "hypothesis": {"target": hypothesis_target, "seed": seed, **hypothesis},
+        "crosshair": crosshair,
+        "per_condition_timeout": per_condition_timeout, "per_path_timeout": per_path_timeout,
+        "passed": overall,
+    }
+
+
+def verify_screenshot_topic(
+    manifest_path: Path, root: Path, topic: int, expected_count: int,
+    revision: str | None = None, workspace: Path | None = None,
+) -> dict[str, object]:
+    """Verify a topic owns exactly its named screenshots at the expected count.
+
+    Per-entry dimensions, SHA-256, URLs, revision, selectors, and machine links
+    are validated by the manifest check; here the owned set must match exactly,
+    so a duplicate, renamed, or missing file fails closed.
+    """
+    owned = TOPIC_SCREENSHOT_SETS.get(topic)
+    if owned is None:
+        raise ValueError("screenshot topic is unknown")
+    entries = _validate_existing_manifest(
+        manifest_path, root, revision or _manifest_revision(manifest_path), workspace=workspace
+    )
+    actual = [entry["path"] for entry in entries if entry["path"] in owned]
+    if len(actual) != expected_count or set(actual) != set(owned):
+        if len(actual) != expected_count:
+            raise ValueError("screenshot topic count mismatch")
+        raise ValueError("screenshot topic owned entry is missing")
+    return {"topic": topic, "count": len(actual)}
+
+
+PENDING_PRODUCER_IMAGES = ("design_patterns.png", "whole_course_diagram.png")
+PENDING_PRODUCER_TOPIC = "32"
+DEFAULT_UI_DIMENSIONS = (1600, 1000)
+DEFAULT_SECTION03_DIMENSIONS = (1600, 900)
+DEFAULT_EXTRA = ("gcp_billing_spend.png",)
+
+
+def _parse_dimensions(value: str) -> tuple[int, int]:
+    match = re.fullmatch(r"(\d+)x(\d+)", value.strip()) if isinstance(value, str) else None
+    if not match:
+        raise ValueError("dimensions must look like WxH")
+    width, height = int(match.group(1)), int(match.group(2))
+    if width <= 0 or height <= 0:
+        raise ValueError("dimensions must be positive")
+    return (width, height)
+
+
+def _flatten_expected_extra(values: list[str] | str | None) -> list[str]:
+    if values is None:
+        return list(DEFAULT_EXTRA)
+    items: list[str] = []
+    raw = values if isinstance(values, list) else [values]
+    for entry in raw:
+        for part in str(entry).split(","):
+            name = part.strip()
+            if name:
+                items.append(name)
+    seen: set[str] = set()
+    unique: list[str] = []
+    for name in items:
+        if name not in seen:
+            seen.add(name)
+            unique.append(name)
+    return unique
+
+
+def _audit_png(path: Path, expected: tuple[int, int]) -> tuple[int, int, str]:
+    try:
+        size_bytes = path.stat().st_size
+    except OSError as error:
+        raise ValueError(f"byte-check failed: {error}") from error
+    if size_bytes <= 0:
+        raise ValueError("empty file")
+    try:
+        prefix = path.read_bytes()[:8]
+    except OSError as error:
+        raise ValueError(f"byte-check failed: {error}") from error
+    if prefix != _PNG:
+        raise ValueError("png-signature-invalid")
+    try:
+        with Image.open(path) as image:
+            image.verify()
+        with Image.open(path) as image:
+            image.load()
+            actual = (int(image.size[0]), int(image.size[1]))
+    except Exception as error:
+        raise ValueError(f"decode-failed: {type(error).__name__}") from error
+    if actual != (int(expected[0]), int(expected[1])):
+        raise ValueError(f"dimension-mismatch: got {actual[0]}x{actual[1]} expected {expected[0]}x{expected[1]}")
+    return (*actual, hashlib.sha256(path.read_bytes()).hexdigest())
+
+
+def verify_screenshots_only(
+    *,
+    root: Path | str | None = None,
+    manifest: Path | str | None = None,
+    section03_manifest: Path | str | None = None,
+    expected_edai2_count: int | None = None,
+    expected_extra: list[str] | str | None = None,
+    ui_dimensions: tuple[int, int] | str | None = None,
+    section03_dimensions: tuple[int, int] | str | None = None,
+    output: Path | str | None = None,
+    strict_partial: bool = False,
+    allow_pending_producer_topic: str | int | None = None,
+    workspace: Path | str | None = None,
+) -> dict[str, object]:
+    """Read-only T31 screenshot audit; never writes/replaces PNGs or manifests."""
+    ui_expected = _parse_dimensions(ui_dimensions) if isinstance(ui_dimensions, str) else (tuple(ui_dimensions) if ui_dimensions is not None else DEFAULT_UI_DIMENSIONS)
+    s03_expected = _parse_dimensions(section03_dimensions) if isinstance(section03_dimensions, str) else (tuple(section03_dimensions) if section03_dimensions is not None else DEFAULT_SECTION03_DIMENSIONS)
+    if len(ui_expected) != 2 or any(type(v) is not int or v <= 0 for v in ui_expected):
+        raise ValueError("ui dimensions are invalid")
+    if len(s03_expected) != 2 or any(type(v) is not int or v <= 0 for v in s03_expected):
+        raise ValueError("section03 dimensions are invalid")
+    extras = _flatten_expected_extra(expected_extra)
+    for name in extras:
+        if not name or "/" in name or "\\" in name or ".." in name or name not in REQUIRED_VIEWS:
+            raise ValueError(f"expected extra is invalid: {name}")
+    pending_topic: str | None = None
+    if allow_pending_producer_topic is not None:
+        pending_topic = str(allow_pending_producer_topic).strip()
+        if pending_topic != PENDING_PRODUCER_TOPIC:
+            raise ValueError("only topic 32 may be a pending producer")
+    pending_allowed = bool(strict_partial or pending_topic == PENDING_PRODUCER_TOPIC)
+    edai2_names = sorted(set(REQUIRED_VIEWS) - set(extras))
+    if expected_edai2_count is not None:
+        if type(expected_edai2_count) is not int or expected_edai2_count < 0:
+            raise ValueError("expected edai2 count is invalid")
+        if len(edai2_names) != expected_edai2_count:
+            raise ValueError(f"expected-edai2-count mismatch: inventory has {len(edai2_names)} edai2 names plus {len(extras)} extra")
+    root_path = Path(root) if root is not None else None
+    manifest_path = Path(manifest) if manifest is not None else None
+    if manifest_path is None and root_path is not None:
+        candidate = root_path / "screenshots"
+        base = candidate if candidate.is_dir() else root_path
+        manifest_path = base / "ui_manifest.json"
+    if manifest_path is not None:
+        screenshots_dir = manifest_path.parent
+    elif root_path is not None:
+        candidate = root_path / "screenshots"
+        screenshots_dir = candidate if candidate.is_dir() else root_path
+    else:
+        raise ValueError("audit needs --root or --manifest")
+    workspace_path = Path(workspace).resolve() if workspace is not None else Path.cwd().resolve()
+    manifest_by_path: dict[str, dict] = {}
+    if manifest_path is not None and manifest_path.exists():
+        try:
+            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise ValueError("ui manifest is not valid JSON") from error
+        if not isinstance(payload, list):
+            raise ValueError("ui manifest schema is invalid")
+        for entry in payload:
+            if isinstance(entry, dict) and isinstance(entry.get("path"), str):
+                manifest_by_path[entry["path"]] = entry
+    output_path = Path(output) if output is not None else None
+    if output_path is not None and manifest_path is not None:
+        try:
+            if output_path.resolve() == manifest_path.resolve():
+                raise ValueError("audit output must not overwrite the manifest")
+        except OSError:
+            pass
+        try:
+            if screenshots_dir.resolve() in output_path.resolve().parents:
+                raise ValueError("audit output must not land inside the screenshots dir")
+        except OSError:
+            pass
+    files: list[dict[str, object]] = []
+    for name in sorted(set(edai2_names) | set(extras)):
+        kind = "extra" if name in extras else "edai2"
+        target = screenshots_dir / name
+        manifest_entry = manifest_by_path.get(name)
+        manifest_sha = manifest_entry.get("sha256") if isinstance(manifest_entry, dict) else None
+        if not target.is_file():
+            if name in PENDING_PRODUCER_IMAGES and pending_allowed:
+                files.append({"name": name, "path": str(target), "kind": kind, "status": "PendingProducer",
+                              "reason": "producer-topic-32-not-yet-produced", "width": None, "height": None,
+                              "sha256": None, "manifest_sha256": manifest_sha})
+            else:
+                files.append({"name": name, "path": str(target), "kind": kind, "status": "Missing",
+                              "reason": "not-found", "width": None, "height": None,
+                              "sha256": None, "manifest_sha256": manifest_sha})
+            continue
+        try:
+            width, height, digest = _audit_png(target, (int(ui_expected[0]), int(ui_expected[1])))
+        except ValueError as error:
+            files.append({"name": name, "path": str(target), "kind": kind, "status": "Fail",
+                          "reason": str(error), "width": None, "height": None,
+                          "sha256": None, "manifest_sha256": manifest_sha})
+            continue
+        if manifest_entry is None:
+            files.append({"name": name, "path": str(target), "kind": kind, "status": "Fail",
+                          "reason": "manifest-entry-missing", "width": width, "height": height,
+                          "sha256": digest, "manifest_sha256": None})
+            continue
+        if not isinstance(manifest_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", manifest_sha):
+            files.append({"name": name, "path": str(target), "kind": kind, "status": "Fail",
+                          "reason": "manifest-sha-invalid", "width": width, "height": height,
+                          "sha256": digest, "manifest_sha256": manifest_sha})
+            continue
+        if digest != manifest_sha:
+            files.append({"name": name, "path": str(target), "kind": kind, "status": "Fail",
+                          "reason": "hash-mismatch", "width": width, "height": height,
+                          "sha256": digest, "manifest_sha256": manifest_sha})
+            continue
+        entry_width, entry_height = manifest_entry.get("width"), manifest_entry.get("height")
+        if entry_width is not None and entry_height is not None and (entry_width, entry_height) != (width, height):
+            files.append({"name": name, "path": str(target), "kind": kind, "status": "Fail",
+                          "reason": "manifest-dimension-mismatch", "width": width, "height": height,
+                          "sha256": digest, "manifest_sha256": manifest_sha})
+            continue
+        linked = manifest_entry.get("linked_machine_evidence")
+        if not isinstance(linked, list) or not linked:
+            files.append({"name": name, "path": str(target), "kind": kind, "status": "Fail",
+                          "reason": "machine-link-missing", "width": width, "height": height,
+                          "sha256": digest, "manifest_sha256": manifest_sha})
+            continue
+        link_error: str | None = None
+        for item in linked:
+            if not isinstance(item, dict) or not isinstance(item.get("path"), str):
+                link_error = "machine-link-invalid"
+                break
+            rel = Path(str(item["path"]))
+            if rel.is_absolute() or ".." in rel.parts:
+                link_error = "machine-link-invalid"
+                break
+            machine = (workspace_path / rel).resolve()
+            try:
+                inside = workspace_path in machine.parents
+            except OSError:
+                inside = False
+            if not inside or not machine.is_file():
+                link_error = f"machine-link-missing: {item['path']}"
+                break
+            expected_link_sha = item.get("sha256")
+            if isinstance(expected_link_sha, str) and re.fullmatch(r"[0-9a-f]{64}", expected_link_sha):
+                try:
+                    actual_link_sha = hashlib.sha256(machine.read_bytes()).hexdigest()
+                except OSError:
+                    link_error = f"machine-link-unreadable: {item['path']}"
+                    break
+                if actual_link_sha != expected_link_sha:
+                    link_error = f"machine-link-hash-mismatch: {item['path']}"
+                    break
+        if link_error is not None:
+            files.append({"name": name, "path": str(target), "kind": kind, "status": "Fail",
+                          "reason": link_error, "width": width, "height": height,
+                          "sha256": digest, "manifest_sha256": manifest_sha})
+            continue
+        files.append({"name": name, "path": str(target), "kind": kind, "status": "Pass",
+                      "reason": None, "width": width, "height": height,
+                      "sha256": digest, "manifest_sha256": manifest_sha})
+    if section03_manifest is not None:
+        s03_manifest_path = Path(section03_manifest)
+        try:
+            s03_payload = json.loads(s03_manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            raise ValueError("section03 manifest is not valid JSON") from error
+        evidence = None
+        if isinstance(s03_payload, dict):
+            artifacts = s03_payload.get("artifacts")
+            if isinstance(artifacts, dict) and isinstance(artifacts.get("evidence_image"), dict):
+                evidence = artifacts["evidence_image"]
+            elif isinstance(s03_payload.get("evidence_image"), dict):
+                evidence = s03_payload["evidence_image"]
+        if not isinstance(evidence, dict) or not isinstance(evidence.get("path"), str) or not isinstance(evidence.get("sha256"), str):
+            raise ValueError("section03 manifest evidence image is invalid")
+        rel = Path(str(evidence["path"]))
+        image_path = (s03_manifest_path.parent / rel) if not rel.is_absolute() else rel
+        expected_s03_sha = str(evidence["sha256"])
+        if not re.fullmatch(r"[0-9a-f]{64}", expected_s03_sha):
+            raise ValueError("section03 manifest sha is invalid")
+        if not image_path.is_file():
+            files.append({"name": image_path.name, "path": str(image_path), "kind": "section03",
+                          "status": "Missing", "reason": "not-found", "width": None, "height": None,
+                          "sha256": None, "manifest_sha256": expected_s03_sha})
+        else:
+            try:
+                width, height, digest = _audit_png(image_path, (int(s03_expected[0]), int(s03_expected[1])))
+            except ValueError as error:
+                files.append({"name": image_path.name, "path": str(image_path), "kind": "section03",
+                              "status": "Fail", "reason": str(error), "width": None, "height": None,
+                              "sha256": None, "manifest_sha256": expected_s03_sha})
+            else:
+                if digest != expected_s03_sha:
+                    files.append({"name": image_path.name, "path": str(image_path), "kind": "section03",
+                                  "status": "Fail", "reason": "hash-mismatch", "width": width, "height": height,
+                                  "sha256": digest, "manifest_sha256": expected_s03_sha})
+                else:
+                    files.append({"name": image_path.name, "path": str(image_path), "kind": "section03",
+                                  "status": "Pass", "reason": None, "width": width, "height": height,
+                                  "sha256": digest, "manifest_sha256": expected_s03_sha})
+    summary = {"pass": sum(1 for f in files if f["status"] == "Pass"),
+               "fail": sum(1 for f in files if f["status"] == "Fail"),
+               "missing": sum(1 for f in files if f["status"] == "Missing"),
+               "pending_producer": sum(1 for f in files if f["status"] == "PendingProducer"),
+               "total": len(files)}
+    result: dict[str, object] = {
+        "mode": "verify-screenshots-only",
+        "root": str(root_path) if root_path is not None else None,
+        "screenshots_dir": str(screenshots_dir),
+        "manifest": str(manifest_path) if manifest_path is not None else None,
+        "section03_manifest": str(section03_manifest) if section03_manifest is not None else None,
+        "expected_edai2_count": expected_edai2_count,
+        "expected_extra": extras,
+        "ui_dimensions": [int(ui_expected[0]), int(ui_expected[1])],
+        "section03_dimensions": [int(s03_expected[0]), int(s03_expected[1])],
+        "strict_partial": bool(strict_partial),
+        "allow_pending_producer_topic": pending_topic,
+        "files": files,
+        "summary": summary,
+    }
+    if output_path is not None:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return result
+
+
+_RECAPTURE_REACHABILITY_KINDS = frozenset({
+    "private-loopback-tunnel", "public-temp-route", "local-render", "browser-console",
+})
+
+
+def _normalize_reachability(value: object) -> str:
+    text = str(value).strip().lower().replace("_", "-").replace(" ", "-")
+    while "--" in text:
+        text = text.replace("--", "-")
+    return text
+
+
+def merge_review(audit: dict, reviews: list) -> dict:
+    """Merge machine audit with human visual reviews; pure local check, no cluster calls.
+
+    Machine and visual must agree for ``accept``; any disagreement rejects the
+    file. Reviewer identity, visual result, and reason are recorded per file.
+    """
+    if not isinstance(audit, dict):
+        raise ValueError("audit must be an object")
+    if not isinstance(reviews, list):
+        raise ValueError("reviews must be a list")
+    by_path: dict[str, dict] = {}
+    for review in reviews:
+        if not isinstance(review, dict) or not isinstance(review.get("path"), str):
+            raise ValueError("review entry must carry a path")
+        by_path[review["path"]] = review
+    merged: dict[str, dict] = {}
+    for path in sorted(set(audit) | set(by_path)):
+        entry = audit.get(path)
+        machine_pass = isinstance(entry, dict) and str(entry.get("status", "")).strip().lower() == "pass"
+        review = by_path.get(path)
+        reviewer = review.get("reviewer") if isinstance(review, dict) else None
+        reason = review.get("reason") if isinstance(review, dict) else None
+        visual = str(review.get("result", "")).strip().lower() if isinstance(review, dict) else "missing"
+        decision = "accept" if (machine_pass and visual == "pass") else "reject"
+        merged[path] = {
+            "machine": "pass" if machine_pass else "fail",
+            "visual": visual,
+            "reviewer": reviewer,
+            "reason": reason,
+            "decision": decision,
+        }
+    return merged
+
+
+def recapture(paths: list, policy: dict | None = None) -> dict:
+    """Dispatch recapture requests; pure local function, never touches files or cluster.
+
+    Each image needs an explicit per-image reachability record (private-loopback
+    tunnel, public temp route, local-render, or browser-console) in ``policy``;
+    anything missing or unrecognized defers as ``deferred-no-policy``. A valid
+    record only marks the image ``deferred-operator-recapture`` -- this function
+    performs no capture and never overwrites a valid file.
+    """
+    if not isinstance(paths, list):
+        raise ValueError("paths must be a list")
+    table = policy if isinstance(policy, dict) else {}
+    result: dict[str, str] = {}
+    for path in paths:
+        if not isinstance(path, str) or not path:
+            raise ValueError("recapture path must be a nonempty string")
+        record = table.get(path)
+        kind: str | None = None
+        if isinstance(record, dict):
+            for key in ("reachability", "kind", "route"):
+                if isinstance(record.get(key), str):
+                    kind = _normalize_reachability(record[key])
+                    break
+        elif isinstance(record, str):
+            kind = _normalize_reachability(record)
+        result[path] = "deferred-operator-recapture" if kind in _RECAPTURE_REACHABILITY_KINDS else "deferred-no-policy"
+    return result
+
+
+_RUN_MANIFEST_SLICE_LIMIT = 1_000_000
+_RUN_MANIFEST_PLAN_FILES = {
+    "22": "tmp/edai2-plan/execution-v1/gcp/22-gcp-account-budget-terraform-apply.md",
+    "23": "tmp/edai2-plan/execution-v1/gcp/23-vault-kms-model-cache-bootstrap.md",
+    "24": "tmp/edai2-plan/execution-v1/gcp/24-compact-platform-install.md",
+    "25": "tmp/edai2-plan/execution-v1/gcp/25-jenkins-six-workload-deploy.md",
+    "26": "tmp/edai2-plan/execution-v1/gcp/26-keda-agent-ha-registry-rollbacks.md",
+    "27": "tmp/edai2-plan/execution-v1/gcp/27-observability-https-jenkins-evidence.md",
+    "28": "tmp/edai2-plan/execution-v1/gcp/28-rag-inference-benchmarks.md",
+    "29": "tmp/edai2-plan/execution-v1/gcp/29-evaluation-ab-notebooks-load-test-evidence.md",
+    "30": "tmp/edai2-plan/execution-v1/gcp/30-persistence-vault-recovery-resume.md",
+    "31": "tmp/edai2-plan/execution-v1/gcp/31-final-screenshot-qa-teardown.md",
+}
+
+
+def _run_manifest_rel(path: Path, workspace: Path) -> str:
+    try:
+        return path.resolve().relative_to(workspace.resolve()).as_posix()
+    except (OSError, ValueError):
+        return path.as_posix()
+
+
+def _run_manifest_meta(path: Path, workspace: Path) -> dict[str, object]:
+    rel = _run_manifest_rel(path, workspace)
+    try:
+        size = path.stat().st_size
+    except OSError:
+        return {"path": rel, "status": "Missing", "reason": "not-found"}
+    if size > _RUN_MANIFEST_SLICE_LIMIT:
+        return {
+            "path": rel, "status": "Missing",
+            "reason": f"source-exceeds-single-slice ({size} bytes); remainder in {rel}#bytes-{_RUN_MANIFEST_SLICE_LIMIT}:",
+            "remainder": f"{rel}#bytes-{_RUN_MANIFEST_SLICE_LIMIT}:",
+            "size_bytes": size,
+        }
+    try:
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError as error:
+        return {"path": rel, "status": "Missing", "reason": f"unreadable: {error}", "size_bytes": size}
+    return {"path": rel, "status": "Present", "sha256": digest, "size_bytes": size}
+
+
+def _run_manifest_json(path: Path, workspace: Path) -> tuple[dict[str, object] | list | None, dict[str, object]]:
+    meta = _run_manifest_meta(path, workspace)
+    if meta.get("status") != "Present":
+        return None, meta
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        rel = _run_manifest_rel(path, workspace)
+        return None, {"path": rel, "status": "Missing", "reason": f"invalid-json: {error}"}
+    return payload, meta
+
+
+def build_run_manifest(
+    *,
+    root: Path | str,
+    allow_pending_producer_topic: str | int | None = None,
+    strict_partial: bool = False,
+    output: Path | str,
+    workspace: Path | str | None = None,
+    revision: str | None = None,
+) -> dict[str, object]:
+    """Fail-closed T31 strict-partial run manifest; read-only except --output."""
+    if strict_partial is not True:
+        raise ValueError("run manifest requires --strict-partial")
+    if str(allow_pending_producer_topic or "").strip() != PENDING_PRODUCER_TOPIC:
+        raise ValueError("only topic 32 may be a pending producer")
+    if root is None or output is None:
+        raise ValueError("run manifest requires --root and --output")
+    workspace_path = Path(workspace).resolve() if workspace is not None else Path.cwd().resolve()
+    root_path = Path(root)
+    if not root_path.is_absolute():
+        root_path = (workspace_path / root_path).resolve()
+    else:
+        root_path = root_path.resolve()
+    output_path = Path(output)
+    if not output_path.is_absolute():
+        output_path = (Path.cwd().resolve() / output_path).resolve()
+    else:
+        output_path = output_path.resolve()
+    try:
+        current_revision = revision or _revision()
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        raise ValueError(f"run manifest revision is unavailable: {error}") from error
+    if not re.fullmatch(r"[0-9a-f]{40}", current_revision):
+        raise ValueError("run manifest revision is invalid")
+    root_rel = _run_manifest_rel(root_path, workspace_path)
+    cost_path = root_path / "gke" / "cost_forecast_topic31.json"
+    capacity_path = root_path / "gke" / "platform_capacity.json"
+    preflight_path = root_path / "gke" / "gcp_preflight_topic31.json"
+    jobs_path = root_path / "cicd" / "jobs.json"
+    vault_path = root_path / "security" / "vault_recovery.json"
+    fingerprint_path = root_path / "gke" / "persistence_before.json"
+    ledger_path = root_path / "gke" / "usage_ledger.json"
+    backend_path = workspace_path / "tmp" / "edai2-gcp" / "terraform-data" / "topic22-backend-initialized-proof.json"
+    screenshots_manifest = root_path / "screenshots" / "ui_manifest.json"
+    section03_manifest = workspace_path / "evidence" / "03_data_generator_improvement" / "section03_manifest.json"
+    if not section03_manifest.is_file():
+        section03_manifest = None
+    cost_payload, cost_meta = _run_manifest_json(cost_path, workspace_path)
+    if isinstance(cost_payload, dict):
+        cost_section: dict[str, object] = {
+            **cost_meta, "status": "Present",
+            "budget_amount_vnd": cost_payload.get("budget_amount_vnd"),
+            "current_spend_vnd": cost_payload.get("current_spend_vnd"),
+            "console_spend_vnd": cost_payload.get("console_spend_vnd"),
+            "operator_spend_vnd": cost_payload.get("current_spend_vnd"),
+            "operator_spend_source": _run_manifest_rel(cost_path, workspace_path),
+            "forecast_vnd": cost_payload.get("forecast_vnd"),
+            "forecast_ceiling_vnd": cost_payload.get("forecast_ceiling_vnd"),
+            "requested_ttl_hours": cost_payload.get("requested_ttl_hours"),
+            "trial_remaining_hours": cost_payload.get("trial_remaining_hours"),
+            "trial_credit_vnd": cost_payload.get("trial_credit_vnd"),
+            "ok": cost_payload.get("ok"),
+        }
+        if cost_payload.get("ok") is not True:
+            cost_section["status"] = "Partial"
+            cost_section["reason"] = "forecast gate is not ok"
+    else:
+        cost_section = {**cost_meta, "status": "Missing", "reason": str(cost_meta.get("reason", "not-found"))}
+    ledger_payload, ledger_meta = _run_manifest_json(ledger_path, workspace_path)
+    cost_section["usage_ledger"] = ledger_meta
+    capacity_payload, capacity_meta = _run_manifest_json(capacity_path, workspace_path)
+    if isinstance(capacity_payload, dict):
+        capacity_section: dict[str, object] = {
+            **capacity_meta, "status": "Present",
+            "profile": capacity_payload.get("profile"),
+            "ttl_hours": capacity_payload.get("ttl_hours"),
+            "resources": capacity_payload.get("resources"),
+        }
+    else:
+        capacity_section = {**capacity_meta, "status": "Missing", "reason": str(capacity_meta.get("reason", "not-found"))}
+    ttl_section: dict[str, object] = {
+        "path": str(cost_section.get("path")),
+        "status": cost_section.get("status"),
+        "requested_ttl_hours": cost_section.get("requested_ttl_hours"),
+        "trial_remaining_hours": cost_section.get("trial_remaining_hours"),
+        "capacity_ttl_hours": capacity_section.get("ttl_hours"),
+    }
+    if ttl_section["status"] != "Present":
+        ttl_section["reason"] = str(cost_section.get("reason", "cost forecast unavailable"))
+    _, preflight_meta = _run_manifest_json(preflight_path, workspace_path)
+    cost_section["preflight"] = preflight_meta
+    backend_payload, backend_meta = _run_manifest_json(backend_path, workspace_path)
+    if isinstance(backend_payload, dict) and isinstance(backend_payload.get("revision"), str):
+        backend_section: dict[str, object] = {
+            **backend_meta, "status": "Present",
+            "revision": backend_payload.get("revision"),
+            "observed_at_utc": backend_payload.get("observed_at_utc"),
+            "ok": backend_payload.get("ok"),
+        }
+    else:
+        reason = str(backend_meta.get("reason", "not-found"))
+        if backend_meta.get("status") == "Present":
+            reason = "backend proof revision is invalid"
+        backend_section = {**backend_meta, "status": "Missing", "reason": reason}
+    jobs_payload, jobs_meta = _run_manifest_json(jobs_path, workspace_path)
+    if isinstance(jobs_payload, dict) and isinstance(jobs_payload.get("jobs"), list):
+        jobs = jobs_payload["jobs"]
+        matched = sum(1 for job in jobs if isinstance(job, dict) and job.get("digest_match") is True)
+        commit = jobs_payload.get("commit_sha")
+        jobs_section: dict[str, object] = {
+            **jobs_meta, "status": "Present" if (len(jobs) == 6 and matched == 6) else "Partial",
+            "expected_jobs": 6, "found_jobs": len(jobs),
+            "digest_match_count": matched,
+            "commit_sha": commit,
+            "ci_commit_noted": commit,
+        }
+        if jobs_section["status"] != "Present":
+            jobs_section["reason"] = f"expected 6 digest matches, found {matched}/{len(jobs)}"
+    else:
+        jobs_section = {**jobs_meta, "status": "Missing", "reason": str(jobs_meta.get("reason", "not-found"))}
+    audit = verify_screenshots_only(
+        root=root_path, manifest=screenshots_manifest,
+        section03_manifest=section03_manifest,
+        expected_edai2_count=32, expected_extra=["gcp_billing_spend.png"],
+        ui_dimensions=(1600, 1000), section03_dimensions=(1600, 900),
+        output=None, strict_partial=True,
+        allow_pending_producer_topic="32", workspace=workspace_path,
+    )
+    summary = audit.get("summary") if isinstance(audit.get("summary"), dict) else {}
+    files = audit.get("files") if isinstance(audit.get("files"), list) else []
+    pending = sorted(str(item.get("name")) for item in files if isinstance(item, dict) and item.get("status") == "PendingProducer")
+    missing = sorted(str(item.get("name")) for item in files if isinstance(item, dict) and item.get("status") == "Missing")
+    screenshot_section: dict[str, object] = {
+        "status": "Partial",
+        "reason": "strict-partial: 2 pending-producer (topic 32), remainder missing except section03 pass; visual QA deferred",
+        "summary": summary,
+        "pending": pending,
+        "missing": missing,
+        "manifest": _run_manifest_rel(screenshots_manifest, workspace_path),
+        "section03_manifest": _run_manifest_rel(section03_manifest, workspace_path) if section03_manifest is not None else None,
+        "screenshots_dir": _run_manifest_rel(screenshots_manifest.parent, workspace_path),
+    }
+    if pending != sorted(PENDING_PRODUCER_IMAGES):
+        screenshot_section["status"] = "Partial"
+        screenshot_section["reason"] = f"pending-producer scope drifted: {pending}"
+    vault_payload, vault_meta = _run_manifest_json(vault_path, workspace_path)
+    if vault_payload is None:
+        vault_section: dict[str, object] = {
+            **vault_meta, "status": "Missing",
+            "reason": "recovery verification failed: vault seal type drifted from bootstrap (T30 record); no file written",
+        }
+    else:
+        vault_section = {**vault_meta, "status": "Present"}
+    fp_payload, fp_meta = _run_manifest_json(fingerprint_path, workspace_path)
+    if isinstance(fp_payload, dict) and isinstance(fp_payload.get("subsystems"), dict):
+        subsystems = fp_payload["subsystems"]
+        deferred = sorted(name for name, item in subsystems.items() if isinstance(item, dict) and item.get("status") == "deferred")
+        fingerprint_section: dict[str, object] = {
+            **fp_meta, "status": "Partial" if deferred else "Present",
+            "captured_at": fp_payload.get("captured_at"),
+            "revision": fp_payload.get("revision"),
+            "deferred": deferred,
+            "deferred_count": len(deferred),
+        }
+        if deferred:
+            fingerprint_section["reason"] = f"{len(deferred)} subsystems deferred with pending owning-topic accessor contract"
+    else:
+        fingerprint_section = {**fp_meta, "status": "Missing", "reason": str(fp_meta.get("reason", "not-found"))}
+    completions: dict[str, object] = {}
+    for topic in ("22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32"):
+        rel = _RUN_MANIFEST_PLAN_FILES.get(topic)
+        if rel is None:
+            completions[topic] = {"path": f"tmp/edai2-plan/execution-v1/gcp/{topic}-*.md", "status": "Missing", "reason": "producer-topic-32-not-yet-produced" if topic == "32" else "no plan file mapped"}
+            continue
+        plan_path = workspace_path / rel
+        plan_rel = _run_manifest_rel(plan_path, workspace_path)
+        try:
+            size = plan_path.stat().st_size
+        except OSError:
+            reason = "producer-topic-32-not-yet-produced" if topic == "32" else "not-found"
+            completions[topic] = {"path": plan_rel, "status": "Missing", "reason": reason}
+            continue
+        if size > _RUN_MANIFEST_SLICE_LIMIT:
+            completions[topic] = {
+                "path": plan_rel, "status": "Missing",
+                "reason": f"source-exceeds-single-slice ({size} bytes); remainder in {plan_rel}#bytes-{_RUN_MANIFEST_SLICE_LIMIT}:",
+                "remainder": f"{plan_rel}#bytes-{_RUN_MANIFEST_SLICE_LIMIT}:",
+                "size_bytes": size,
+            }
+            continue
+        try:
+            text = plan_path.read_text(encoding="utf-8")
+        except OSError as error:
+            completions[topic] = {"path": plan_rel, "status": "Missing", "reason": f"unreadable: {error}"}
+            continue
+        if "## Completion" in text:
+            completions[topic] = {"path": plan_rel, "status": "Present", "sha256": hashlib.sha256(plan_path.read_bytes()).hexdigest(), "size_bytes": size}
+        else:
+            completions[topic] = {"path": plan_rel, "status": "Missing", "reason": "completion-record-absent"}
+    manifest: dict[str, object] = {
+        "mode": "run-manifest-strict-partial",
+        "strict_partial": True,
+        "allow_pending_producer_topic": "32",
+        "root": root_rel,
+        "revision": current_revision,
+        "cost": cost_section,
+        "capacity": capacity_section,
+        "ttl": ttl_section,
+        "backend_proof": backend_section,
+        "jobs": jobs_section,
+        "screenshot_audit": screenshot_section,
+        "vault": vault_section,
+        "fingerprint": fingerprint_section,
+        "completion_records": completions,
+        "visual_qa": {
+            "status": "deferred-to-operator",
+            "reason": "no screenshots visually inspected; original-resolution inspection deferred to operator",
+            "inspected_count": 0,
+        },
+        "summary": {
+            "status": "Partial",
+            "reason": "strict-partial run: 2 pending-producer (topic 32), 31 missing screenshots, vault missing (seal drift), fingerprint partial (7 deferred); visual QA deferred-to-operator",
+        },
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    text = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+    temporary = output_path.with_name(f".{output_path.name}.tmp")
+    try:
+        temporary.write_text(text, encoding="utf-8")
+        os.replace(temporary, output_path)
+    finally:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
+    return manifest
 
 
 def run_topic26_capture(
@@ -2505,16 +3623,12 @@ def run_topic22_cli(
     raise ValueError("one Topic 22 operation is required")
 
 
-def main() -> int:
-    topic22_flags = {
-        "--capture", "--private-plan-sanitize", "--terraform-inventory",
-        "--render-sanitized-terraform", "--verify-screenshots",
-    }
-    if topic22_flags & set(sys.argv[1:]):
-        try:
-            return run_topic22_cli(sys.argv[1:])
-        except (OSError, ValueError, json.JSONDecodeError, subprocess.CalledProcessError):
-            raise SystemExit("TOPIC22_EVIDENCE_ERROR") from None
+def build_parser() -> argparse.ArgumentParser:
+    """Build the shared EDAI2 evidence CLI parser.
+
+    Browser-only paths (Jenkins six-pages) parse with no kubeconfig/context;
+    live paths still require them, and the Jenkins branch ignores them.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--verify-observability-contract", action="store_true")
     parser.add_argument("--kubeconfig")
@@ -2540,7 +3654,328 @@ def main() -> int:
     parser.add_argument("--manifest")
     parser.add_argument("--machine-evidence")
     parser.add_argument("--verify-screenshots")
+    parser.add_argument("--verify-jenkins-evidence")
+    parser.add_argument("--expected-commit")
+    parser.add_argument("--expected-jobs", type=int)
+    parser.add_argument("--require-buildkit-serialization", action="store_true")
+    parser.add_argument("--require-wave-order", action="store_true")
+    parser.add_argument("--verify-screenshot-topic", type=int)
+    parser.add_argument("--expected-count", type=int)
+    parser.add_argument("--capture-ui-set", choices=tuple(UI_SETS))
+    parser.add_argument("--names")
+    parser.add_argument("--urls")
+    parser.add_argument("--machine-root")
+    parser.add_argument("--route-manifest")
+    parser.add_argument("--capture-jenkins-six-pages")
+    parser.add_argument("--single-browser-session", action="store_true")
+    parser.add_argument("--no-build", action="store_true")
+    parser.add_argument("--outputs")
+    parser.add_argument("--fetch-urls", default=None)
+    parser.add_argument("--capture-test-evidence", action="store_true")
+    parser.add_argument("--root", type=Path, default=None)
+    parser.add_argument("--capture-report")
+    parser.add_argument("--html-path", type=Path, default=None)
+    parser.add_argument("--capture-agent-chats", default=None)
+    parser.add_argument("--chat-auth-env", default=None)
+    parser.add_argument("--collect-property-crosshair", action="store_true")
+    parser.add_argument("--hypothesis-target", default=None)
+    parser.add_argument("--crosshair-targets", default=None)
+    parser.add_argument("--per-condition-timeout", type=int, default=None)
+    parser.add_argument("--per-path-timeout", type=int, default=None)
+    parser.add_argument("--registry-evidence", type=Path, default=None)
+    parser.add_argument("--chat-machine-evidence", type=Path, default=None)
+    parser.add_argument("--https-machine-evidence", type=Path, default=None)
+    parser.add_argument("--notebook-root", type=Path, default=None)
+    parser.add_argument("--chat-evidence-output", type=Path, default=None)
+    parser.add_argument("--verify-screenshots-only", action="store_true")
+    parser.add_argument("--strict-partial", action="store_true")
+    parser.add_argument("--expected-edai2-count", type=int, default=None)
+    parser.add_argument("--expected-extra", action="append", default=None)
+    parser.add_argument("--ui-dimensions", default=None)
+    parser.add_argument("--section03-dimensions", default=None)
+    parser.add_argument("--section03-manifest", default=None)
+    parser.add_argument("--allow-pending-producer-topic", default=None)
+    return parser
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse CLI argv without side effects; browser-only invocations need no kubeconfig."""
+    return build_parser().parse_args(argv)
+
+
+def main() -> int:
+    topic22_flags = {
+        "--capture", "--private-plan-sanitize", "--terraform-inventory",
+        "--render-sanitized-terraform", "--verify-screenshots",
+    }
+    if topic22_flags & set(sys.argv[1:]):
+        try:
+            return run_topic22_cli(sys.argv[1:])
+        except (OSError, ValueError, json.JSONDecodeError, subprocess.CalledProcessError):
+            raise SystemExit("TOPIC22_EVIDENCE_ERROR") from None
+    parser = build_parser()
     args = parser.parse_args()
+    if args.verify_screenshots_only:
+        try:
+            result = verify_screenshots_only(
+                root=args.root,
+                manifest=args.manifest,
+                section03_manifest=args.section03_manifest,
+                expected_edai2_count=args.expected_edai2_count,
+                expected_extra=args.expected_extra,
+                ui_dimensions=args.ui_dimensions or DEFAULT_UI_DIMENSIONS,
+                section03_dimensions=args.section03_dimensions or DEFAULT_SECTION03_DIMENSIONS,
+                output=args.output,
+                strict_partial=args.strict_partial,
+                allow_pending_producer_topic=args.allow_pending_producer_topic,
+                workspace=Path.cwd(),
+            )
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+        print(json.dumps({"audit": str(args.output) if args.output else None, "summary": result["summary"]}, sort_keys=True))
+        return 0
+    _other_modes = (
+        args.collect_property_crosshair or args.capture_test_evidence
+        or args.capture_report is not None or args.capture_agent_chats is not None
+        or args.capture_ui_set is not None or args.capture_jenkins_six_pages is not None
+        or args.verify_screenshot_topic is not None or args.verify_jenkins_evidence is not None
+        or args.verify_vault_bootstrap is not None or args.verify_model_cache is not None
+        or args.platform_inventory is not None or args.verify_private_endpoint_inventory is not None
+        or args.verify_platform_exclusions is not None or args.private_endpoint_keys is not None
+        or args.require_private_endpoint_fields is not None or args.expected_keys is not None
+        or args.forbid is not None or args.verify_observability_contract
+        or args.capture is not None or args.verify_screenshots is not None
+        or args.verify_jenkins_evidence is not None or args.manifest is not None
+        or args.section03_manifest is not None or args.expected_edai2_count is not None
+        or args.expected_extra is not None or args.ui_dimensions is not None
+        or args.section03_dimensions is not None
+    )
+    if args.root is not None and args.output is not None and not _other_modes:
+        if not args.strict_partial:
+            parser.error("run manifest requires --strict-partial")
+        if str(args.allow_pending_producer_topic or "").strip() != PENDING_PRODUCER_TOPIC:
+            parser.error("only topic 32 may be a pending producer")
+        try:
+            manifest = build_run_manifest(
+                root=args.root,
+                allow_pending_producer_topic=args.allow_pending_producer_topic,
+                strict_partial=args.strict_partial,
+                output=args.output,
+                workspace=Path.cwd(),
+            )
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+        print(json.dumps({"run_manifest": str(args.output), "summary": manifest["summary"]}, sort_keys=True))
+        return 0
+    if args.collect_property_crosshair:
+        for name in ("hypothesis_target", "crosshair_targets", "per_condition_timeout", "per_path_timeout", "output"):
+            if getattr(args, name) is None:
+                parser.error(f"--collect-property-crosshair requires --{name.replace('_', '-')}")
+        if not args.strict:
+            parser.error("--collect-property-crosshair requires --strict")
+
+        def _run(command: list[str], timeout: int) -> dict:
+            try:
+                completed = subprocess.run(command, check=False, capture_output=True, text=True, timeout=timeout)
+            except subprocess.TimeoutExpired as error:
+                raise TimeoutError(str(error)) from error
+            return {"exit_code": completed.returncode, "output": (completed.stdout + completed.stderr)[-2000:]}
+
+        try:
+            result = collect_property_crosshair(
+                hypothesis_target=args.hypothesis_target,
+                crosshair_targets=args.crosshair_targets.split(","),
+                per_condition_timeout=args.per_condition_timeout,
+                per_path_timeout=args.per_path_timeout, runner=_run, seed=0,
+            )
+            Path(args.output).parent.mkdir(parents=True, exist_ok=True)
+            Path(args.output).write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+        print(json.dumps({"properties_crosshair": str(args.output), "passed": result["passed"]}, sort_keys=True))
+        return 0
+    if args.capture_test_evidence:
+        if not args.strict or args.viewport != "1600x1000" or args.root is None:
+            parser.error("--capture-test-evidence requires --viewport 1600x1000 --root --strict")
+        try:
+            root = args.root
+            specs = [
+                ("coverage_and_api_fixtures", "Coverage report", root / "tests/coverage.json", ["total", "percent", "files"]),
+                ("ep_bva", "EP/BVA report", root / "tests/ep_bva.json", ["cases", "passing"]),
+                ("mutation", "Mutation report", root / "tests/mutation.json", ["score", "counts", "denominator"]),
+                ("properties_crosshair", "Properties and CrossHair report", root / "tests/properties_crosshair.json", ["hypothesis", "crosshair", "status"]),
+            ]
+            entries = []
+            for name, title, machine, keys in specs:
+                try:
+                    data = json.loads(machine.read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError) as error:
+                    raise ValueError(f"test machine evidence is missing: {machine.name}") from error
+                rows = [(key, json.dumps(data.get(key, data))[:200]) for key in keys]
+                entries.append(capture_report_view(
+                    name=name, html_title=title, rows=rows, machine_files=[machine],
+                    screenshots_dir=Path(args.manifest).parent if args.manifest else root / "screenshots",
+                    manifest_path=Path(args.manifest) if args.manifest else root / "screenshots/ui_manifest.json",
+                    revision=_revision(), page_factory=_anonymous_page_factory,
+                ))
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+        print(json.dumps({"captured": [entry["path"] for entry in entries]}, sort_keys=True))
+        return 0
+    if args.capture_report is not None:
+        if not args.strict or args.viewport != "1600x1000":
+            parser.error("--capture-report requires --viewport 1600x1000 --strict")
+        for name in ("output", "manifest", "machine_evidence"):
+            if getattr(args, name) is None:
+                parser.error(f"--capture-report requires --{name.replace('_', '-')}")
+        filename = args.capture_report.replace("-", "_") + ".png"
+        if filename not in REPORT_VIEWS:
+            parser.error("report capture is limited to executed-result views")
+        try:
+            machine = Path(args.machine_evidence)
+            html_path = args.html_path
+            if html_path is None:
+                candidate = machine.parent / (machine.stem.removesuffix("_stats") + ".html")
+                if not candidate.is_file():
+                    raise ValueError("report HTML is missing")
+                html_path = candidate
+            entry = record_capture(
+                final_path=Path(args.output), root=Path(args.output).parent,
+                writer=_tunnel_page_writer(html_path.as_uri(), REQUIRED_VIEWS[filename], _anonymous_page_factory, _TELEMETRY_SECRET),
+                source=html_path.as_uri(), revision=_revision(), visible_selectors=REQUIRED_VIEWS[filename],
+                machine_evidence=[str(machine)],
+                proves=REPORT_PROVES[filename.removesuffix(".png")][0],
+                does_not_prove=REPORT_PROVES[filename.removesuffix(".png")][1],
+                manifest_path=Path(args.manifest),
+            )
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+        print(json.dumps({"captured": entry["path"], "sha256": entry["sha256"]}, sort_keys=True))
+        return 0
+    if args.capture_agent_chats is not None:
+        import base64
+        import os
+        import urllib.request
+
+        for name in ("outputs", "manifest", "registry_evidence", "https_machine_evidence", "notebook_root", "route_manifest", "chat_auth_env", "viewport"):
+            if getattr(args, name) is None:
+                parser.error(f"--capture-agent-chats requires --{name.replace('_', '-')}")
+        if not args.strict or args.viewport != "1600x1000":
+            parser.error("--capture-agent-chats requires --viewport 1600x1000 --strict")
+        try:
+            agents = args.capture_agent_chats.split(",")
+            outputs = args.outputs.split(",")
+            if [Path(name).name for name in outputs] != [f"kagent_{agent}_chat.png" for agent in agents]:
+                raise ValueError("agent chat outputs must be exactly the three owned views")
+            hosts = _route_hosts(Path(args.route_manifest))
+            if "chat" not in hosts:
+                raise ValueError("route manifest holds no chat host")
+            credentials = os.environ.get(args.chat_auth_env, "")
+            if ":" not in credentials:
+                raise ValueError("--chat-auth-env must name a user:password variable")
+            token = base64.b64encode(credentials.encode("utf-8")).decode("ascii")
+
+            def chat_post(agent: str, prompt: str) -> dict:
+                body = {"agent": agent, "prompt": prompt}
+                request = urllib.request.Request(
+                    f"https://{hosts['chat']}/v1/chat", data=json.dumps(body).encode("utf-8"),
+                    headers={"Content-Type": "application/json", "Authorization": f"Basic {token}"},
+                )
+                with urllib.request.urlopen(request, timeout=120) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise ValueError(f"agent chat response is invalid: {agent}")
+                return payload
+
+            entries = capture_agent_chats(
+                agents=agents, urls={agent: f"https://{hosts['chat']}/agent/{agent}" for agent in agents},
+                chat_post=chat_post, registry_path=Path(args.registry_evidence),
+                notebooks={agent: Path(args.notebook_root) / f"{agent}_agent_mcp.ipynb" for agent in agents},
+                https_evidence=Path(args.https_machine_evidence),
+                chat_evidence_path=args.chat_evidence_output or Path(args.manifest).parent / "agent_chats.json",
+                screenshots_dir=Path(args.manifest).parent, manifest_path=Path(args.manifest),
+                revision=_revision(), page_factory=lambda: _authenticated_page_factory(_repo_root() / "tmp/edai2-gcp/browser.json"),
+            )
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+        print(json.dumps({"captured": [entry["path"] for entry in entries]}, sort_keys=True))
+        return 0
+    if args.capture_ui_set is not None:
+        for name in ("route_manifest", "names", "urls", "manifest", "machine_root", "viewport"):
+            if getattr(args, name) is None:
+                parser.error(f"UI set capture requires --{name.replace('_', '-')}")
+        if not args.strict or args.viewport != "1600x1000":
+            parser.error("UI set capture requires --viewport 1600x1000 --strict")
+        try:
+            names = args.names.split(",")
+            urls = _parse_named_urls(args.urls)
+            hosts = _route_hosts(Path(args.route_manifest))
+            machine_files = _ui_set_machine_files(Path(args.machine_root), names)
+            for name in names:
+                route = UI_SET_SPECS[name][0]
+                if urls[name].split("://", 1)[1].split("/", 1)[0] != hosts.get(route):
+                    raise ValueError("UI set URL host is not the manifest host")
+            entries = capture_ui_set(
+                names=names, urls=urls, machine_files=machine_files,
+                screenshots_dir=Path(args.manifest).parent, manifest_path=Path(args.manifest),
+                revision=_revision(), page_factory=_anonymous_page_factory,
+            )
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+        print(json.dumps({"captured": [entry["path"] for entry in entries]}, sort_keys=True))
+        return 0
+    if args.capture_jenkins_six_pages is not None:
+        for name in ("outputs", "urls", "manifest", "viewport"):
+            if getattr(args, name) is None:
+                parser.error(f"Jenkins capture requires --{name.replace('_', '-')}")
+        if not args.strict or not args.single_browser_session or not args.no_build:
+            parser.error("Jenkins capture requires --single-browser-session --no-build --strict")
+        if args.viewport != "1600x1000":
+            parser.error("Jenkins capture requires --viewport 1600x1000")
+        try:
+            outputs = args.outputs.split(",")
+            if [Path(name).name for name in outputs] != [name + ".png" for name in JENKINS_PAGES]:
+                raise ValueError("Jenkins outputs must be exactly the six owned pages")
+            entries = capture_jenkins_six_pages(
+                jobs_path=Path(args.capture_jenkins_six_pages), urls=_parse_named_urls(args.urls),
+                screenshots_dir=Path(args.manifest).parent, manifest_path=Path(args.manifest),
+                revision=_revision(),
+                page_factory=lambda: _authenticated_page_factory(_repo_root() / "tmp/edai2-gcp/browser.json"),
+                fetch_urls=_parse_named_urls(args.fetch_urls) if args.fetch_urls else None,
+            )
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+        print(json.dumps({"captured": [entry["path"] for entry in entries]}, sort_keys=True))
+        return 0
+    if args.verify_screenshot_topic is not None:
+        if not args.strict or args.expected_count is None or args.manifest is None:
+            parser.error("screenshot topic verification requires --expected-count, --manifest, and --strict")
+        try:
+            result = verify_screenshot_topic(
+                Path(args.manifest), Path(args.manifest).parent,
+                args.verify_screenshot_topic, args.expected_count,
+            )
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+        print(json.dumps({"verified": result}, sort_keys=True))
+        return 0
+    if args.verify_jenkins_evidence is not None:
+        if not args.strict or args.expected_commit is None or args.expected_jobs is None:
+            parser.error("Jenkins verification requires --expected-commit, --expected-jobs, and --strict")
+        try:
+            payload = json.loads(Path(args.verify_jenkins_evidence).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            parser.error(str(error))
+        try:
+            result = verify_jenkins_evidence(
+                payload, expected_commit=args.expected_commit, expected_jobs=args.expected_jobs,
+                require_buildkit_serialization=args.require_buildkit_serialization,
+                require_wave_order=args.require_wave_order,
+            )
+        except ValueError as error:
+            parser.error(str(error))
+        print(json.dumps({"verified": Path(args.verify_jenkins_evidence).name, **{k: v for k, v in result.items() if k != "commit_sha"}}, sort_keys=True))
+        return 0
     if args.verify_vault_bootstrap or args.verify_model_cache:
         if not args.strict or (args.verify_vault_bootstrap and args.verify_model_cache):
             parser.error("verify exactly one Topic 23 evidence file with --strict")
@@ -2634,6 +4069,14 @@ def main() -> int:
     if (
         args.verify_screenshots is None
         and args.capture is None
+        and args.verify_jenkins_evidence is None
+        and args.verify_screenshot_topic is None
+        and args.capture_ui_set is None
+        and args.capture_jenkins_six_pages is None
+        and not args.capture_test_evidence
+        and args.capture_report is None
+        and args.capture_agent_chats is None
+        and not args.collect_property_crosshair
         and (not args.verify_observability_contract or not args.strict)
     ):
         parser.error("local verification requires --verify-observability-contract --strict; live capture is GCP-owned")

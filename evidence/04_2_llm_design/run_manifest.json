@@ -1,0 +1,228 @@
+{
+  "allow_pending_producer_topic": "32",
+  "backend_proof": {
+    "observed_at_utc": "2026-10-18T18:37:51.387153Z",
+    "ok": true,
+    "path": "tmp/edai2-gcp/terraform-data/topic22-backend-initialized-proof.json",
+    "revision": "e651a86dfb7d509c28c58fe0116cddd3cf6ea1a5",
+    "sha256": "6dbd90c1362f232387546cd8e826590809ec67b5e40e4b35181aaa435a7f9abc",
+    "size_bytes": 599,
+    "status": "Present"
+  },
+  "capacity": {
+    "path": "evidence/04_2_llm_design/gke/platform_capacity.json",
+    "profile": "core",
+    "resources": {
+      "ingress_enabled": false,
+      "platform_nodes": 1,
+      "spot_nodes": 1,
+      "workload_replicas": 1
+    },
+    "sha256": "13eb41498f059b482a8322090138806e8ff496cd95ab671f644785d46ee65f3d",
+    "size_bytes": 197,
+    "status": "Present",
+    "ttl_hours": 2
+  },
+  "completion_records": {
+    "22": {
+      "path": "tmp/edai2-plan/execution-v1/gcp/22-gcp-account-budget-terraform-apply.md",
+      "sha256": "dca7cd232b855a5bfa62609ec3a5bac96ccca9ef7bf24205af8d6fa94e772a6d",
+      "size_bytes": 47947,
+      "status": "Present"
+    },
+    "23": {
+      "path": "tmp/edai2-plan/execution-v1/gcp/23-vault-kms-model-cache-bootstrap.md",
+      "sha256": "865da8bd3ca17bbee7c816667c745c9ab1c1c3642d88c33770a77b38c4d4359b",
+      "size_bytes": 35153,
+      "status": "Present"
+    },
+    "24": {
+      "path": "tmp/edai2-plan/execution-v1/gcp/24-compact-platform-install.md",
+      "sha256": "d4a39306b014501257e3006617a084385f6f98b0a2cfd003b7d7169ac48f7a9d",
+      "size_bytes": 64782,
+      "status": "Present"
+    },
+    "25": {
+      "path": "tmp/edai2-plan/execution-v1/gcp/25-jenkins-six-workload-deploy.md",
+      "sha256": "ef619f8471196c80df74e0addaa517ca20dadbbba3b4fbd31c744831ca8fcaf1",
+      "size_bytes": 50954,
+      "status": "Present"
+    },
+    "26": {
+      "path": "tmp/edai2-plan/execution-v1/gcp/26-keda-agent-ha-registry-rollbacks.md",
+      "sha256": "147a9c0c21d711fdec1ee4e989f140f757f9d3815a65793599126585bd47d51e",
+      "size_bytes": 47347,
+      "status": "Present"
+    },
+    "27": {
+      "path": "tmp/edai2-plan/execution-v1/gcp/27-observability-https-jenkins-evidence.md",
+      "sha256": "aaf214e815eb6e4c96e1363f5c753eeb17abef50b03bcfc27f3dcd85a305453e",
+      "size_bytes": 45755,
+      "status": "Present"
+    },
+    "28": {
+      "path": "tmp/edai2-plan/execution-v1/gcp/28-rag-inference-benchmarks.md",
+      "sha256": "aeb1a33ab09438020542bef44ef3403978cd187e1246b53476778d3d4edc3faf",
+      "size_bytes": 44937,
+      "status": "Present"
+    },
+    "29": {
+      "path": "tmp/edai2-plan/execution-v1/gcp/29-evaluation-ab-notebooks-load-test-evidence.md",
+      "sha256": "62c216091f1e47a71915b14f33380dc1ff668c4dc7ca7722428c7e888d1fcb13",
+      "size_bytes": 46235,
+      "status": "Present"
+    },
+    "30": {
+      "path": "tmp/edai2-plan/execution-v1/gcp/30-persistence-vault-recovery-resume.md",
+      "sha256": "40c959ef5e626be4a2ef74bba34de011a75ae37a1fdcb00aa964ca1ce288e348",
+      "size_bytes": 40903,
+      "status": "Present"
+    },
+    "31": {
+      "path": "tmp/edai2-plan/execution-v1/gcp/31-final-screenshot-qa-teardown.md",
+      "sha256": "ba36bea068d60e8102b2d85fd9ac768d1f0f7c4b7d9f12a44c860f2b65771343",
+      "size_bytes": 32586,
+      "status": "Present"
+    },
+    "32": {
+      "path": "tmp/edai2-plan/execution-v1/gcp/32-*.md",
+      "reason": "producer-topic-32-not-yet-produced",
+      "status": "Missing"
+    }
+  },
+  "cost": {
+    "budget_amount_vnd": 6311880,
+    "console_spend_vnd": 2119176.0,
+    "current_spend_vnd": 2119176.0,
+    "forecast_ceiling_vnd": 4733910.0,
+    "forecast_vnd": 0.0,
+    "ok": true,
+    "operator_spend_source": "evidence/04_2_llm_design/gke/cost_forecast_topic31.json",
+    "operator_spend_vnd": 2119176.0,
+    "path": "evidence/04_2_llm_design/gke/cost_forecast_topic31.json",
+    "preflight": {
+      "path": "evidence/04_2_llm_design/gke/gcp_preflight_topic31.json",
+      "sha256": "fdd01b96f72ecc9ca982f80bad4b9739a1fd2d7dfda465596899f047e6e3cf42",
+      "size_bytes": 756,
+      "status": "Present"
+    },
+    "requested_ttl_hours": 2.0,
+    "sha256": "fd155a7680761d16fca1d7d38b976a105a2a7eeb446810a5fb51832d242c8e6a",
+    "size_bytes": 854,
+    "status": "Present",
+    "trial_credit_vnd": 7889850.0,
+    "trial_remaining_hours": 149.3650529125,
+    "usage_ledger": {
+      "path": "evidence/04_2_llm_design/gke/usage_ledger.json",
+      "sha256": "afec7c5d633687d41d6f218f7c493156ae4fde5d0cbdaa538e0e0f6b87e7c5d4",
+      "size_bytes": 60937,
+      "status": "Present"
+    }
+  },
+  "fingerprint": {
+    "captured_at": "2026-10-18T16:17:50.066436+00:00",
+    "deferred": [
+      "agent_registry",
+      "clickhouse_langfuse",
+      "feast",
+      "observability",
+      "opensearch_datahub",
+      "redpanda",
+      "substrate_valkey"
+    ],
+    "deferred_count": 7,
+    "path": "evidence/04_2_llm_design/gke/persistence_before.json",
+    "reason": "7 subsystems deferred with pending owning-topic accessor contract",
+    "revision": "e651a86dfb7d509c28c58fe0116cddd3cf6ea1a5",
+    "sha256": "1bcdcb0ce0c88dc13252051bbd30f504eb0328d5171dc60c886f21fb251905ca",
+    "size_bytes": 6800,
+    "status": "Partial"
+  },
+  "jobs": {
+    "ci_commit_noted": "7233469eef8519aeb059da03a924bb6a180bed5b",
+    "commit_sha": "7233469eef8519aeb059da03a924bb6a180bed5b",
+    "digest_match_count": 6,
+    "expected_jobs": 6,
+    "found_jobs": 6,
+    "path": "evidence/04_2_llm_design/cicd/jobs.json",
+    "sha256": "99f4e3dacd64fc7f39d1d1f8a2462d06da6f82e55058d104df9c26dd73113d47",
+    "size_bytes": 4574,
+    "status": "Present"
+  },
+  "mode": "run-manifest-strict-partial",
+  "revision": "e651a86dfb7d509c28c58fe0116cddd3cf6ea1a5",
+  "root": "evidence/04_2_llm_design",
+  "screenshot_audit": {
+    "manifest": "evidence/04_2_llm_design/screenshots/ui_manifest.json",
+    "missing": [
+      "agentregistry_agents.png",
+      "airflow_rag_graph.png",
+      "chat_auth_rate_limit.png",
+      "coverage_and_api_fixtures.png",
+      "datahub_rag_lineage.png",
+      "ep_bva.png",
+      "gcp_billing_spend.png",
+      "grafana_ab.png",
+      "grafana_agents.png",
+      "grafana_compute.png",
+      "grafana_http.png",
+      "grafana_llm.png",
+      "jenkins_coordinator.png",
+      "jenkins_drift_agent.png",
+      "jenkins_feast_offline.png",
+      "jenkins_feast_online.png",
+      "jenkins_rag_index.png",
+      "jenkins_retrieval_agent.png",
+      "kagent_coordinator_chat.png",
+      "kagent_drift_chat.png",
+      "kagent_retrieval_chat.png",
+      "keda_scale.png",
+      "langfuse_trace.png",
+      "locust_report.png",
+      "loki_app_logs.png",
+      "mutation.png",
+      "nginx_tls.png",
+      "properties_crosshair.png",
+      "tempo_trace.png",
+      "terraform_apply.png",
+      "vault_status.png"
+    ],
+    "pending": [
+      "design_patterns.png",
+      "whole_course_diagram.png"
+    ],
+    "reason": "strict-partial: 2 pending-producer (topic 32), remainder missing except section03 pass; visual QA deferred",
+    "screenshots_dir": "evidence/04_2_llm_design/screenshots",
+    "section03_manifest": "evidence/03_data_generator_improvement/section03_manifest.json",
+    "status": "Partial",
+    "summary": {
+      "fail": 0,
+      "missing": 31,
+      "pass": 1,
+      "pending_producer": 2,
+      "total": 34
+    }
+  },
+  "strict_partial": true,
+  "summary": {
+    "reason": "strict-partial run: 2 pending-producer (topic 32), 31 missing screenshots, vault missing (seal drift), fingerprint partial (7 deferred); visual QA deferred-to-operator",
+    "status": "Partial"
+  },
+  "ttl": {
+    "capacity_ttl_hours": 2,
+    "path": "evidence/04_2_llm_design/gke/cost_forecast_topic31.json",
+    "requested_ttl_hours": 2.0,
+    "status": "Present",
+    "trial_remaining_hours": 149.3650529125
+  },
+  "vault": {
+    "path": "evidence/04_2_llm_design/security/vault_recovery.json",
+    "reason": "recovery verification failed: vault seal type drifted from bootstrap (T30 record); no file written",
+    "status": "Missing"
+  },
+  "visual_qa": {
+    "inspected_count": 0,
+    "reason": "no screenshots visually inspected; original-resolution inspection deferred to operator",
+    "status": "deferred-to-operator"
+  }
+}

@@ -9,6 +9,7 @@ import importlib.util
 import inspect
 import json
 import os
+import re
 import urllib.request
 from pathlib import Path
 from typing import Any, Sequence
@@ -31,9 +32,24 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--index-version", required=False, default=None)
     parser.add_argument(
         "--index-purpose",
-        choices=("local-bootstrap-sentinel",),
+        choices=("local-bootstrap-sentinel", "canonical-evidence"),
         default="local-bootstrap-sentinel",
     )
+    parser.add_argument("--trigger-airflow", action="store_true")
+    parser.add_argument("--dag-id", required=False, default=None)
+    parser.add_argument("--reject-index-purpose", required=False, default=None)
+    parser.add_argument("--reject-index-version-prefix", required=False, default=None)
+    parser.add_argument("--reject-index-version", required=False, default=None)
+    parser.add_argument("--reject-bootstrap-artifact-reuse", action="store_true")
+    parser.add_argument("--bootstrap-evidence", type=Path, required=False, default=None)
+    parser.add_argument("--wait", action="store_true")
+    parser.add_argument("--promote-if-gates", action="store_true")
+    parser.add_argument("--verify-datahub", action="store_true")
+    parser.add_argument("--commit-sha", required=False, default=None)
+    parser.add_argument("--airflow-url", required=False, default=None)
+    parser.add_argument("--airflow-auth-env", required=False, default=None)
+    parser.add_argument("--datahub-url", required=False, default=None)
+    parser.add_argument("--dag-result", type=Path, required=False, default=None)
     parser.add_argument("--source-root", type=Path, required=False, default=None)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
@@ -53,6 +69,24 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--postgres-dsn", required=False, default=None)
     args = parser.parse_args(argv)
     if args.serve:
+        return args
+    if args.trigger_airflow:
+        for name in ("dag_id", "source_root", "index_version", "commit_sha", "airflow_url",
+                      "airflow_auth_env", "dag_result", "bootstrap_evidence", "output"):
+            if getattr(args, name) is None:
+                parser.error(f"--trigger-airflow requires --{name.replace('_', '-')}")
+        if not (args.airflow_url or "").startswith("https://"):
+            parser.error("--trigger-airflow requires an explicit https:// --airflow-url (http/localhost guesses forbidden)")
+        if args.index_purpose != "canonical-evidence":
+            parser.error("--trigger-airflow requires --index-purpose canonical-evidence")
+        if args.reject_index_purpose and args.index_purpose == args.reject_index_purpose:
+            parser.error("index purpose is rejected")
+        if args.reject_index_version_prefix and (args.index_version or "").startswith(args.reject_index_version_prefix):
+            parser.error("index version prefix is rejected")
+        if args.reject_index_version and args.index_version == args.reject_index_version:
+            parser.error("index version is rejected")
+        if args.dag_id != "rag_index_pipeline":
+            parser.error("only the rag_index_pipeline DAG is authorized")
         return args
     live = (
         args.inject_validation_failure
@@ -153,6 +187,71 @@ def _sync_result(result: Any) -> Any:
     if inspect.isawaitable(result):
         return asyncio.run(_await_value(result))
     return result
+
+
+def verify_canonical_identity(index_version: str, commit_sha: str) -> str:
+    """Accept exactly canonical-evidence-<40-hex-commit>; reject every sentinel."""
+    if not re.fullmatch(r"[0-9a-f]{40}", commit_sha or ""):
+        raise ValueError("commit SHA is invalid")
+    expected = f"canonical-evidence-{commit_sha}"
+    if index_version != expected:
+        raise ValueError(
+            "index version must be exactly canonical-evidence-<full-commit>; "
+            "ci-bootstrap-*, test_idx_001, abbreviated, and uppercase identities fail"
+        )
+    return expected
+
+
+def verify_airflow_evidence(
+    *,
+    dag_result: dict,
+    bootstrap_evidence: dict,
+    datahub: dict,
+    index_version: str,
+    expected_commit: str,
+) -> dict:
+    """Fail closed unless the Airflow run proves a real promoted RAG candidate.
+
+    Bootstrap output is never promotion proof: a ci-bootstrap label or any
+    content identity reused from the bootstrap evidence fails before DataHub.
+    """
+    verify_canonical_identity(index_version, expected_commit)
+    if not isinstance(dag_result, dict):
+        raise ValueError("Airflow DAG result must be a JSON object")
+    if dag_result.get("dag_id") != "rag_index_pipeline" or dag_result.get("state") != "success":
+        raise ValueError("Airflow DAG run did not succeed")
+    if dag_result.get("index_version") != index_version:
+        raise ValueError("Airflow DAG index version mismatch")
+    if dag_result.get("candidate_label") == "ci-bootstrap":
+        raise ValueError("candidate reuses bootstrap identity")
+    if dag_result.get("document_count") != 8 or dag_result.get("document_version_count") != 9:
+        raise ValueError("candidate source set must be exactly 8 files and 9 versions")
+    if not dag_result.get("chunk_count") or dag_result.get("embedding_dimension") != 384:
+        raise ValueError("candidate chunks or embeddings are invalid")
+    gate = dag_result.get("gate_60_case", {})
+    if not isinstance(gate, dict) or gate.get("pass") is not True or gate.get("cases") != 60:
+        raise ValueError("candidate 60-case gate did not pass")
+    promotion = dag_result.get("promotion", {})
+    if not isinstance(promotion, dict) or promotion.get("active_alias") != index_version or not promotion.get("cas"):
+        raise ValueError("candidate CAS promotion is invalid")
+    lineage = dag_result.get("lineage", {})
+    if not isinstance(lineage, dict) or lineage.get("active") != index_version or lineage.get("candidate") != index_version:
+        raise ValueError("candidate lineage is invalid")
+    bootstrap_hashes = set()
+    jobs = bootstrap_evidence.get("jobs", []) if isinstance(bootstrap_evidence, dict) else []
+    for job in jobs:
+        if isinstance(job, dict):
+            bootstrap_hashes |= {job.get("expected_digest"), job.get("remote_digest"), job.get("pod_image_digest")}
+    bootstrap_hashes.discard(None)
+    content = dag_result.get("content_sha256", [])
+    if not isinstance(content, list) or not content or any(item in bootstrap_hashes for item in content):
+        raise ValueError("candidate reuses bootstrap artifact output")
+    if not isinstance(datahub, dict) or datahub.get("active_version") != index_version:
+        raise ValueError("DataHub read-back does not hold the active version")
+    urns = datahub.get("dataset_urns", [])
+    if not isinstance(urns, list) or not urns or not datahub.get("response_hashes"):
+        raise ValueError("DataHub lineage read-back is invalid")
+    return {"promoted": True, "datahub_read_back": True, "index_version": index_version}
 
 
 def run_index_rollback(
@@ -263,6 +362,61 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         while True:
             time.sleep(60)
+    if args.trigger_airflow:
+        import base64
+
+        credentials = os.environ.get(args.airflow_auth_env, "")
+        if ":" not in credentials:
+            raise SystemExit("--airflow-auth-env must name a user:password variable")
+        token = base64.b64encode(credentials.encode("utf-8")).decode("ascii")
+        headers = {"Content-Type": "application/json", "Authorization": f"Basic {token}"}
+
+        def airflow_post(path: str, body: dict) -> dict:
+            request = urllib.request.Request(f"{args.airflow_url}{path}", data=json.dumps(body).encode("utf-8"), headers=headers)
+            with urllib.request.urlopen(request, timeout=60) as response:
+                return json.loads(response.read().decode("utf-8"))
+
+        def airflow_get(path: str) -> dict:
+            request = urllib.request.Request(f"{args.airflow_url}{path}", headers=headers)
+            with urllib.request.urlopen(request, timeout=60) as response:
+                return json.loads(response.read().decode("utf-8"))
+
+        try:
+            verify_canonical_identity(args.index_version, args.commit_sha)
+            run = airflow_post(f"/api/v1/dags/{args.dag_id}/dagRuns", {"conf": {"index_version": args.index_version, "index_purpose": args.index_purpose}})
+            run_id = run.get("dag_run_id")
+            if not run_id:
+                raise ValueError("Airflow DAG trigger returned no run id")
+            if args.wait:
+                import time as _time
+
+                state = ""
+                for _ in range(60):
+                    state = airflow_get(f"/api/v1/dags/{args.dag_id}/dagRuns/{run_id}").get("state", "")
+                    if state in ("success", "failed"):
+                        break
+                    _time.sleep(60)
+                if state != "success":
+                    raise ValueError(f"Airflow DAG run did not succeed: {state}")
+            dag_result = json.loads(Path(args.dag_result).read_text(encoding="utf-8"))
+            bootstrap_evidence = json.loads(Path(args.bootstrap_evidence).read_text(encoding="utf-8"))
+            datahub: dict = {"dataset_urns": [], "active_version": None, "response_hashes": []}
+            if args.verify_datahub:
+                datahub = airflow_get(f"/api/v1/dags/{args.dag_id}/dagRuns/{run_id}/taskInstances/emit_active_lineage_and_read_back/xcomEntries/return_value")
+                if not isinstance(datahub, dict):
+                    raise ValueError("DataHub read-back is invalid")
+            result = verify_airflow_evidence(
+                dag_result=dag_result, bootstrap_evidence=bootstrap_evidence, datahub=datahub,
+                index_version=args.index_version, expected_commit=args.commit_sha,
+            )
+            if args.promote_if_gates and not result["promoted"]:
+                raise ValueError("promotion gate did not pass")
+        except (OSError, ValueError, json.JSONDecodeError) as error:
+            raise SystemExit(f"canonical evidence run failed: {error}") from error
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps({"dag_run_id": run_id, **result}, sort_keys=True) + "\n", encoding="utf-8")
+        print(json.dumps({"live_execution": True, "index_run": str(args.output)}, sort_keys=True))
+        return 0
     if (
         args.inject_validation_failure
         or args.verify_active_unchanged

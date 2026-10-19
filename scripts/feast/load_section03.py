@@ -78,11 +78,26 @@ def main(
     mode.add_argument("--verify-only", action="store_true")
     mode.add_argument("--activate", action="store_true")
     parser.add_argument("--adapter-factory")
+    parser.add_argument("--gcs-prefix", required=False, default=None)
+    parser.add_argument("--upload-only", action="store_true")
+    parser.add_argument("--verify-upload", action="store_true")
     args = parser.parse_args(argv)
     if not args.strict:
         parser.error("--strict is required")
 
     verified = Section03Loader(args.manifest).verify_only()
+    if args.gcs_prefix is not None or args.upload_only or args.verify_upload:
+        print(json.dumps(_payload(
+            verified,
+            status="failed",
+            before_manifest_sha256=None,
+            after_manifest_sha256=None,
+            feast_fingerprint=None,
+            valkey_fingerprint=None,
+            rollback_status="not_attempted",
+            error="GCS upload unavailable: no verified Section 03 GCS URI input exists in repo inputs (see evidence/04_2_llm_design/section03/upload.json partial)",
+        ), sort_keys=True))
+        return 2
     if args.verify_only:
         print(json.dumps(_payload(
             verified,

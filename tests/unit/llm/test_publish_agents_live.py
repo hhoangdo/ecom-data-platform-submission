@@ -227,7 +227,7 @@ def test_main_wires_resolved_bindings_to_publish_and_readback(
     monkeypatch.setattr(
         module,
         "resolve_bindings",
-        lambda templates_dir, jobs_file, inventory_file, commit, strict=False: {
+        lambda templates_dir, jobs_file, inventory_file, commit, strict=False, allow_ci_commit=None: {
             "retrieval": {}, "drift": {}, "coordinator": {}
         },
     )
@@ -254,3 +254,94 @@ def test_main_wires_resolved_bindings_to_publish_and_readback(
     assert set(calls["bindings"]) == {"retrieval", "drift", "coordinator"}
     assert calls["runner"] == "fake-runner"
     assert calls["evidence_path"] == tmp_path / "registry.json"
+
+
+CI_COMMIT = "c" * 40
+HEAD_COMMIT = "b" * 40
+
+
+def _ci_jobs_payload() -> dict:
+    """Jobs evidence pinned at the CI commit while HEAD has moved on."""
+    payload = _jobs_payload()
+    payload["commit_sha"] = CI_COMMIT
+    for entry in payload["jobs"]:
+        entry["commit_sha"] = CI_COMMIT
+    return payload
+
+
+def _write_ci_setup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path, Path]:
+    module_templates = tmp_path / "templates"
+    module_templates.mkdir()
+    _write_template(module_templates, "retrieval", ["__LATE_BOUND_HASH_PROMPT__"])
+    _write_template(module_templates, "drift", ["__LATE_BOUND_HASH_PROMPT__"])
+    _write_template(module_templates, "coordinator", ["__LATE_BOUND_HASH_PROMPT__"])
+    jobs_path = tmp_path / "jobs.json"
+    jobs_path.write_text(json.dumps(_ci_jobs_payload()), encoding="utf-8")
+    inventory_path = tmp_path / "platform.json"
+    inventory_path.write_text(json.dumps(_inventory_payload()), encoding="utf-8")
+    return module_templates, jobs_path, inventory_path
+
+
+def test_resolve_bindings_rejects_jobs_head_commit_mismatch_without_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Fail-closed commit binding must not weaken: CI jobs vs moved HEAD still raise."""
+    module = _publisher()
+    templates, jobs_path, inventory_path = _write_ci_setup(tmp_path, monkeypatch)
+    _isolate_prompt_source(monkeypatch, module)
+
+    with pytest.raises(ValueError, match="commit mismatch"):
+        module.resolve_bindings(templates, jobs_path, inventory_path, HEAD_COMMIT)
+
+
+def test_resolve_bindings_permits_ci_commit_with_explicit_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """--allow-ci-commit equal to jobs.json commit_sha permits publish at the CI commit."""
+    module = _publisher()
+    templates, jobs_path, inventory_path = _write_ci_setup(tmp_path, monkeypatch)
+    _isolate_prompt_source(monkeypatch, module)
+
+    bindings = module.resolve_bindings(
+        templates, jobs_path, inventory_path, HEAD_COMMIT, allow_ci_commit=CI_COMMIT
+    )
+
+    assert set(bindings) == {"retrieval", "drift", "coordinator"}
+    assert all(binding["commit_sha"] == CI_COMMIT for binding in bindings.values())
+    logged = capsys.readouterr().out
+    assert CI_COMMIT in logged and HEAD_COMMIT in logged
+
+
+def test_resolve_bindings_rejects_allow_ci_commit_not_equal_to_jobs_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A flag that does not exactly match jobs.json commit_sha stays fail-closed."""
+    module = _publisher()
+    templates, jobs_path, inventory_path = _write_ci_setup(tmp_path, monkeypatch)
+    _isolate_prompt_source(monkeypatch, module)
+
+    with pytest.raises(ValueError, match="CI commit"):
+        module.resolve_bindings(
+            templates, jobs_path, inventory_path, HEAD_COMMIT, allow_ci_commit=HEAD_COMMIT
+        )
+
+
+def test_parse_args_accepts_allow_ci_commit(tmp_path: Path) -> None:
+    """The CI-commit escape hatch is an explicit CLI flag, never a default."""
+    module = _publisher()
+
+    args = module.parse_args(
+        [
+            "--templates",
+            str(TEMPLATES),
+            "--commit-sha",
+            HEAD_COMMIT,
+            "--allow-ci-commit",
+            CI_COMMIT,
+            "--publish",
+            "--output",
+            str(tmp_path / "registry.json"),
+        ]
+    )
+
+    assert args.allow_ci_commit == CI_COMMIT

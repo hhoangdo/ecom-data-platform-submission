@@ -255,6 +255,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--templates", type=Path, required=True)
     parser.add_argument("--commit-sha", required=True)
+    parser.add_argument("--allow-ci-commit", default=None)
     parser.add_argument(
         "--jobs-evidence",
         type=Path,
@@ -395,12 +396,22 @@ def resolve_bindings(
     commit_sha: str,
     repo_root: str | Path | None = None,
     strict: bool = False,
+    allow_ci_commit: str | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Bind immutable images, commit, and hash provenance for all three agents."""
     if not COMMIT_RE.fullmatch(commit_sha):
         raise ValueError("commit SHA must be a lowercase 40-hex value")
     root = Path(repo_root) if repo_root is not None else Path(__file__).resolve().parents[2]
     jobs = json.loads(jobs_path.read_text(encoding="utf-8"))
+    if allow_ci_commit is None:
+        effective_commit = commit_sha
+    else:
+        if not COMMIT_RE.fullmatch(allow_ci_commit):
+            raise ValueError("allowed CI commit must be a lowercase 40-hex value")
+        if jobs.get("commit_sha") != allow_ci_commit:
+            raise ValueError("allowed CI commit does not match jobs evidence")
+        effective_commit = allow_ci_commit
+        print(json.dumps({"allow_ci_commit": allow_ci_commit, "head_commit": commit_sha}, sort_keys=True))
     by_job = {entry.get("job"): entry for entry in jobs.get("jobs", [])}
     actor_image = resolve_actor_image(platform_inventory)
     bindings: dict[str, dict[str, Any]] = {}
@@ -408,7 +419,7 @@ def resolve_bindings(
         entry = by_job.get(AGENT_JOBS[agent])
         if not isinstance(entry, dict):
             raise ValueError(f"job record missing for agent: {agent}")
-        if entry.get("commit_sha") != commit_sha:
+        if entry.get("commit_sha") != effective_commit:
             raise ValueError(f"job commit mismatch for agent: {agent}")
         remote = entry.get("remote_digest", "")
         pod = entry.get("pod_image_digest", "")
@@ -430,7 +441,7 @@ def resolve_bindings(
         bindings[agent] = {
             "actor_image": actor_image,
             "python_service_image": f"{entry['image']}@{remote}",
-            "commit_sha": commit_sha,
+            "commit_sha": effective_commit,
             "hashes": hashes,
         }
     return bindings
@@ -482,6 +493,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.platform_inventory,
         args.commit_sha,
         strict=args.strict,
+        allow_ci_commit=args.allow_ci_commit,
     )
     evidence = publish_and_readback(
         args.templates,

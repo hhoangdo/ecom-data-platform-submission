@@ -331,3 +331,57 @@ def test_index_rollback_rejects_eval_regression() -> None:
             previous_good="v2",
             cwd=Path("."),
         )
+
+
+def test_verify_namespace_rejects_expected_actual_mismatch() -> None:
+    """Releases live in default, Deployments in edai2; single-ns assumption must fail."""
+    module = _smoke()
+    with pytest.raises(ValueError, match="namespace"):
+        module.verify_namespace(expected="default", actual="edai2", context="helm-release-vs-deployment")
+
+
+def test_helm_rollback_fails_closed_on_namespace_mismatch(tmp_path: Path) -> None:
+    module = _smoke()
+
+    def helm(command: list[str], cwd: Path) -> str:
+        raise AssertionError("helm must not run after namespace mismatch")
+
+    def kubectl(command: list[str], cwd: Path) -> str:
+        raise AssertionError("kubectl must not run after namespace mismatch")
+
+    with pytest.raises(ValueError, match="namespace"):
+        module.prove_helm_rollback(
+            helm=helm,
+            kubectl=kubectl,
+            http_get=lambda url: {"status": 200},
+            release="retrieval",
+            namespace="edai2",
+            failure_mode="bad-readiness",
+            readyz_url="http://retrieval.edai2.svc.cluster.local/readyz",
+            prior_revision=7,
+            cwd=tmp_path,
+            expected_namespace="default",
+            actual_namespace="edai2",
+        )
+
+
+def test_model_rollback_fails_closed_on_namespace_mismatch() -> None:
+    module = _smoke()
+
+    def kubectl(command: list[str], cwd: Path) -> str:
+        raise AssertionError("kubectl must not run after namespace mismatch")
+
+    with pytest.raises(ValueError, match="namespace"):
+        module.prove_model_rollback(
+            kubectl=kubectl,
+            http_get=lambda url: {"status": 200},
+            primary="llmd-primary",
+            namespace="edai2",
+            invalid_digest="sha256:" + "0" * 64,
+            readyz_url="http://llmd-primary/readyz",
+            delete_one_healthy=False,
+            active_active_replicas=2,
+            cwd=Path("."),
+            expected_namespace="default",
+            actual_namespace="edai2",
+        )

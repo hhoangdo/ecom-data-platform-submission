@@ -186,18 +186,153 @@ def _vault_exec(kubeconfig: str, context: str, namespace: str, *vault_args: str,
     return proc.stdout
 
 
+def verify_recovery(
+    *,
+    exec_fn,
+    expected_bootstrap: dict,
+    recovery_sink: str | None = None,
+    attestation: dict | None = None,
+) -> dict:
+    """Prove KMS auto-unseal recovery with identical canary metadata.
+
+    Status must show initialized and unsealed with no manual unseal step. Key
+    names must match the bootstrap exactly (names only, values never read).
+    Policy probes rerun the locked matrix with immediate token revocation.
+    Study-only: recovery sink attestation is not required; when a sink and
+    attestation are supplied they must bind an encrypted two-custodian sink.
+    Role tokens and sink URIs never enter the returned evidence.
+    """
+    if not isinstance(expected_bootstrap, dict):
+        raise ValueError("recovery evidence inputs are invalid")
+    if recovery_sink is not None or attestation is not None:
+        if not isinstance(recovery_sink, str) or not recovery_sink or not isinstance(attestation, dict):
+            raise ValueError("recovery evidence inputs are invalid")
+    try:
+        status = json.loads(exec_fn("status", "-format=json"))
+    except (RuntimeError, json.JSONDecodeError) as error:
+        raise ValueError(f"vault status read failed: {error}") from error
+    if status.get("initialized") is not True:
+        raise ValueError("vault is not initialized after recovery")
+    if status.get("sealed") is not False:
+        raise ValueError("vault needs manual unseal; KMS auto-unseal failed")
+    seal_type = status.get("seal_type", "")
+    if not seal_type or seal_type != expected_bootstrap.get("seal_type"):
+        raise ValueError("vault seal type drifted from bootstrap")
+    live_keys: list[str] = []
+    for path in KEY_MATRIX:
+        try:
+            live_keys.extend(json.loads(exec_fn("kv", "list", path)))
+        except (RuntimeError, json.JSONDecodeError) as error:
+            raise ValueError(f"vault key listing failed: {path}") from error
+    key_names_match = sorted(live_keys) == sorted(expected_bootstrap.get("key_names", []))
+    if not key_names_match:
+        raise ValueError("vault key names drifted from bootstrap")
+    policy_results: dict[str, bool] = {}
+    for role, path, expect_allowed in PROBE_MATRIX:
+        try:
+            created = json.loads(exec_fn("token", "create", f"-policy={role}", "-format=json"))
+            role_token = str(created["auth"]["client_token"])
+        except (RuntimeError, KeyError, json.JSONDecodeError) as error:
+            raise ValueError(f"vault canary token issue failed: {role}") from error
+        try:
+            try:
+                exec_fn("kv", "get", "-format=json", path, token=role_token)
+                allowed = True
+            except RuntimeError:
+                allowed = False
+        finally:
+            try:
+                exec_fn("token", "revoke", role_token)
+            except RuntimeError:
+                pass
+        label = f"{role}-{'allow' if expect_allowed else 'deny'}-{path.rsplit('/', 1)[-1]}"
+        policy_results[label] = (allowed is expect_allowed)
+    try:
+        exec_fn("kv", "get", "-format=json", "kv/edai2/kagent/gateway-keys", token="invalid-probe-token")
+        denied = False
+    except RuntimeError:
+        denied = True
+    policy_results["cross-path-deny"] = denied
+    if policy_results != {key: expected_bootstrap.get("policy_results", {}).get(key) for key in policy_results}:
+        raise ValueError("vault policy canary drifted from bootstrap")
+    if recovery_sink is None and attestation is None:
+        return {
+            "initialized": True, "seal_type": seal_type, "auto_unseal": True,
+            "manual_unseal_required": False, "key_names_match": True,
+            "policy_results": policy_results, "recovery_control": "not_applicable_personal_study",
+        }
+    assert isinstance(recovery_sink, str) and isinstance(attestation, dict)
+    sink_hash = hashlib.sha256(recovery_sink.encode("utf-8")).hexdigest()
+    custodians = attestation.get("custodians", [])
+    if (
+        attestation.get("sink_uri_sha256") != sink_hash
+        or attestation.get("encrypted") is not True
+        or not isinstance(custodians, list) or len(custodians) != 2 or len(set(custodians)) != 2
+        or not all(isinstance(item, str) and item for item in custodians)
+        or not attestation.get("attested_at")
+    ):
+        raise ValueError("recovery sink attestation is invalid")
+    return {
+        "initialized": True, "seal_type": seal_type, "auto_unseal": True,
+        "manual_unseal_required": False, "key_names_match": True,
+        "policy_results": policy_results, "recovery_sink_sha256": sink_hash,
+        "custodians": len(custodians),
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--kubeconfig", required=True)
     parser.add_argument("--context", required=True)
     parser.add_argument("--namespace", default="vault")
-    parser.add_argument("--kms-key-id", required=True)
+    parser.add_argument("--kms-key-id", required=False, default=None)
     parser.add_argument("--kubernetes-auth", action="store_true")
     parser.add_argument("--policies", default="infra/security/vault/policies")
     parser.add_argument("--redacted-output", required=True)
     parser.add_argument("--admin-token-output", default=None,
                         help="gitignored-local-only study admin token path (must be under tmp/edai2-gcp/)")
+    parser.add_argument("--verify-recovery", action="store_true")
+    parser.add_argument("--expected-bootstrap", default=None)
+    parser.add_argument("--recovery-sink", default=None)
+    parser.add_argument("--recovery-sink-attestation", default=None)
     args = parser.parse_args(argv)
+
+    if args.verify_recovery:
+        if args.expected_bootstrap is None:
+            print("--verify-recovery requires --expected-bootstrap", file=sys.stderr)
+            return 2
+        if Path(args.redacted_output).exists():
+            print("refusing to overwrite existing evidence", file=sys.stderr)
+            return 2
+        try:
+            expected = json.loads(Path(args.expected_bootstrap).read_text(encoding="utf-8"))
+            if args.recovery_sink_attestation is not None:
+                attestation = json.loads(Path(args.recovery_sink_attestation).read_text(encoding="utf-8"))
+            else:
+                attestation = None
+        except (OSError, json.JSONDecodeError) as error:
+            print(f"recovery inputs unreadable: {error}", file=sys.stderr)
+            return 2
+
+        def _exec(*vault_args: str, token: str | None = None) -> str:
+            return _vault_exec(args.kubeconfig, args.context, args.namespace, *vault_args, token=token)
+
+        try:
+            result = verify_recovery(
+                exec_fn=_exec, expected_bootstrap=expected,
+                recovery_sink=args.recovery_sink, attestation=attestation,
+            )
+        except ValueError as error:
+            print(f"recovery verification failed: {error}", file=sys.stderr)
+            return 1
+        out_path = Path(args.redacted_output)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        print("VAULT_RECOVERY=OK")
+        return 0
+    if args.kms_key_id is None:
+        print("--kms-key-id is required for bootstrap", file=sys.stderr)
+        return 2
 
     if Path(args.redacted_output).exists():
         print("refusing to overwrite existing evidence", file=sys.stderr)

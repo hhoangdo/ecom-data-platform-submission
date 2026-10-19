@@ -96,6 +96,25 @@ def test_ingress_contract_is_temporary_one_replica_and_rate_limited() -> None:
     assert script.render_contract(ROOT)["controller_replicas"] == 1
 
 
+def test_ingress_render_only_accepts_dedicated_edai2_gke_context(tmp_path: Path) -> None:
+    """Render-only checks must run against the dedicated kubeconfig, not a fake context."""
+    script = _load_script("scripts/gke/configure_evidence_ingress.py")
+    kubeconfig = tmp_path / "config.yaml"
+    kubeconfig.write_text("contexts:\n- name: edai2-gke\n", encoding="utf-8")
+    script.validate_target(kubeconfig, "edai2-gke", render_only=True)
+
+
+def test_ingress_live_accepts_edai2_gke_or_gke_cluster_context(tmp_path: Path) -> None:
+    """Live ingress must accept the authorized dedicated context, matching live_runner."""
+    script = _load_script("scripts/gke/configure_evidence_ingress.py")
+    kubeconfig = tmp_path / "gke.yaml"
+    kubeconfig.write_text("contexts:\n- name: edai2-gke\n- name: gke_project_zone_cluster\n- name: corporate\n", encoding="utf-8")
+    script.validate_target(kubeconfig, "edai2-gke", render_only=False)
+    script.validate_target(kubeconfig, "gke_project_zone_cluster", render_only=False)
+    with pytest.raises(ValueError, match="explicit GKE"):
+        script.validate_target(kubeconfig, "corporate", render_only=False)
+
+
 def test_ingress_render_only_rejects_an_unapproved_context(tmp_path: Path) -> None:
     """Falling back to a default Kubernetes context would target the wrong cluster."""
     script = _load_script("scripts/gke/configure_evidence_ingress.py")

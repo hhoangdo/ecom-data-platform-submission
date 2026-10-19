@@ -10,6 +10,8 @@
 > - Study-mode relaxation v1 (study-first, single-agent): plan-doc SHA pins and manifest-byte equality are LOG-ONLY — record computed vs listed values, never block. Image remote-digest equality stays HARD.
 > - Safety gates stay HARD: live budget preflight, exact kubeconfig/context, capacity ceilings. Numeric gates (eval/A-B/coverage/mutation/Locust) are record-and-continue `Partial`, one bounded retry max. No mid-run approvals.
 > - PoC-first sprint (trial ends 2026-10-25): demo win = one 60-case eval run with recorded numbers + both notebooks executed + Locust run recorded. Tuning retries, promotion decisions, coverage/mutation thresholds, p95 gates stay `Partial`. Keep disable-routes + suspend at end. One lease, time-box, log spend/remaining/trial-hours.
+>
+> **Study-only contract amendment 2026-10-18 (operator directive):** ACME staging/production and recovery-sink/attestation requirements are REMOVED entirely. No public `retrieval,chat` TLS routes; use private ClusterIP + `127.0.0.1` loopback route manifest only, disabled in `finally`. Route-cert fail is no longer a safe-stop.
 
 **Goal:** Produce reproducible evaluation, two isolated A/B experiments, executed agent notebooks, test-quality evidence, Locust performance evidence, agent-test UI proof, and two runtime-backed novel-idea proofs.
 
@@ -244,12 +246,76 @@ Topic 29 owns exactly eight screenshots: three kagent chats, four test-quality c
 
 ## Completion Record
 
-- **Status:** Not started; no evaluation/test/A-B cell claim.
-- **Branch / revision:** Record exact `rtk git status --short --branch`; none recorded.
-- **Affected files:** None at plan-authoring time.
-- **Command / exit-code log:** No execution commands recorded.
-- **Evidence / SHA-256 log:** No evaluation/notebook/test/load evidence recorded.
-- **Screenshot QA:** Eight owned screenshots not captured.
-- **Cleanup / runtime release:** No lease held by this plan artifact.
-- **Limitations:** Any missed numeric/gate result lowers the truthful final score.
-- **Handoff:** Topic 30 starts only after suspended state and receives experiment/alias/model/index hashes and limitations.
+- **Status:** Partial (2026-10-18 ~16:15Z, dependency order T29 after T27). No eval/A-B/notebook/load claim, zero mutation.
+- **Branch / revision:** `feature/implement-edai2`, HEAD `e651a86dfb7d509c28c58fe0116cddd3cf6ea1a5`. No stage/commit/push.
+- **Spend / trial:** `2119176 VND` observed `2026-10-18T15:52:10+00:00` (`<24h`). Trial ends `2026-10-25T00:00Z` (~6d left).
+- **Command / exit log:** backend `initialized` reused (`16:09:23Z`, `<900s`, rev `e651a86`). Bundle gate fresh `ok:true failures:[]` (no archive needed, first T29 gate files). Lease `topic29-eval --lease-file tmp/edai2-gcp/topic29-lease.json` exit 0 (`16:15:42Z`, TTL 6h), released exit 0. Units `test_live_evaluation+test_eval_retry_novel+test_property_crosshair` 12 passed (scope_extend + capture_reports_chats covered in prior 19-pass suite). Live: `retrieval-agent Ready 0` (services `0/1`); `test_scope.json` absent → scope/coverage/mutation ungrounded (no file created); no `topic29_routes.json` created (ACME removed, private loopback only, but no Ready endpoints to route); no 60-case eval / A-B / notebooks / Locust / novel live runs (would fabricate without index/routes). One bounded retry NOT spent on foreknown churn.
+- **Evidence / SHA:** `gcp_preflight_topic29.json` `ok:true`, `cost_forecast_topic29.json` `ok:true` (spend `2119176`). No `evaluation/*`, `notebooks/*`, `load/*`, `tests/*` machine files.
+- **Screenshot QA:** 8 owned PNGs Missing (3 chats + 4 test-quality + `locust_report.png`); `grafana_ab.png` untouched (Topic 27 owns). Nothing manufactured.
+- **Cleanup:** No lease held (file absent); no routes created (nothing to disable); alias/model state untouched; cluster UP for T30.
+- **Limitations:** Numerics unmeasured (honest Partial); route-cert gate removed per study contract; readiness + index are T28 unlock.
+- **Handoff:** T30 prerequisites NOT met (no experiment/alias hashes). Next: fresh lease + fresh gates only after readiness + index land. T30 final suspend clean next per dependency order.
+
+### Execution 2026-10-18 ~16:01Z — Partial, no lease (prerequisites unmet, spend refreshed)
+- **Status:** Partial. No lease; zero mutation. T28 r2 still Partial (no index/hashes, endpoints `0/1`); ACME removed (private loopback only, no public routes).
+- **Command / exit-code log:** Units re-verified GREEN without lease: 19 passed (`live_evaluation+eval_retry_novel+scope_extend+capture_reports_chats+property_crosshair`). Spend `2119176 VND @ 2026-10-18T15:52:10+00:00` (`<24h`). No live commands.
+- **Evidence / SHA-256 log:** No `gcp_preflight_topic29.json`, `topic29_routes.json`, `evaluation/*`, `notebooks/*`, `load/locust.*`, `tests/*` (ungrounded without index/routes).
+- **Screenshot QA:** 8 owned PNGs Missing; `grafana_ab.png` untouched.
+- **Cleanup / runtime release:** No lease; nothing created; cluster UP.
+- **Limitations:** Numerics unmeasured; route-cert gate removed.
+- **Handoff:** Topic 30 prerequisites NOT met. Fresh lease + gates only after readiness + index.
+
+### Execution 2026-10-18 ~03:55Z — Partial, no lease (prerequisites unmet, study-only contract)
+- **Status:** Partial. No lease acquired (would burn budget on foreknown failure); zero cloud mutation. Topic 28 produced no index/model/config hashes; `retrieval,chat` endpoints unready (`coordinator/drift 0/1`, `llmd-primary 0/1`); ACME removed per amendment (private loopback only, no public routes to disable).
+- **Command / exit-code log:** Read-only only. Phase A units re-verified GREEN: `test_live_evaluation + test_eval_retry_novel + test_scope_extend + test_capture_reports_chats + test_property_crosshair` → 19 passed. Spend still fresh (`1963347 VND @ 2026-10-18T03:43:08+00:00`, `<24h`); backend proof `03:45:44Z` still `<900s` at check time but no mutation gated on it. No `check_budget`/lease/route/eval/notebook/Locust live commands run.
+- **Evidence / SHA-256 log:** No `gcp_preflight_topic29.json`, `cost_forecast_topic29.json`, `topic29_routes.json`, `evaluation/*`, `notebooks/*`, `load/locust.*`, `tests/*` machine files (would be ungrounded without index/routes). Notebooks + `locustfile.py` present for a future leased run.
+- **Screenshot QA:** All 8 owned PNGs Missing; `grafana_ab.png` untouched (Topic 27 owns).
+- **Cleanup / runtime release:** No lease ever held; no routes created; alias/model state untouched; cluster UP.
+- **Limitations:** All numeric/gate results unmeasured; truthful score impact deferred. Route-cert fail is no longer a gate (removed).
+- **Handoff:** Topic 30 prerequisites NOT met (no experiment/alias hashes). Fresh ≤6h lease with fresh gates only after Topics 27–28 land readiness + index.
+
+### Execution 2026-10-18 ~04:10Z — Partial, no lease (prerequisites unmet, foreknown churn)
+- **Status:** Partial. No lease acquired; zero cloud mutation. Topic 28 produced no index/model hashes and no benchmark gates; routed `retrieval,chat` endpoints unproven (services unready, no ACME routes).
+- **Command / exit-code log:** Read-only only. Phase A CLIs verified locally (live-eval, A-B decisions, retry, novel proofs, scope/coverage/mutation writers, report/agent/property collectors — unit GREEN).
+- **Evidence / SHA-256 log:** No `gcp_preflight_topic29.json`, `cost_forecast_topic29.json`, `topic29_routes.json`, `evaluation/*`, `notebooks/*`, `load/locust.*`, `tests/*` machine files. Notebooks (`drift_agent_mcp`, `retrieval_agent_mcp`) and `locustfile.py` confirmed present for a future leased run.
+- **Screenshot QA:** All 8 owned PNGs Missing; `grafana_ab.png` untouched.
+- **Cleanup / runtime release:** No lease, no routes, alias/model state untouched.
+- **Limitations:** All numeric/gate results unmeasured; truthful score impact deferred.
+- **Handoff:** Topic 30 prerequisites NOT met (no experiment/alias hashes). Fresh ≤6h lease with fresh gates after Topics 27–28 land.
+
+### Execution 2026-10-18 ~00:22Z — Partial, zero mutation (no lease acquired)
+- **Status:** Partial. Prerequisites unmet (Topic 28 produced no index/model hashes) plus own CLI contracts absent; no lease acquired, no routes created, no cloud mutation.
+- **Command / exit-code log:** `run_evaluation.py --help` → only `--mode {local,live} --cases --output` + base URLs; no `--route-manifest/--gates/--experiment/--sessions-per-arm/--select-stable-uuids/--runtime-a/--runtime-b/--promote-if-all/--bounded-tuning-retry-from/--novel-idea`. `verify_edai2_test_scope.py --help` → only `--base-ref/--scope/--coverage-config/--pyproject`; no `--base/--head/--config/--check-only/--output/--run-coverage/--run-mutation`. Primary 60-case eval, agent/model A/B, coverage/mutation/property/Locust/novelty gates all uninvokable as written. Locust/notebook paths not attempted (no routes, would be ungrounded).
+- **Evidence / SHA-256 log:** No `gcp_preflight_topic29.json`, `cost_forecast_topic29.json`, `topic29_routes.json`, `evaluation/{report,agent_ab,model_ab}.json`, `notebooks/*`, `load/locust.*`, `tests/{test_scope,coverage,ep_bva,mutation,properties_crosshair,novel_*}.json`.
+- **Screenshot QA:** All 8 owned PNGs Missing (3 chats + 4 test-quality + `locust_report.png`); `grafana_ab.png` untouched (Topic 27 owns).
+- **Cleanup / runtime release:** No lease, no routes to disable, model/alias state untouched, cluster UP.
+- **Limitations:** Any numeric/gate result remains unmeasured; truthful score impact deferred.
+- **Handoff:** Topic 30 NOT unblocked by this topic (no experiment/alias hashes). Owning-local fixes needed: routed evaluation + isolated A/B + promotion/read-back path, test-scope derive + coverage/mutation/property collectors, test-evidence + Locust + agent-chat capture flags.
+
+### Execution 2026-10-18 ~16:42Z — Partial, zero live eval (prerequisites unmet, subagent-driven run)
+- **Authoritative for Task 6 (subagent-driven run): this entry; prior entries are inline-run history.**
+- **Status:** Partial. Prerequisites unmet, zero live eval. `retrieval-agent` Ready 0; `test_scope.json` absent so scope/coverage/mutation ungrounded — created nothing. ACME removed: private loopback only, no public routes; no routes created (no Ready endpoints to route). No 60-case eval / A-B / notebooks / Locust / novel live runs (would fabricate without index/routes). Zero retries spent (foreknown churn, one-retry budget unspent).
+- **Backend:** reused, no rotate. `tmp/edai2-gcp/terraform-data/topic22-backend-initialized-proof.json` `ok:true`, `observed_at_utc 2026-10-18T16:31:30.624320Z`, age ~558s at check (`<900s`), `revision e651a86dfb7d509c28c58fe0116cddd3cf6ea1a5` matches HEAD. No rev mismatch.
+- **Bundle gate:** reused (not created). `evidence/04_2_llm_design/gke/gcp_preflight_topic29.json` `ok:true failures:[]`; `evidence/04_2_llm_design/gke/cost_forecast_topic29.json` `ok:true`, spend `2119176 VND @ 2026-10-18T15:52:10+00:00`. No archive needed (reuse path, first-creation archive rule not triggered).
+- **Lease acquire (FULL, exit 0):** `uv run python scripts/gke/manage_profile.py --kubeconfig 'C:\Users\hhoangdo\Documents\Personal Projects\FSDS\ecom-data-platform-submission\tmp\edai2-gcp\kubeconfig' --context edai2-gke rubric-evidence --ttl 6h --acquire-session-lease --owner topic29-eval --commit-sha e651a86dfb7d509c28c58fe0116cddd3cf6ea1a5 --lease-file tmp/edai2-gcp/topic29-lease.json` → `{"lease_acquired": true, "owner": "topic29-eval", "acquired_at_utc": "2026-10-18T16:41:10.109217+00:00", "ttl_hours": 6}`.
+- **Units (exit GREEN):** `pytest tests/unit/llm/test_live_evaluation.py tests/unit/llm/test_eval_retry_novel.py tests/unit/llm/test_property_crosshair.py -q` → `12 passed in 0.88s`.
+- **Live (no mutation):** `kubectl --kubeconfig 'C:\Users\hhoangdo\Documents\Personal Projects\FSDS\ecom-data-platform-submission\tmp\edai2-gcp\kubeconfig' --context edai2-gke -n edai2 get deploy retrieval-agent -o jsonpath='{.status.readyReplicas}'` → empty; full JSON `readyReplicas: None | replicas: 1 | availableReplicas: None` → Ready 0. `evidence/04_2_llm_design/tests/test_scope.json` exists: False → scope/coverage/mutation ungrounded, no file created. `evidence/04_2_llm_design/gateway/topic29_routes.json` exists: False → no routes created. No eval/A-B/notebooks/Locust/novel live runs.
+- **Lease release (FULL, exit 0):** `uv run python scripts/gke/manage_profile.py --kubeconfig 'C:\Users\hhoangdo\Documents\Personal Projects\FSDS\ecom-data-platform-submission\tmp\edai2-gcp\kubeconfig' --context edai2-gke suspended --release-session-lease --owner topic29-eval --lease-file tmp/edai2-gcp/topic29-lease.json` → `{"lease_released": true, "owner": "topic29-eval"}`; lease file exists after release: False. No routes created so nothing to disable; alias/model untouched.
+- **Screenshot QA:** 8 owned PNGs Missing (3 chats + 4 test-quality + `locust_report.png`); `grafana_ab.png` untouched (Topic 27 owns). Nothing manufactured.
+- **Cleanup:** No lease held (file absent); no routes created (nothing to disable); alias/model state untouched; cluster UP for T30.
+- **Limitations:** Numerics unmeasured (honest Partial); route-cert gate removed per study contract; readiness + index are T28 unlock.
+- **Handoff:** T30 prerequisites NOT met (no experiment/alias hashes). Next: fresh lease + fresh gates only after readiness + index land.
+
+### Execution 2026-10-18 ~17:05Z — Partial, zero live eval (prerequisites unmet, subagent-driven run)
+- **Authoritative for Task 5 (subagent-driven run): this entry; prior entries are inline-run history.**
+- **Status:** Partial. Prerequisites unmet, zero live eval. `retrieval-agent` Ready 0; `test_scope.json` absent so scope/coverage/mutation ungrounded — created nothing. ACME removed: private loopback only, no public routes; no routes created (no Ready endpoints to route). No 60-case eval / A-B / notebooks / Locust / novel live runs (would fabricate without index/routes). Zero retries spent (foreknown churn, one-retry budget unspent).
+- **Backend:** reused, no rotate. `tmp/edai2-gcp/terraform-data/topic22-backend-initialized-proof.json` `ok:true`, `observed_at_utc 2026-10-18T16:57:13.185596Z`, age ~478s at check (`17:05:11Z`, `<900s`), `revision e651a86dfb7d509c28c58fe0116cddd3cf6ea1a5` matches HEAD. No rev mismatch.
+- **Bundle gate:** reused (not created). `evidence/04_2_llm_design/gke/gcp_preflight_topic29.json` `ok:true failures:[]`; `evidence/04_2_llm_design/gke/cost_forecast_topic29.json` `ok:true`, spend `2119176 VND @ 2026-10-18T15:52:10+00:00`. No archive needed (reuse path, first-creation archive rule not triggered).
+- **Lease acquire (FULL, exit 0):** `uv run python scripts/gke/manage_profile.py --kubeconfig 'C:\Users\hhoangdo\Documents\Personal Projects\FSDS\ecom-data-platform-submission\tmp\edai2-gcp\kubeconfig' --context edai2-gke rubric-evidence --ttl 6h --acquire-session-lease --owner topic29-eval --commit-sha e651a86dfb7d509c28c58fe0116cddd3cf6ea1a5 --lease-file tmp/edai2-gcp/topic29-lease.json` → `{"lease_acquired": true, "owner": "topic29-eval", "acquired_at_utc": "2026-10-18T17:05:20.598361+00:00", "ttl_hours": 6}`.
+- **Units (exit 0):** `pytest tests/unit/llm/test_live_evaluation.py tests/unit/llm/test_eval_retry_novel.py tests/unit/llm/test_property_crosshair.py -q` → `12 passed` (first `rtk`-prefixed invocation printed `12 passed in 0.90s` but the PowerShell wrapper reported exit 1 from the `rtk` stderr banner; re-ran via `uv run` → `EXIT:0`).
+- **Live (no mutation):** `kubectl --kubeconfig 'C:\Users\hhoangdo\Documents\Personal Projects\FSDS\ecom-data-platform-submission\tmp\edai2-gcp\kubeconfig' --context edai2-gke -n edai2 get deploy retrieval-agent -o json` → status has no `readyReplicas`/`availableReplicas` keys; `replicas: 1 | unavailableReplicas: 1 | Available=False | Progressing=ProgressDeadlineExceeded` → Ready 0. `evidence/04_2_llm_design/tests/test_scope.json` exists: False → scope/coverage/mutation ungrounded, no file created. `evidence/04_2_llm_design/gateway/topic29_routes.json` exists: False → no routes created. No eval/A-B/notebooks/Locust/novel live runs.
+- **Lease release (FULL, exit 0):** `uv run python scripts/gke/manage_profile.py --kubeconfig 'C:\Users\hhoangdo\Documents\Personal Projects\FSDS\ecom-data-platform-submission\tmp\edai2-gcp\kubeconfig' --context edai2-gke suspended --release-session-lease --owner topic29-eval --lease-file tmp/edai2-gcp/topic29-lease.json` → `{"lease_released": true, "owner": "topic29-eval"}`; lease file exists after release: False. No routes created so nothing to disable; alias/model untouched.
+- **Screenshot QA:** 8 owned PNGs Missing (3 chats + 4 test-quality + `locust_report.png`); `grafana_ab.png` untouched (Topic 27 owns). Nothing manufactured.
+- **Cleanup:** No lease held (file absent); no routes created (nothing to disable); alias/model state untouched; cluster UP for T30.
+- **Limitations:** Numerics unmeasured (honest Partial); route-cert gate removed per study contract; readiness + index are T28 unlock.
+- **Handoff:** T30 prerequisites NOT met (no experiment/alias hashes). Next: fresh lease + fresh gates only after readiness + index land.
