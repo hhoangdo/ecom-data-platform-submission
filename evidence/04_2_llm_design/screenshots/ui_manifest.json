@@ -1,0 +1,171 @@
+[
+  {
+    "path": "design_patterns.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-19T17:10:40.416481+00:00",
+    "url_or_source": "local-render:scripts/qa/render_topic32_diagrams.py",
+    "commit_or_revision": "a5c2111d46cf8805baee18ba98bfd2df9ec942c5",
+    "visible_selectors": [
+      "Diagram title EDAI2 Design Patterns",
+      "pattern names",
+      "component relationships",
+      "readable legend"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/screenshots/topic32_source.json",
+        "sha256": "1118995437a047c1772e3cc1e7463ab84cf2305ecc62f9dd2ca3e31fed290df8"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "7ea0569a2be061621f3ae28d4e21e0f11b9994bc88aa20e2953a67e13a95b41c",
+    "proves": "Proves the EDAI2 design-pattern diagram is source-rendered with named patterns and relationships.",
+    "does_not_prove": "It does not prove runtime behavior or rubric cells."
+  },
+  {
+    "path": "whole_course_diagram.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-19T17:10:40.483435+00:00",
+    "url_or_source": "local-render:scripts/qa/render_topic32_diagrams.py",
+    "commit_or_revision": "a5c2111d46cf8805baee18ba98bfd2df9ec942c5",
+    "visible_selectors": [
+      "Whole-course architecture title",
+      "Section 03/EDAI2 boundaries",
+      "data/control/evidence flows",
+      "readable legend"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/screenshots/topic32_source.json",
+        "sha256": "1118995437a047c1772e3cc1e7463ab84cf2305ecc62f9dd2ca3e31fed290df8"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "71732162be9f52006354bff91db69bc7a15dca36eb658034e615a3347f88c3b6",
+    "proves": "Proves the whole-course architecture diagram is source-rendered with Section 03/EDAI2 boundaries.",
+    "does_not_prove": "It does not prove any live deployment state."
+  },
+  {
+    "path": "coverage_and_api_fixtures.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-19T17:29:22.266329+00:00",
+    "url_or_source": "file:///C:/Users/hhoangdo/Documents/Personal%20Projects/FSDS/ecom-data-platform-submission/evidence/04_2_llm_design/screenshots/.coverage_and_api_fixtures.report.html",
+    "commit_or_revision": "a5c2111d46cf8805baee18ba98bfd2df9ec942c5",
+    "visible_selectors": [
+      "Coverage report title",
+      "total at least 91%",
+      "API contract/fixture suite identity",
+      "passing state"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/tests/coverage.json",
+        "sha256": "c1cc7f9a5800aae37d5270252290794ba6e52595ea8e543eaddfbb29695d4856"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "c9cbd61700418a038d6e333c39d2c8a77cfbec2f71ad0b83d8b17bd4e719ad3f",
+    "proves": "Coverage report with totals and suite identity is visible.",
+    "does_not_prove": "It does not prove mutation quality."
+  },
+  {
+    "path": "ep_bva.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-19T17:29:23.737134+00:00",
+    "url_or_source": "file:///C:/Users/hhoangdo/Documents/Personal%20Projects/FSDS/ecom-data-platform-submission/evidence/04_2_llm_design/screenshots/.ep_bva.report.html",
+    "commit_or_revision": "a5c2111d46cf8805baee18ba98bfd2df9ec942c5",
+    "visible_selectors": [
+      "EP/BVA report identity",
+      "boundary case labels",
+      "passing totals"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/tests/ep_bva.json",
+        "sha256": "79720c5f917020cdb4daf3687580d87ab3701e888d767f6cedda612a946e6560"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "ef4cd31e3346d9fa45c274b68f4603e0460e5c4cb1fc2619a9d633465f5eaa8a",
+    "proves": "Boundary partition report with passing totals is visible.",
+    "does_not_prove": "It does not prove production behavior."
+  },
+  {
+    "path": "mutation.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-19T17:29:25.195345+00:00",
+    "url_or_source": "file:///C:/Users/hhoangdo/Documents/Personal%20Projects/FSDS/ecom-data-platform-submission/evidence/04_2_llm_design/screenshots/.mutation.report.html",
+    "commit_or_revision": "a5c2111d46cf8805baee18ba98bfd2df9ec942c5",
+    "visible_selectors": [
+      "Mutation report identity",
+      "classified status counts",
+      "strict score greater than 0.80"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/tests/mutation.json",
+        "sha256": "5d6f2dad17fe33d515a95f37626b7bededfb9128921821a50a8e77bbf85414e8"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "a28ec474cad07b0aa03c603422029f7110f48cf036bfc426a916c0018a8c1d2a",
+    "proves": "Mutation score with classified status counts is visible.",
+    "does_not_prove": "It does not prove coverage."
+  },
+  {
+    "path": "properties_crosshair.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-19T17:29:26.686704+00:00",
+    "url_or_source": "file:///C:/Users/hhoangdo/Documents/Personal%20Projects/FSDS/ecom-data-platform-submission/evidence/04_2_llm_design/screenshots/.properties_crosshair.report.html",
+    "commit_or_revision": "a5c2111d46cf8805baee18ba98bfd2df9ec942c5",
+    "visible_selectors": [
+      "Hypothesis and CrossHair report identities",
+      "bounded run details",
+      "no counterexample/passing state"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/tests/properties_crosshair.json",
+        "sha256": "031c90e7337df354f9942083adb8bd6a69fb2a253b4b615cd2481685c54ef6fe"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "ff8551ba4b04d8b5ddb2ef9228e6844be3f90d7e00cd21f2d23a2651345575bf",
+    "proves": "Property and bounded CrossHair report is visible.",
+    "does_not_prove": "It does not prove exhaustive verification."
+  },
+  {
+    "path": "vault_status.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-19T17:49:30.985409+00:00",
+    "url_or_source": "local-render:scripts/qa/render_vault_status.py",
+    "commit_or_revision": "a5c2111d46cf8805baee18ba98bfd2df9ec942c5",
+    "visible_selectors": [
+      "Vault title",
+      "initialized state",
+      "unsealed/healthy state",
+      "authentication context without secret values"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/security/vault_recovery.json",
+        "sha256": "036a495352a1a3ec2c14b5bb1ed8d0052f95af336f9dc19aec60334a2942566b"
+      },
+      {
+        "path": "evidence/04_2_llm_design/security/vault_status_source.json",
+        "sha256": "769966e6046064d41486e3890a347d8e69aa739cd069b67d3357bf506f6e2a37"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "f43580be8e5c740bb3e56960dcbbac072cc72dcfbe0ae1f95c2bf8434b3246c3",
+    "proves": "Proves the live Vault recovery status is initialized, unsealed, and policy-scoped.",
+    "does_not_prove": "It does not prove regional disaster recovery or the Vault login UI."
+  }
+]

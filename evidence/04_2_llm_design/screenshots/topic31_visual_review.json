@@ -1,0 +1,84 @@
+{
+  "audit": "tmp/edai2-gcp/topic31-screenshot-audit-final.json",
+  "human_eyes": false,
+  "images": [
+    {
+      "height": 1000,
+      "name": "coverage_and_api_fixtures.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\coverage_and_api_fixtures.png",
+      "reason": "Coverage report title, 92.74% total, API/fixture suite identity, and passing state are legible.",
+      "result": "pass",
+      "sha256": "c9cbd61700418a038d6e333c39d2c8a77cfbec2f71ad0b83d8b17bd4e719ad3f",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "design_patterns.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\design_patterns.png",
+      "reason": "Title, pattern names, component relationships, and legend are legible; no PII or secret.",
+      "result": "pass",
+      "sha256": "7ea0569a2be061621f3ae28d4e21e0f11b9994bc88aa20e2953a67e13a95b41c",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "ep_bva.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\ep_bva.png",
+      "reason": "EP/BVA report identity, 10 boundary cases, and 10 passing are legible.",
+      "result": "pass",
+      "sha256": "ef4cd31e3346d9fa45c274b68f4603e0460e5c4cb1fc2619a9d633465f5eaa8a",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "mutation.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\mutation.png",
+      "reason": "Mutation report identity, score 0.8076, classified counts, and denominator 4106 are legible.",
+      "result": "pass",
+      "sha256": "a28ec474cad07b0aa03c603422029f7110f48cf036bfc426a916c0018a8c1d2a",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "properties_crosshair.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\properties_crosshair.png",
+      "reason": "Hypothesis and CrossHair identities, bounded run details, and passing/no-counterexample state are legible.",
+      "result": "pass",
+      "sha256": "ff8551ba4b04d8b5ddb2ef9228e6844be3f90d7e00cd21f2d23a2651345575bf",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "vault_status.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\vault_status.png",
+      "reason": "Vault title, initialized true, unsealed/healthy, gcpckms, and redacted authentication context are legible.",
+      "result": "pass",
+      "sha256": "f43580be8e5c740bb3e56960dcbbac072cc72dcfbe0ae1f95c2bf8434b3246c3",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "whole_course_diagram.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\whole_course_diagram.png",
+      "reason": "Whole-course title, Section 03/EDAI2 boundaries, data/control/evidence flows, and legend are legible.",
+      "result": "pass",
+      "sha256": "71732162be9f52006354bff91db69bc7a15dca36eb658034e615a3347f88c3b6",
+      "width": 1600
+    },
+    {
+      "height": 900,
+      "name": "section03_config_and_training_join.png",
+      "path": "evidence\\03_data_generator_improvement\\runs\\f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640\\section03_config_and_training_join.png",
+      "reason": "Config snapshot and training-join columns are legible; candidate-only disclaimer is visible.",
+      "result": "pass",
+      "sha256": "ba02e5341f6af700530b97dca707f5e4e25f7cbaf44b6df8d50d7fd9821003ad",
+      "width": 1600
+    }
+  ],
+  "inspected_count": 8,
+  "method": "model visual inspection at original resolution",
+  "reviewed_at_utc": "2026-10-19T18:46:12.325825Z",
+  "reviewer": "agent (operator-delegated)",
+  "schema_version": 1,
+  "status": "pass"
+}

@@ -1,0 +1,11 @@
+{
+  "images": [
+    "design_patterns.png",
+    "whole_course_diagram.png"
+  ],
+  "producer": "topic32",
+  "render_mode": "local-render",
+  "revision": "a5c2111d46cf8805baee18ba98bfd2df9ec942c5",
+  "schema_version": 1,
+  "source": "scripts/qa/render_topic32_diagrams.py"
+}

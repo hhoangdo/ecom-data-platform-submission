@@ -1,12 +1,123 @@
 {
- "bundle_id": "f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640",
- "defect_for_owning_topic": "Section 03 artifact availability in checkout + GCS uploader surface",
- "manifest_sha256": "af7189d00a187e539bb777d89111d2860a97822f34c2c911adc3eadf6166f8ad",
- "reasons": [
-  "runs/ artifact tree absent from checkout: ml_customer_purchase_training.csv (and siblings) not present; strict verify fails 'final artifact hash/size mismatch for training_join'",
-  "load_section03.py has no GCS upload flags (--gcs-prefix/--upload-only/--verify-upload absent); no verified Section 03 GCS URI input exists in repo inputs",
-  "drift-owned activation consequently has no verified bundle to consume; section03/import.json deferred"
- ],
- "status": "partial",
- "uploaded": false
+  "bundle_id": "f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640",
+  "created_count": 15,
+  "defect_for_owning_topic": null,
+  "gcs_prefix": "gs://edai2-data-280de6292ec9/section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/",
+  "manifest_sha256": "af7189d00a187e539bb777d89111d2860a97822f34c2c911adc3eadf6166f8ad",
+  "object_count": 15,
+  "objects": [
+    {
+      "gcs_uri": "gs://edai2-data-280de6292ec9/section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/manifest.json",
+      "generation": "1792429260903732",
+      "path": "manifest.json",
+      "sha256": "af7189d00a187e539bb777d89111d2860a97822f34c2c911adc3eadf6166f8ad",
+      "size": 11430
+    },
+    {
+      "gcs_uri": "gs://edai2-data-280de6292ec9/section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/agg_feature_health_daily.csv",
+      "generation": "1792429264867367",
+      "path": "runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/agg_feature_health_daily.csv",
+      "sha256": "0d9a304b49fdae14aca134a11b8e3420fd202bf093535f1d7904fae8d020963f",
+      "size": 2875
+    },
+    {
+      "gcs_uri": "gs://edai2-data-280de6292ec9/section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/config_snapshot.yaml",
+      "generation": "1792429267874657",
+      "path": "runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/config_snapshot.yaml",
+      "sha256": "7405c3e2a27d87be522bea9de7dcc559ad8baff5274a8bed98f002b2753a9196",
+      "size": 760
+    },
+    {
+      "gcs_uri": "gs://edai2-data-280de6292ec9/section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/feature_drift_alerts.csv",
+      "generation": "1792429270913827",
+      "path": "runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/feature_drift_alerts.csv",
+      "sha256": "b656dccc0c86abdf5896e3db1788f04a0fb128e27f2218331f8cc49df188e76a",
+      "size": 51
+    },
+    {
+      "gcs_uri": "gs://edai2-data-280de6292ec9/section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/ml_customer_label.csv",
+      "generation": "1792429275074037",
+      "path": "runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/ml_customer_label.csv",
+      "sha256": "526304d4e2d97a70ed6671993b2f5bc07e934dfbd72488cb98c32dcb924f0278",
+      "size": 227933
+    },
+    {
+      "gcs_uri": "gs://edai2-data-280de6292ec9/section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/ml_customer_purchase_training.csv",
+      "generation": "1792429279780209",
+      "path": "runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/ml_customer_purchase_training.csv",
+      "sha256": "d1ffb48689373260e2e47f2ea9e14c45e6bc9e8543561a57924b1e21fa4afbdd",
+      "size": 1553823
+    },
+    {
+      "gcs_uri": "gs://edai2-data-280de6292ec9/section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runtime/airflow/run_manifest.json",
+      "generation": "1792429284338986",
+      "path": "runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runtime/airflow/run_manifest.json",
+      "sha256": "4c73d6a30a1791763f2b3d9deabcba6c40c25a496e27d0d1e7490f66c1cbbe00",
+      "size": 10859
+    },
+    {
+      "gcs_uri": "gs://edai2-data-280de6292ec9/section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runtime/datahub/lineage.json",
+      "generation": "1792429287446069",
+      "path": "runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runtime/datahub/lineage.json",
+      "sha256": "8674aaf59fdd94ff174dcd1c82b81a2644326a5a5eb3239bb48336d2bd9e08be",
+      "size": 49004
+    },
+    {
+      "gcs_uri": "gs://edai2-data-280de6292ec9/section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runtime/spark/run_manifest.json",
+      "generation": "1792429290556310",
+      "path": "runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runtime/spark/run_manifest.json",
+      "sha256": "1a2162eca274cc943b0fe6af30c19b399e148e0da0c556bca3be81fef90e776e",
+      "size": 3530
+    },
+    {
+      "gcs_uri": "gs://edai2-data-280de6292ec9/section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/sample_rows/agg_feature_health_daily.csv",
+      "generation": "1792429293644254",
+      "path": "runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/sample_rows/agg_feature_health_daily.csv",
+      "sha256": "8f181026aa6cb5f1ee890dee1a63b76ed9e0b6ba7ea20cefc268009aa40306f9",
+      "size": 2627
+    },
+    {
+      "gcs_uri": "gs://edai2-data-280de6292ec9/section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/sample_rows/feature_drift_alerts.csv",
+      "generation": "1792429296711157",
+      "path": "runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/sample_rows/feature_drift_alerts.csv",
+      "sha256": "b656dccc0c86abdf5896e3db1788f04a0fb128e27f2218331f8cc49df188e76a",
+      "size": 51
+    },
+    {
+      "gcs_uri": "gs://edai2-data-280de6292ec9/section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/sample_rows/ml_customer_label.csv",
+      "generation": "1792429299676832",
+      "path": "runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/sample_rows/ml_customer_label.csv",
+      "sha256": "11802e34c683730445db0a2690a1d62c3059e2093e4f348bba318bdd89289e0b",
+      "size": 389
+    },
+    {
+      "gcs_uri": "gs://edai2-data-280de6292ec9/section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/sample_rows/ml_customer_purchase_training.csv",
+      "generation": "1792429302702897",
+      "path": "runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/sample_rows/ml_customer_purchase_training.csv",
+      "sha256": "3c619014b0a56627bd891bf24e35b04136081f47d577e0bdca9699961cd0e378",
+      "size": 2871
+    },
+    {
+      "gcs_uri": "gs://edai2-data-280de6292ec9/section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/section03_config_and_training_join.png",
+      "generation": "1792429306163114",
+      "path": "runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/section03_config_and_training_join.png",
+      "sha256": "ba02e5341f6af700530b97dca707f5e4e25f7cbaf44b6df8d50d7fd9821003ad",
+      "size": 116387
+    },
+    {
+      "gcs_uri": "gs://edai2-data-280de6292ec9/section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/section03_report.md",
+      "generation": "1792429308239843",
+      "path": "runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/section03_report.md",
+      "sha256": "eda4432f990bcb694f84b1be9d2b0fab196580c80b10b5b3989dfaff80f398b9",
+      "size": 2541
+    }
+  ],
+  "reasons": [],
+  "reused_count": 0,
+  "schema_version": 1,
+  "status": "verified",
+  "total_bytes": 1985131,
+  "uploaded": true,
+  "uploaded_at": "2026-10-19T17:01:48.349703Z",
+  "verified": true
 }

@@ -1,0 +1,22 @@
+{
+  "bootstrap_sha256": "08ff7dd9db3f169044af318594e544f3ecbaffb7249bf33d6ca5a7572a892ad1",
+  "producer": "topic30",
+  "recovery_sha256": "036a495352a1a3ec2c14b5bb1ed8d0052f95af336f9dc19aec60334a2942566b",
+  "render_mode": "local-render",
+  "revision": "a5c2111d46cf8805baee18ba98bfd2df9ec942c5",
+  "schema_version": 1,
+  "source": "scripts/qa/render_vault_status.py",
+  "status": {
+    "initialized": true,
+    "key_names_count": 29,
+    "policy_results": {
+      "agentgateway-allow-gateway-entry": true,
+      "coordinator-allow-gateway-keys": true,
+      "cross-path-deny": true,
+      "retrieval-deny-gateway-entry": true,
+      "retrieval-deny-gateway-keys": true
+    },
+    "seal_type": "gcpckms",
+    "sealed": false
+  }
+}

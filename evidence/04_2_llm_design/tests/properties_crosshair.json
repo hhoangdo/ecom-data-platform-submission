@@ -1,0 +1,25 @@
+{
+  "crosshair": {
+    "src/vina_bim_shop/llm/contracts.py": {
+      "counterexample": null,
+      "exit_code": 0,
+      "output_tail": "WARNING: Targets found, but contain no checkable functions.\n",
+      "status": "pass"
+    },
+    "src/vina_bim_shop/llm/indexing.py": {
+      "counterexample": null,
+      "exit_code": 0,
+      "output_tail": "WARNING: Targets found, but contain no checkable functions.\n",
+      "status": "pass"
+    }
+  },
+  "hypothesis": {
+    "exit_code": 0,
+    "output": "..                                                                       [100%]\n2 passed in 0.90s\n",
+    "seed": 0,
+    "target": "tests/property/llm/test_idempotency.py"
+  },
+  "passed": true,
+  "per_condition_timeout": 10,
+  "per_path_timeout": 3
+}

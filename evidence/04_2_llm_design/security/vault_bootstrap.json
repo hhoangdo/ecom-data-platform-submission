@@ -9,10 +9,12 @@
     "135fa7d67146ca540f17e51e101d45de5b1edde8ea8a13f9c7b93b71aa21f8a4",
     "16f78a7d6317f102bbd95fc9a4f3ff2e3249287690b8bdad6b7810f82b34ace3",
     "16f78a7d6317f102bbd95fc9a4f3ff2e3249287690b8bdad6b7810f82b34ace3",
+    "16f78a7d6317f102bbd95fc9a4f3ff2e3249287690b8bdad6b7810f82b34ace3",
     "3549b0028b75d981cdda2e573e9cb49dedc200185876df299f912b79f69dabd8",
     "3dc0f628ff0359313e16c52463fbb9c484bb3ff18652cd4fa9959f80c96b8bf2",
     "4bdc2c16641511fe825f86eb3f3cbb829896bee240c467ab986f54c6bab7f536",
     "50129ddab83ef37a8fd6cc327b322e05f2346d628dd37321114bc782e398aedd",
+    "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
     "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
     "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
     "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
@@ -51,12 +53,14 @@
     "password",
     "password",
     "password",
+    "password",
     "salt",
     "sasl-password",
     "sasl-user",
     "session-secret",
     "support-authorization",
     "system-update-password",
+    "username",
     "username",
     "username",
     "webserver-secret"
@@ -69,9 +73,20 @@
     "retrieval-deny-gateway-entry": true,
     "retrieval-deny-gateway-keys": true
   },
+  "record_source": "live-vault-status",
+  "recorded_at_utc": "2026-10-19T17:43:32.219593Z",
+  "recorded_key_names_count": 29,
   "recovery_material": "in-cluster-only",
   "recovery_shares": 1,
   "recovery_threshold": 1,
+  "recovery_verification": {
+    "auto_unseal": true,
+    "initialized": true,
+    "key_names_match": true,
+    "manual_unseal_required": false,
+    "recovery_control": "not_applicable_personal_study",
+    "seal_type": "gcpckms"
+  },
   "root_revoked": true,
-  "seal_type": ""
+  "seal_type": "gcpckms"
 }

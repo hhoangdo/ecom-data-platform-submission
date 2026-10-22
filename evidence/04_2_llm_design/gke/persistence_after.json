@@ -1,0 +1,398 @@
+{
+  "captured_at": "2026-10-19T18:52:46.430220+00:00",
+  "revision": "a5c2111d46cf8805baee18ba98bfd2df9ec942c5",
+  "subsystems": {
+    "agent_registry": {
+      "reason": "agent_registry reader pending owning-topic accessor contract",
+      "status": "deferred"
+    },
+    "clickhouse_langfuse": {
+      "reason": "clickhouse_langfuse reader pending owning-topic accessor contract",
+      "status": "deferred"
+    },
+    "feast": {
+      "reason": "feast reader pending owning-topic accessor contract",
+      "status": "deferred"
+    },
+    "gcs": {
+      "section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/manifest.json": {
+        "crc32c": null,
+        "generation": 1792429260903732
+      },
+      "section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/agg_feature_health_daily.csv": {
+        "crc32c": null,
+        "generation": 1792429264867367
+      },
+      "section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/config_snapshot.yaml": {
+        "crc32c": null,
+        "generation": 1792429267874657
+      },
+      "section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/feature_drift_alerts.csv": {
+        "crc32c": null,
+        "generation": 1792429270913827
+      },
+      "section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/ml_customer_label.csv": {
+        "crc32c": null,
+        "generation": 1792429275074037
+      },
+      "section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/ml_customer_purchase_training.csv": {
+        "crc32c": null,
+        "generation": 1792429279780209
+      },
+      "section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runtime/airflow/run_manifest.json": {
+        "crc32c": null,
+        "generation": 1792429284338986
+      },
+      "section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runtime/datahub/lineage.json": {
+        "crc32c": null,
+        "generation": 1792429287446069
+      },
+      "section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runtime/spark/run_manifest.json": {
+        "crc32c": null,
+        "generation": 1792429290556310
+      },
+      "section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/sample_rows/agg_feature_health_daily.csv": {
+        "crc32c": null,
+        "generation": 1792429293644254
+      },
+      "section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/sample_rows/feature_drift_alerts.csv": {
+        "crc32c": null,
+        "generation": 1792429296711157
+      },
+      "section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/sample_rows/ml_customer_label.csv": {
+        "crc32c": null,
+        "generation": 1792429299676832
+      },
+      "section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/sample_rows/ml_customer_purchase_training.csv": {
+        "crc32c": null,
+        "generation": 1792429302702897
+      },
+      "section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/section03_config_and_training_join.png": {
+        "crc32c": null,
+        "generation": 1792429306163114
+      },
+      "section03/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/runs/f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640/section03_report.md": {
+        "crc32c": null,
+        "generation": 1792429308239843
+      }
+    },
+    "jenkins": {
+      "edai2-coordinator": "sha256:fd1fbbc7c24106bd21a404d0b53f73ee5a7a18acbda0b25d2d00d3206ac4fd40",
+      "edai2-drift-agent": "sha256:01c2bcc575268ef8701585b62309c966b85ef1b91e40c0b01dcf55c411f0a70f",
+      "edai2-feast-offline-writer": "sha256:cad9029bf1212f01cbfa80c4e2725bcf296fab768eed7f3ede6b790ee2851ab3",
+      "edai2-feast-online-writer": "sha256:102582eb6f57e88e6947b5c8bf269a400d5abd1669cbf7437662cdcc2cd4b393",
+      "edai2-rag-index": "sha256:cd7f2c83c4f7354799f59fd7eca0167ed10ab214fe8c0f1177ac5e4558b01cf0",
+      "edai2-retrieval-agent": "sha256:f2c6b244213ad10639dfb5a9744cd931e8a83a5b1d370f335ea76f6ad26123ef"
+    },
+    "observability": {
+      "reason": "observability reader pending owning-topic accessor contract",
+      "status": "deferred"
+    },
+    "opensearch_datahub": {
+      "reason": "opensearch_datahub reader pending owning-topic accessor contract",
+      "status": "deferred"
+    },
+    "platform": {
+      "bytes": 1855332,
+      "sha256": "a7e5e059ddea02ceba27ea81ccf3e45250bf73b5921112f1e141fd57ff62ee62"
+    },
+    "pvc": {
+      "edai2/data-clickhouse-keeper-0": "4797166e-7944-4c89-9fd1-f64f3246b8e8",
+      "edai2/data-clickhouse-shard0-0": "a97c72bd-efa8-4c15-bd58-5cc113656180",
+      "edai2/data-postgres-postgresql-0": "3ab64b32-2132-4f3e-917f-c5ec4aef9d18",
+      "edai2/datadir-redpanda-0": "5fb0021c-44fb-48df-b045-3aded9456bfe",
+      "edai2/jenkins": "ad0bf1e2-e5b4-45bd-8932-d9d8304b4f01",
+      "edai2/logs-airflow-triggerer-0": "71966642-dd4a-4afd-a80f-7971d2cbc92b",
+      "edai2/logs-airflow-worker-0": "44c5e7ee-1f9b-434d-8108-b830867e81b8",
+      "edai2/opensearch-cluster-master-opensearch-cluster-master-0": "07b8e1d4-34fd-431c-887a-0da78f91f210",
+      "edai2/redis-db-airflow-redis-0": "2ae517cd-9f8d-4ad1-a5aa-fff6c6a5a0dd",
+      "edai2/valkey-data-valkey-primary-0": "fea3e98b-51aa-4037-8a1a-07723956ac99",
+      "vault/data-vault-0": "84bbb81c-282b-4d8f-98c3-551d020fddb0"
+    },
+    "redpanda": {
+      "reason": "redpanda reader pending owning-topic accessor contract",
+      "status": "deferred"
+    },
+    "substrate_valkey": {
+      "reason": "substrate_valkey reader pending owning-topic accessor contract",
+      "status": "deferred"
+    },
+    "vault": {
+      "disaster_safe": false,
+      "initialized": true,
+      "key_name_fingerprints": [
+        "01ff1a12021dbffc57376b4412b2b4a4cbcf81f8185abefe41f00b47958bdcb0",
+        "0b9d8943addf4eb3aaac3610c77146913bcbc2f7c0df62f13080198ce69f95a6",
+        "135fa7d67146ca540f17e51e101d45de5b1edde8ea8a13f9c7b93b71aa21f8a4",
+        "16f78a7d6317f102bbd95fc9a4f3ff2e3249287690b8bdad6b7810f82b34ace3",
+        "16f78a7d6317f102bbd95fc9a4f3ff2e3249287690b8bdad6b7810f82b34ace3",
+        "16f78a7d6317f102bbd95fc9a4f3ff2e3249287690b8bdad6b7810f82b34ace3",
+        "3549b0028b75d981cdda2e573e9cb49dedc200185876df299f912b79f69dabd8",
+        "3dc0f628ff0359313e16c52463fbb9c484bb3ff18652cd4fa9959f80c96b8bf2",
+        "4bdc2c16641511fe825f86eb3f3cbb829896bee240c467ab986f54c6bab7f536",
+        "50129ddab83ef37a8fd6cc327b322e05f2346d628dd37321114bc782e398aedd",
+        "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
+        "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
+        "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
+        "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
+        "6190611137eeadb1396f90630f3db124cf7462a8bed66ebc1475fa0f2d612544",
+        "63479ad69a090b258277ec8fba6f99419a2ffb248981510657c944ccd1148e97",
+        "75dfb33443927e93432da4b6c7795fa9dcd2cbde4ee635ca21fe31a77bd047ff",
+        "8e70fdbd0400b7a21539fd15fb4ab86c129f7cbd99261dbb0d95c18df8dec177",
+        "8e70fdbd0400b7a21539fd15fb4ab86c129f7cbd99261dbb0d95c18df8dec177",
+        "8e70fdbd0400b7a21539fd15fb4ab86c129f7cbd99261dbb0d95c18df8dec177",
+        "a00cf33cd46d9ef96c1eff33df1c9cca20b1a02468cd78ec6a4b2887d1640b51",
+        "bdb7d94bda0f78ffd31dd51d35ee6572f304d4cf4031196fe2948966f76d160b",
+        "bdf49c3c3882102fc017ffb661108c63a836d065888a4093994398cc55c2ea2f",
+        "cbb82ebec6051b780ad26655ee48b5b42658c4ac49438888aac829e82195584f",
+        "cdde3c2c320066a72ab4053667c1820fc36968fb1155ec8b3282f4eb2cdfdef5",
+        "d39f1a39d88558611af455f9c2fbe9d4d700e70fde8098c5a5b7ebb008b5781f",
+        "f470213d9ae659187a19b9cb2169b4b400544f4d3f59250eda657154700da616",
+        "f470213d9ae659187a19b9cb2169b4b400544f4d3f59250eda657154700da616",
+        "fba091d66f2314a23babe98a06abb8b09dbba919490c6a2f321b0eee0cfd4a1e"
+      ],
+      "key_names": [
+        "admin-password",
+        "admin-password",
+        "admin-password",
+        "admin-user",
+        "admin-user",
+        "api-token",
+        "auth",
+        "authorization",
+        "coordinator-authorization",
+        "database",
+        "drift-authorization",
+        "encryption-key",
+        "fernet-key",
+        "model-api-key",
+        "nextauth-secret",
+        "password",
+        "password",
+        "password",
+        "password",
+        "salt",
+        "sasl-password",
+        "sasl-user",
+        "session-secret",
+        "support-authorization",
+        "system-update-password",
+        "username",
+        "username",
+        "username",
+        "webserver-secret"
+      ],
+      "policy_results": {
+        "agentgateway-allow-gateway-entry": true,
+        "coordinator-allow-gateway-keys": true,
+        "cross-path-deny": true,
+        "retrieval-deny-gateway-entry": true,
+        "retrieval-deny-gateway-keys": true
+      },
+      "root_revoked": true,
+      "seal_type": "gcpckms"
+    },
+    "workloads": {
+      "edai2/agentregistry": {
+        "generation": 15,
+        "replicas": 1
+      },
+      "edai2/airflow-redis": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/airflow-scheduler": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/airflow-statsd": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/airflow-triggerer": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/airflow-webserver": {
+        "generation": 22,
+        "replicas": 1
+      },
+      "edai2/airflow-worker": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/ate-api-server-deployment": {
+        "generation": 14,
+        "replicas": 1
+      },
+      "edai2/ate-controller": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "edai2/atenet-router": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "edai2/clickhouse-keeper": {
+        "generation": 24,
+        "replicas": 1
+      },
+      "edai2/clickhouse-shard0": {
+        "generation": 26,
+        "replicas": 1
+      },
+      "edai2/coordinator": {
+        "generation": 1,
+        "replicas": 1
+      },
+      "edai2/datahub-acryl-datahub-actions": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/datahub-datahub-frontend": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/datahub-datahub-gms": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/dns": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "edai2/drift-agent": {
+        "generation": 1,
+        "replicas": 1
+      },
+      "edai2/edai2-private-gateway": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "edai2/feast-feature-server": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/feast-offline-writer": {
+        "generation": 1,
+        "replicas": 1
+      },
+      "edai2/feast-online-writer": {
+        "generation": 1,
+        "replicas": 1
+      },
+      "edai2/feast-redis-master": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/grafana": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/jenkins": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "edai2/langfuse-web": {
+        "generation": 23,
+        "replicas": 1
+      },
+      "edai2/langfuse-worker": {
+        "generation": 22,
+        "replicas": 1
+      },
+      "edai2/llmd-comparison": {
+        "generation": 1,
+        "replicas": 0
+      },
+      "edai2/llmd-primary": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "edai2/loki": {
+        "generation": 22,
+        "replicas": 1
+      },
+      "edai2/loki-chunks-cache": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/loki-gateway": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/loki-results-cache": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/opensearch-cluster-master": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/postgres-postgresql": {
+        "generation": 22,
+        "replicas": 1
+      },
+      "edai2/prometheus-alertmanager": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/prometheus-kube-state-metrics": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/prometheus-prometheus-pushgateway": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/prometheus-server": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/rag-index": {
+        "generation": 1,
+        "replicas": 1
+      },
+      "edai2/redpanda": {
+        "generation": 23,
+        "replicas": 1
+      },
+      "edai2/redpanda-console": {
+        "generation": 22,
+        "replicas": 1
+      },
+      "edai2/retrieval-agent": {
+        "generation": 1,
+        "replicas": 1
+      },
+      "edai2/tempo": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "edai2/valkey-primary": {
+        "generation": 21,
+        "replicas": 1
+      },
+      "kagent/edai2-agents-deployment": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "kagent/kagent-controller": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "kagent/kagent-ui": {
+        "generation": 13,
+        "replicas": 1
+      },
+      "vault/vault": {
+        "generation": 86,
+        "replicas": 1
+      },
+      "vault/vault-agent-injector": {
+        "generation": 19,
+        "replicas": 1
+      }
+    }
+  }
+}

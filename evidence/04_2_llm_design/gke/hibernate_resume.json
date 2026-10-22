@@ -1,0 +1,6 @@
+{
+  "after": "evidence\\04_2_llm_design\\gke\\persistence_after.json",
+  "before": "evidence\\04_2_llm_design\\gke\\persistence_before.json",
+  "diffs": [],
+  "match": true
+}

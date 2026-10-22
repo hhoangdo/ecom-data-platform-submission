@@ -1,0 +1,294 @@
+{
+  "cases": 10,
+  "created": 1792430692.3650389,
+  "duration": 13.627025127410889,
+  "exitcode": 0,
+  "passing": 10,
+  "summary": {
+    "collected": 370,
+    "deselected": 360,
+    "passed": 10,
+    "total": 10
+  },
+  "tests": [
+    {
+      "call": {
+        "duration": 0.0016201999997065286,
+        "outcome": "passed"
+      },
+      "keywords": [
+        "test_support_dependency_failure_names_the_retrieval_boundary",
+        "asyncio",
+        "pytestmark",
+        "test_coordinator.py",
+        "llm",
+        "unit",
+        "tests",
+        "ecom-data-platform-submission",
+        ""
+      ],
+      "lineno": 236,
+      "nodeid": "tests/unit/llm/test_coordinator.py::test_support_dependency_failure_names_the_retrieval_boundary",
+      "outcome": "passed",
+      "setup": {
+        "duration": 0.1130023000005167,
+        "outcome": "passed"
+      },
+      "teardown": {
+        "duration": 0.00083470000026864,
+        "outcome": "passed"
+      }
+    },
+    {
+      "call": {
+        "duration": 0.0006593999996766797,
+        "outcome": "passed"
+      },
+      "keywords": [
+        "test_context_too_large_propagates_to_the_api_boundary",
+        "asyncio",
+        "pytestmark",
+        "test_coordinator.py",
+        "llm",
+        "unit",
+        "tests",
+        "ecom-data-platform-submission",
+        ""
+      ],
+      "lineno": 318,
+      "nodeid": "tests/unit/llm/test_coordinator.py::test_context_too_large_propagates_to_the_api_boundary",
+      "outcome": "passed",
+      "setup": {
+        "duration": 0.026198900000053982,
+        "outcome": "passed"
+      },
+      "teardown": {
+        "duration": 0.0008606999999756226,
+        "outcome": "passed"
+      }
+    },
+    {
+      "call": {
+        "duration": 0.0022163000003274647,
+        "outcome": "passed"
+      },
+      "keywords": [
+        "test_novel_effective_date_boundary_proves_three_cases",
+        "test_eval_retry_novel.py",
+        "llm",
+        "unit",
+        "tests",
+        "ecom-data-platform-submission",
+        ""
+      ],
+      "lineno": 68,
+      "nodeid": "tests/unit/llm/test_eval_retry_novel.py::test_novel_effective_date_boundary_proves_three_cases",
+      "outcome": "passed",
+      "setup": {
+        "duration": 0.0003130000004603062,
+        "outcome": "passed"
+      },
+      "teardown": {
+        "duration": 0.00023739999960525893,
+        "outcome": "passed"
+      }
+    },
+    {
+      "call": {
+        "duration": 0.0010503000003154739,
+        "outcome": "passed"
+      },
+      "keywords": [
+        "test_fixture_is_exactly_partitioned_and_unique",
+        "test_evaluation.py",
+        "llm",
+        "unit",
+        "tests",
+        "ecom-data-platform-submission",
+        ""
+      ],
+      "lineno": 57,
+      "nodeid": "tests/unit/llm/test_evaluation.py::test_fixture_is_exactly_partitioned_and_unique",
+      "outcome": "passed",
+      "setup": {
+        "duration": 0.000278499999694759,
+        "outcome": "passed"
+      },
+      "teardown": {
+        "duration": 0.00022529999932885403,
+        "outcome": "passed"
+      }
+    },
+    {
+      "call": {
+        "duration": 0.001954000000296219,
+        "outcome": "passed"
+      },
+      "keywords": [
+        "test_indexing_public_contracts_reject_invalid_boundary_values",
+        "asyncio",
+        "pytestmark",
+        "test_quality_coverage.py",
+        "llm",
+        "unit",
+        "tests",
+        "ecom-data-platform-submission",
+        ""
+      ],
+      "lineno": 271,
+      "nodeid": "tests/unit/llm/test_quality_coverage.py::test_indexing_public_contracts_reject_invalid_boundary_values",
+      "outcome": "passed",
+      "setup": {
+        "duration": 0.009786399999939022,
+        "outcome": "passed"
+      },
+      "teardown": {
+        "duration": 0.0008213000000978354,
+        "outcome": "passed"
+      }
+    },
+    {
+      "call": {
+        "duration": 0.0002996000002895016,
+        "outcome": "passed"
+      },
+      "keywords": [
+        "test_gke_cli_runner_rejects_malformed_partition_and_config_members[payload0]",
+        "parametrize",
+        "pytestmark",
+        "payload0",
+        "test_workload_contracts.py",
+        "llm",
+        "unit",
+        "tests",
+        "ecom-data-platform-submission",
+        ""
+      ],
+      "lineno": 298,
+      "nodeid": "tests/unit/llm/test_workload_contracts.py::test_gke_cli_runner_rejects_malformed_partition_and_config_members[payload0]",
+      "outcome": "passed",
+      "setup": {
+        "duration": 0.00043430000005173497,
+        "outcome": "passed"
+      },
+      "teardown": {
+        "duration": 0.00022279999939200934,
+        "outcome": "passed"
+      }
+    },
+    {
+      "call": {
+        "duration": 0.00027299999965180177,
+        "outcome": "passed"
+      },
+      "keywords": [
+        "test_gke_cli_runner_rejects_malformed_partition_and_config_members[payload1]",
+        "parametrize",
+        "pytestmark",
+        "payload1",
+        "test_workload_contracts.py",
+        "llm",
+        "unit",
+        "tests",
+        "ecom-data-platform-submission",
+        ""
+      ],
+      "lineno": 298,
+      "nodeid": "tests/unit/llm/test_workload_contracts.py::test_gke_cli_runner_rejects_malformed_partition_and_config_members[payload1]",
+      "outcome": "passed",
+      "setup": {
+        "duration": 0.00039480000032199314,
+        "outcome": "passed"
+      },
+      "teardown": {
+        "duration": 0.0002113999998982763,
+        "outcome": "passed"
+      }
+    },
+    {
+      "call": {
+        "duration": 0.0002976000005219248,
+        "outcome": "passed"
+      },
+      "keywords": [
+        "test_gke_cli_runner_rejects_malformed_partition_and_config_members[payload2]",
+        "parametrize",
+        "pytestmark",
+        "payload2",
+        "test_workload_contracts.py",
+        "llm",
+        "unit",
+        "tests",
+        "ecom-data-platform-submission",
+        ""
+      ],
+      "lineno": 298,
+      "nodeid": "tests/unit/llm/test_workload_contracts.py::test_gke_cli_runner_rejects_malformed_partition_and_config_members[payload2]",
+      "outcome": "passed",
+      "setup": {
+        "duration": 0.0003499000004012487,
+        "outcome": "passed"
+      },
+      "teardown": {
+        "duration": 0.0002328000000488828,
+        "outcome": "passed"
+      }
+    },
+    {
+      "call": {
+        "duration": 0.0011585000002014567,
+        "outcome": "passed"
+      },
+      "keywords": [
+        "test_retrieval_mcp_uses_the_same_unavailable_service_boundary",
+        "asyncio",
+        "pytestmark",
+        "test_mcp_contracts.py",
+        "llm",
+        "contract",
+        "tests",
+        "ecom-data-platform-submission",
+        ""
+      ],
+      "lineno": 76,
+      "nodeid": "tests/contract/llm/test_mcp_contracts.py::test_retrieval_mcp_uses_the_same_unavailable_service_boundary",
+      "outcome": "passed",
+      "setup": {
+        "duration": 0.0011730000005627517,
+        "outcome": "passed"
+      },
+      "teardown": {
+        "duration": 0.0005776999996669474,
+        "outcome": "passed"
+      }
+    },
+    {
+      "call": {
+        "duration": 0.0008655999999973574,
+        "outcome": "passed"
+      },
+      "keywords": [
+        "test_drift_mcp_uses_the_same_unavailable_service_boundary",
+        "asyncio",
+        "pytestmark",
+        "test_mcp_contracts.py",
+        "llm",
+        "contract",
+        "tests",
+        "ecom-data-platform-submission",
+        ""
+      ],
+      "lineno": 87,
+      "nodeid": "tests/contract/llm/test_mcp_contracts.py::test_drift_mcp_uses_the_same_unavailable_service_boundary",
+      "outcome": "passed",
+      "setup": {
+        "duration": 0.0015839000006963033,
+        "outcome": "passed"
+      },
+      "teardown": {
+        "duration": 0.000768400000197289,
+        "outcome": "passed"
+      }
+    }
+  ]
+}
