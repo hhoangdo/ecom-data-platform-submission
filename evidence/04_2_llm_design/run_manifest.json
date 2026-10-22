@@ -1,11 +1,70 @@
 {
   "allow_pending_producer_topic": "32",
+  "approved_exceptions": {
+    "approved_at": "2026-10-19",
+    "missing_count": 26,
+    "missing_screenshots": {
+      "22": [
+        "gcp_billing_spend.png",
+        "terraform_apply.png"
+      ],
+      "26": [
+        "agentregistry_agents.png",
+        "keda_scale.png"
+      ],
+      "27": [
+        "chat_auth_rate_limit.png",
+        "grafana_ab.png",
+        "grafana_agents.png",
+        "grafana_compute.png",
+        "grafana_http.png",
+        "grafana_llm.png",
+        "jenkins_coordinator.png",
+        "jenkins_drift_agent.png",
+        "jenkins_feast_offline.png",
+        "jenkins_feast_online.png",
+        "jenkins_rag_index.png",
+        "jenkins_retrieval_agent.png",
+        "langfuse_trace.png",
+        "loki_app_logs.png",
+        "nginx_tls.png",
+        "tempo_trace.png"
+      ],
+      "28": [
+        "airflow_rag_graph.png",
+        "datahub_rag_lineage.png"
+      ],
+      "29": [
+        "kagent_coordinator_chat.png",
+        "kagent_drift_chat.png",
+        "kagent_retrieval_chat.png",
+        "locust_report.png"
+      ]
+    },
+    "non_screenshot_exceptions": [
+      "T25: Jenkins provenance waived; direct-Helm 6/6 digest parity accepted; no live Jenkins jobs.",
+      "T26: KEDA/chat live proof waived; registry publish and rollback machine evidence not produced.",
+      "T27: study-only lock retained; E45:E47 Partial by design; 16 images deferred.",
+      "T28: RAG index/Airflow/DataHub/factorial/startup blocked by missing runtime wiring; Section 03 upload and llmd readiness completed.",
+      "T29: live evaluation/A-B/notebooks/Locust/novel blocked by missing service endpoints; local test-quality gates completed.",
+      "T30: platform pool suspend/resume and Vault recovery completed; spot pool zero failed on first attempt; backup manifest, resume gates, and 7 fingerprint accessors deferred; Postgres reader blocked by stale credentials.",
+      "T31: visual QA recorded as agent (operator-delegated); 26 missing images approved; teardown completed.",
+      "T32: both producer images completed and validated."
+    ],
+    "pass_count": 8,
+    "path": "evidence/04_2_llm_design/gke/topic31-approved-exceptions.json",
+    "pending_producer_count": 0,
+    "schema_version": 1,
+    "scope": "constraint-relaxed closure (Option A), approved by operator",
+    "sha256": "1c96d71c85e5fd985aeec88f9f54d134d9a7e4769141968aee10e64ba1969e1b",
+    "teardown": "evidence/04_2_llm_design/gke/teardown.json"
+  },
   "backend_proof": {
-    "observed_at_utc": "2026-10-18T18:37:51.387153Z",
+    "observed_at_utc": "2026-10-19T18:55:44.081183Z",
     "ok": true,
     "path": "tmp/edai2-gcp/terraform-data/topic22-backend-initialized-proof.json",
-    "revision": "e651a86dfb7d509c28c58fe0116cddd3cf6ea1a5",
-    "sha256": "6dbd90c1362f232387546cd8e826590809ec67b5e40e4b35181aaa435a7f9abc",
+    "revision": "a5c2111d46cf8805baee18ba98bfd2df9ec942c5",
+    "sha256": "350a519940300bd002d93be0407ad7369a63fe492638b92112eb5375bf25cecd",
     "size_bytes": 599,
     "status": "Present"
   },
@@ -44,83 +103,84 @@
     },
     "25": {
       "path": "tmp/edai2-plan/execution-v1/gcp/25-jenkins-six-workload-deploy.md",
-      "sha256": "ef619f8471196c80df74e0addaa517ca20dadbbba3b4fbd31c744831ca8fcaf1",
-      "size_bytes": 50954,
+      "sha256": "3ce40d5ae254b1f47e22a698864142925a7dbda7c2e3dd9326ee06527a679af4",
+      "size_bytes": 52652,
       "status": "Present"
     },
     "26": {
       "path": "tmp/edai2-plan/execution-v1/gcp/26-keda-agent-ha-registry-rollbacks.md",
-      "sha256": "147a9c0c21d711fdec1ee4e989f140f757f9d3815a65793599126585bd47d51e",
-      "size_bytes": 47347,
+      "sha256": "c1fa8b41ec600b968ca31a09c368635316fcbc1ec30143e18bfded3429d69ded",
+      "size_bytes": 48391,
       "status": "Present"
     },
     "27": {
       "path": "tmp/edai2-plan/execution-v1/gcp/27-observability-https-jenkins-evidence.md",
-      "sha256": "aaf214e815eb6e4c96e1363f5c753eeb17abef50b03bcfc27f3dcd85a305453e",
-      "size_bytes": 45755,
+      "sha256": "fe5e4c8419b2f993408cc90c1d48f76fdc214fcc0a9b0acc9f51e9bd97403f15",
+      "size_bytes": 46469,
       "status": "Present"
     },
     "28": {
       "path": "tmp/edai2-plan/execution-v1/gcp/28-rag-inference-benchmarks.md",
-      "sha256": "aeb1a33ab09438020542bef44ef3403978cd187e1246b53476778d3d4edc3faf",
-      "size_bytes": 44937,
+      "sha256": "5e73b9306b55514f3981d2232969dfb8689986166846482e9eb08fe90dbc7fae",
+      "size_bytes": 46226,
       "status": "Present"
     },
     "29": {
       "path": "tmp/edai2-plan/execution-v1/gcp/29-evaluation-ab-notebooks-load-test-evidence.md",
-      "sha256": "62c216091f1e47a71915b14f33380dc1ff668c4dc7ca7722428c7e888d1fcb13",
-      "size_bytes": 46235,
+      "sha256": "cf40f83bf5746e6244df04166778a00d937848761d882b33ebf8e75b384566c4",
+      "size_bytes": 47831,
       "status": "Present"
     },
     "30": {
       "path": "tmp/edai2-plan/execution-v1/gcp/30-persistence-vault-recovery-resume.md",
-      "sha256": "40c959ef5e626be4a2ef74bba34de011a75ae37a1fdcb00aa964ca1ce288e348",
-      "size_bytes": 40903,
+      "sha256": "99360a8e280e41d9e91f301ae50a60d62728d8a23c595a47d9899aba09d665ee",
+      "size_bytes": 42614,
       "status": "Present"
     },
     "31": {
       "path": "tmp/edai2-plan/execution-v1/gcp/31-final-screenshot-qa-teardown.md",
-      "sha256": "ba36bea068d60e8102b2d85fd9ac768d1f0f7c4b7d9f12a44c860f2b65771343",
-      "size_bytes": 32586,
+      "sha256": "454e13d7069975a3968eff1fee81c65cb968a5f9ba6e259213ed17bf7c2fed91",
+      "size_bytes": 35035,
       "status": "Present"
     },
     "32": {
-      "path": "tmp/edai2-plan/execution-v1/gcp/32-*.md",
-      "reason": "producer-topic-32-not-yet-produced",
-      "status": "Missing"
+      "path": "tmp/edai2-plan/execution-v1/gcp/32-topic32-producer-images.md",
+      "sha256": "5ab24cb825bc5334547bef8a9fd1bec4f03b0758ae25ead17a469032d2c40e1f",
+      "size_bytes": 1839,
+      "status": "Present"
     }
   },
   "cost": {
     "budget_amount_vnd": 6311880,
-    "console_spend_vnd": 2119176.0,
-    "current_spend_vnd": 2119176.0,
+    "console_spend_vnd": 2393048.0,
+    "current_spend_vnd": 2393048.0,
     "forecast_ceiling_vnd": 4733910.0,
     "forecast_vnd": 0.0,
     "ok": true,
     "operator_spend_source": "evidence/04_2_llm_design/gke/cost_forecast_topic31.json",
-    "operator_spend_vnd": 2119176.0,
+    "operator_spend_vnd": 2393048.0,
     "path": "evidence/04_2_llm_design/gke/cost_forecast_topic31.json",
     "preflight": {
       "path": "evidence/04_2_llm_design/gke/gcp_preflight_topic31.json",
-      "sha256": "fdd01b96f72ecc9ca982f80bad4b9739a1fd2d7dfda465596899f047e6e3cf42",
+      "sha256": "8a6d81da16bfc41cba1e791369632909d1fa93af2ce8bcfb5f06343c6395fdc7",
       "size_bytes": 756,
       "status": "Present"
     },
     "requested_ttl_hours": 2.0,
-    "sha256": "fd155a7680761d16fca1d7d38b976a105a2a7eeb446810a5fb51832d242c8e6a",
-    "size_bytes": 854,
+    "sha256": "d18b0c5bb8543a6d42279717b0bafdc5623a77f8ac3b090b67a7cdca2d2ec739",
+    "size_bytes": 858,
     "status": "Present",
     "trial_credit_vnd": 7889850.0,
-    "trial_remaining_hours": 149.3650529125,
+    "trial_remaining_hours": 125.66305724777777,
     "usage_ledger": {
       "path": "evidence/04_2_llm_design/gke/usage_ledger.json",
-      "sha256": "afec7c5d633687d41d6f218f7c493156ae4fde5d0cbdaa538e0e0f6b87e7c5d4",
-      "size_bytes": 60937,
+      "sha256": "48ff0b24c0c16804b40d75ba76fca91f4574b6121d7d1f28a9d782fa78ddc32d",
+      "size_bytes": 68301,
       "status": "Present"
     }
   },
   "fingerprint": {
-    "captured_at": "2026-10-18T16:17:50.066436+00:00",
+    "captured_at": "2026-10-19T18:00:19.337006+00:00",
     "deferred": [
       "agent_registry",
       "clickhouse_langfuse",
@@ -133,9 +193,9 @@
     "deferred_count": 7,
     "path": "evidence/04_2_llm_design/gke/persistence_before.json",
     "reason": "7 subsystems deferred with pending owning-topic accessor contract",
-    "revision": "e651a86dfb7d509c28c58fe0116cddd3cf6ea1a5",
-    "sha256": "1bcdcb0ce0c88dc13252051bbd30f504eb0328d5171dc60c886f21fb251905ca",
-    "size_bytes": 6800,
+    "revision": "a5c2111d46cf8805baee18ba98bfd2df9ec942c5",
+    "sha256": "303fdc06fb203c1d62d877dea9183acda8d49e8009078d522ab32464707bbc3c",
+    "size_bytes": 14922,
     "status": "Partial"
   },
   "jobs": {
@@ -150,7 +210,7 @@
     "status": "Present"
   },
   "mode": "run-manifest-strict-partial",
-  "revision": "e651a86dfb7d509c28c58fe0116cddd3cf6ea1a5",
+  "revision": "a5c2111d46cf8805baee18ba98bfd2df9ec942c5",
   "root": "evidence/04_2_llm_design",
   "screenshot_audit": {
     "manifest": "evidence/04_2_llm_design/screenshots/ui_manifest.json",
@@ -158,9 +218,7 @@
       "agentregistry_agents.png",
       "airflow_rag_graph.png",
       "chat_auth_rate_limit.png",
-      "coverage_and_api_fixtures.png",
       "datahub_rag_lineage.png",
-      "ep_bva.png",
       "gcp_billing_spend.png",
       "grafana_ab.png",
       "grafana_agents.png",
@@ -180,49 +238,68 @@
       "langfuse_trace.png",
       "locust_report.png",
       "loki_app_logs.png",
-      "mutation.png",
       "nginx_tls.png",
-      "properties_crosshair.png",
       "tempo_trace.png",
-      "terraform_apply.png",
-      "vault_status.png"
+      "terraform_apply.png"
     ],
-    "pending": [
-      "design_patterns.png",
-      "whole_course_diagram.png"
-    ],
-    "reason": "strict-partial: 2 pending-producer (topic 32), remainder missing except section03 pass; visual QA deferred",
+    "pending": [],
+    "reason": "pending-producer scope drifted: []",
     "screenshots_dir": "evidence/04_2_llm_design/screenshots",
     "section03_manifest": "evidence/03_data_generator_improvement/section03_manifest.json",
     "status": "Partial",
     "summary": {
       "fail": 0,
-      "missing": 31,
-      "pass": 1,
-      "pending_producer": 2,
+      "missing": 26,
+      "pass": 8,
+      "pending_producer": 0,
       "total": 34
     }
   },
   "strict_partial": true,
   "summary": {
-    "reason": "strict-partial run: 2 pending-producer (topic 32), 31 missing screenshots, vault missing (seal drift), fingerprint partial (7 deferred); visual QA deferred-to-operator",
-    "status": "Partial"
+    "reason": "strict-partial run: 0 fail, 26 missing, 0 pending_producer; approved exceptions in T22/T26/T27/T28/T29; visual QA agent-delegated (8 images); teardown ok=True",
+    "status": "Completed-with-approved-exceptions"
+  },
+  "teardown": {
+    "counts": {
+      "cluster_current_nodes": null,
+      "forwarding_rules": 0,
+      "ingress": 0,
+      "load_balancers": 0,
+      "nodes": 0
+    },
+    "ok": true,
+    "path": "evidence/04_2_llm_design/gke/teardown.json",
+    "proof": {
+      "forwarding_rules_zero": true,
+      "ingress_zero": true,
+      "lease_absent": true,
+      "load_balancers_zero": true,
+      "nodes_zero": true,
+      "pools_zero": true
+    },
+    "sha256": "e7f11bcaf19f62f81bc8495d7b55f4636827755bf6ee2db549f107e17f6d48cf"
   },
   "ttl": {
     "capacity_ttl_hours": 2,
     "path": "evidence/04_2_llm_design/gke/cost_forecast_topic31.json",
     "requested_ttl_hours": 2.0,
     "status": "Present",
-    "trial_remaining_hours": 149.3650529125
+    "trial_remaining_hours": 125.66305724777777
   },
   "vault": {
     "path": "evidence/04_2_llm_design/security/vault_recovery.json",
-    "reason": "recovery verification failed: vault seal type drifted from bootstrap (T30 record); no file written",
-    "status": "Missing"
+    "sha256": "036a495352a1a3ec2c14b5bb1ed8d0052f95af336f9dc19aec60334a2942566b",
+    "size_bytes": 435,
+    "status": "Present"
   },
   "visual_qa": {
-    "inspected_count": 0,
-    "reason": "no screenshots visually inspected; original-resolution inspection deferred to operator",
-    "status": "deferred-to-operator"
+    "human_eyes": false,
+    "inspected_count": 8,
+    "method": "model visual inspection at original resolution",
+    "path": "evidence/04_2_llm_design/screenshots/topic31_visual_review.json",
+    "reviewer": "agent (operator-delegated)",
+    "sha256": "e0ed9202cfb44b0a0d7590ce41438102ff94d8992ab1a9272ef5d693beb121df",
+    "status": "pass"
   }
 }
