@@ -121,11 +121,13 @@ class FakeFeast:
         self.outcomes = list(outcomes or [])
         self.delay_seconds = delay_seconds
         self.active = active_version
+        self.active_calls = 0
         self.search_calls = 0
         self.search_arguments: list[tuple[int, str | None, datetime]] = []
         self.reload_arguments: list[tuple[str, str]] = []
 
     async def active_version(self) -> str | None:
+        self.active_calls += 1
         return self.active
 
     async def candidate_complete(self, index_version: str) -> bool:
@@ -235,6 +237,17 @@ async def test_search_uses_utc_clock_when_effective_at_is_omitted() -> None:
     assert response.abstained is True
     assert response.reason == "no_matching_policy_row"
     assert feast.search_arguments == [(4, None, NOW)]
+
+
+@pytest.mark.asyncio
+async def test_active_index_gate_is_cached_between_searches() -> None:
+    feast = FakeFeast(matches=[])
+    service = FeastRetrievalService(feast=feast, embedder=FakeEmbedder(), clock=lambda: NOW)
+
+    await service.search(SearchRequest(query="returns"))
+    await service.search(SearchRequest(query="shipping"))
+
+    assert feast.active_calls == 1
 
 
 @pytest.mark.asyncio

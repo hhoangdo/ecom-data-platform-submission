@@ -19,6 +19,7 @@ from .safety import CitationIntegrityError, verify_knowledge_match, verify_reloa
 
 
 DEPENDENCY_TIMEOUT_SECONDS = 0.7
+ACTIVE_INDEX_CACHE_SECONDS = 2.0
 _RETRY_JITTER_MAX_SECONDS = 0.05
 _TRACER = trace.get_tracer(__name__)
 
@@ -62,6 +63,7 @@ class FeastRetrievalService:
         self._embedder = embedder
         del index_version
         self._clock = clock or (lambda: datetime.now(UTC))
+        self._active_cache: tuple[str, float] | None = None
 
     async def search(self, request: SearchRequest) -> SearchResponse:
         """Return verified matches or a typed, non-fabricated abstention."""
@@ -182,6 +184,10 @@ class FeastRetrievalService:
         return index_version, verified
 
     async def _active_index_version(self) -> str:
+        if self._active_cache is not None:
+            cached_version, cached_at = self._active_cache
+            if perf_counter() - cached_at < ACTIVE_INDEX_CACHE_SECONDS:
+                return cached_version
         if self._embedder is None:
             raise IndexUnavailableError()
         feast = self._verified_active_index_port()
@@ -195,6 +201,7 @@ class FeastRetrievalService:
             gate_result = gate(index_version)
             if not isawaitable(gate_result) or await gate_result is not True:
                 raise IndexUnavailableError()
+        self._active_cache = (index_version, perf_counter())
         return index_version
 
     def _verified_active_index_port(self) -> _ActiveIndexPort:

@@ -139,6 +139,13 @@ def get_retrieval_service() -> FeastRetrievalService:
     return app.state.retrieval_service
 
 
+@app.on_event("startup")
+async def warm_retrieval() -> None:
+    """Populate the active-index cache before the first 700 ms request."""
+
+    await get_retrieval_service().is_ready()
+
+
 def _error_body(code: str, message: str) -> dict[str, object]:
     return ApiError(code=code, message=message, request_id=uuid4()).model_dump(mode="json")
 
