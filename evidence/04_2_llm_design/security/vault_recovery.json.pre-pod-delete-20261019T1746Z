@@ -1,0 +1,15 @@
+{
+  "auto_unseal": true,
+  "initialized": true,
+  "key_names_match": true,
+  "manual_unseal_required": false,
+  "policy_results": {
+    "agentgateway-allow-gateway-entry": true,
+    "coordinator-allow-gateway-keys": true,
+    "cross-path-deny": true,
+    "retrieval-deny-gateway-entry": true,
+    "retrieval-deny-gateway-keys": true
+  },
+  "recovery_control": "not_applicable_personal_study",
+  "seal_type": "gcpckms"
+}

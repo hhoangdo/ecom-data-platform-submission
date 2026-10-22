@@ -1,0 +1,12 @@
+{
+ "bundle_id": "f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640",
+ "defect_for_owning_topic": "Section 03 artifact availability in checkout + GCS uploader surface",
+ "manifest_sha256": "af7189d00a187e539bb777d89111d2860a97822f34c2c911adc3eadf6166f8ad",
+ "reasons": [
+  "runs/ artifact tree absent from checkout: ml_customer_purchase_training.csv (and siblings) not present; strict verify fails 'final artifact hash/size mismatch for training_join'",
+  "load_section03.py has no GCS upload flags (--gcs-prefix/--upload-only/--verify-upload absent); no verified Section 03 GCS URI input exists in repo inputs",
+  "drift-owned activation consequently has no verified bundle to consume; section03/import.json deferred"
+ ],
+ "status": "partial",
+ "uploaded": false
+}
