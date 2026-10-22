@@ -426,6 +426,49 @@ class FeastPostgresAdapter:
             },
         )
 
+    async def get_verified_chunks(
+        self,
+        requests: Sequence[tuple[str, str]],
+    ) -> dict[str, SearchMatch]:
+        """Reload every ranked citation in one database round trip."""
+
+        if not requests:
+            return {}
+        placeholders = ",".join(["(%s,%s)"] * len(requests))
+        parameters = tuple(value for pair in requests for value in pair)
+        async with self._connection() as connection:
+            rows = await _fetch_all(
+                connection,
+                f"""
+                SELECT chunk.chunk_id, chunk.document_id, chunk.category, chunk.version,
+                       chunk.effective_from, chunk.effective_to, chunk.content,
+                       chunk.content_sha256
+                FROM edai2_rag_active_alias alias
+                JOIN edai2_rag_candidate_chunk candidate
+                  ON candidate.index_version = alias.index_version
+                JOIN edai2_rag_chunk chunk ON chunk.chunk_id = candidate.chunk_id
+                WHERE alias.alias_name = 'active'
+                  AND (chunk.chunk_id, chunk.content_sha256) IN ({placeholders})
+                """,
+                parameters,
+            )
+        return {
+            str(row["chunk_id"]): SearchMatch(
+                content=str(row["content"]),
+                score=1.0,
+                citation={
+                    "chunk_id": str(row["chunk_id"]),
+                    "document_id": str(row["document_id"]),
+                    "category": str(row["category"]),
+                    "version": str(row["version"]),
+                    "effective_from": row["effective_from"],
+                    "effective_to": row["effective_to"],
+                    "content_sha256": str(row["content_sha256"]),
+                },
+            )
+            for row in rows
+        }
+
     async def _search_exact(
         self,
         vector: Sequence[float],

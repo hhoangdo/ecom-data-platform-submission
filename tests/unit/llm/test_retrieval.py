@@ -245,6 +245,47 @@ async def test_search_rejects_missing_active_index() -> None:
         await service.search(SearchRequest(query="returns"))
 
 
+class BatchFakeFeast(FakeFeast):
+    def __init__(self, **kwargs: object) -> None:
+        super().__init__(**kwargs)
+        self.batch_calls: list[list[tuple[str, str]]] = []
+
+    async def get_verified_chunks(
+        self, requests: list[tuple[str, str]]
+    ) -> dict[str, SearchMatch]:
+        self.batch_calls.append(list(requests))
+        return {
+            chunk_id: self.reloaded[chunk_id]
+            for chunk_id, _ in requests
+            if chunk_id in self.reloaded
+        }
+
+
+@pytest.mark.asyncio
+async def test_search_reloads_all_citations_in_one_batch_when_supported() -> None:
+    first = _match()
+    second = _match("Shipping is free over the stated threshold.").model_copy(
+        update={
+            "citation": _match("Shipping is free over the stated threshold.").citation.model_copy(
+                update={"chunk_id": "b" * 64, "document_id": "shipping-policy", "category": "shipping"}
+            )
+        }
+    )
+    feast = BatchFakeFeast(matches=[first, second])
+    service = FeastRetrievalService(feast=feast, embedder=FakeEmbedder(), clock=lambda: NOW)
+
+    response = await service.search(SearchRequest(query="returns", top_k=4))
+
+    assert response.matches == [first, second]
+    assert feast.batch_calls == [
+        [
+            (first.citation.chunk_id, first.citation.content_sha256),
+            (second.citation.chunk_id, second.citation.content_sha256),
+        ]
+    ]
+    assert feast.reload_arguments == []
+
+
 @pytest.mark.parametrize(
     "gate_name",
     ("active_version", "candidate_complete", "is_validated"),

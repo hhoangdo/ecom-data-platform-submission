@@ -1,5 +1,5 @@
 substitutions:
-  _SHA: 676fb9add4502681aede85c4efbcd7648a06ef07
+  _SHA: 64214c17be6be432a8d8f697e0a74771e712ee05
   _REGISTRY: us-central1-docker.pkg.dev/project-a7c45c4e-f589-4b40-b8b
 
 steps:

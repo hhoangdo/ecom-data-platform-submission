@@ -163,10 +163,22 @@ class FeastRetrievalService:
             category=None if request.category is None else request.category.value,
             effective_at=effective_at,
         )
-        verified = [
-            await self._reload_ranked_match(match)
-            for match in matches
-        ]
+        batch_loader = getattr(self._feast, "get_verified_chunks", None)
+        if callable(batch_loader):
+            requested = [
+                (match.citation.chunk_id, match.citation.content_sha256)
+                for match in matches
+            ]
+            loaded = await batch_loader(requested)
+            verified = [
+                verify_reloaded_match(match, loaded.get(match.citation.chunk_id))
+                for match in matches
+            ]
+        else:
+            verified = [
+                await self._reload_ranked_match(match)
+                for match in matches
+            ]
         return index_version, verified
 
     async def _active_index_version(self) -> str:

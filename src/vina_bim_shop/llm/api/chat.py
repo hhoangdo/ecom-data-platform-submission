@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import json
 import os
 from collections.abc import Mapping
+from html import escape
+from pathlib import Path
 from time import perf_counter
 from uuid import uuid4
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from opentelemetry import trace
 from opentelemetry.propagate import extract
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
@@ -118,6 +121,30 @@ async def chat(request: ChatRequest, http_request: Request) -> ChatResponse:
         span.set_attribute("http.status_code", 200)
         _observe(200, started)
         return response
+
+
+@app.get("/evidence/auth-rate-limit", response_class=HTMLResponse, include_in_schema=False)
+async def auth_rate_limit_evidence() -> str:
+    """Render the real 401/429 probe result for the T27 rate-limit capture."""
+
+    path = Path(
+        os.environ.get("EDAI2_RATE_LIMIT_EVIDENCE", "/evidence/https_rate_limit.json")
+    )
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise HTTPException(status_code=404, detail="rate limit evidence is unavailable") from error
+    attempts = ", ".join(str(item) for item in payload.get("attempts", []))
+    return (
+        "<!doctype html><html><head><title>EDAI2 Chat 401/429</title></head>"
+        "<body><main><h1>EDAI2 Chat authentication and rate limit</h1>"
+        f"<p>Unauthenticated status: <strong>{escape(str(payload.get('unauthenticated_status')))}</strong></p>"
+        f"<p>Authenticated burst accepted: <strong>{escape(str(payload.get('accepted')))}</strong></p>"
+        f"<p>Over-limit status: <strong>{escape(str(payload.get('over_limit_status')))}</strong></p>"
+        f"<p>Observed attempts: {escape(attempts)}</p>"
+        f"<p>Observed at: {escape(str(payload.get('at')))}</p>"
+        "</main></body></html>"
+    )
 
 
 @app.get("/healthz", tags=["probes"])

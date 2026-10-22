@@ -14,7 +14,7 @@ import yaml
 
 
 ROUTES = {
-    "chat": ("edai2-chat", "coordinator", 8080, "/v1/chat"),
+    "chat": ("edai2-chat", "coordinator", 8080, "/"),
     "retrieval": ("edai2-retrieval", "retrieval-agent", 8080, "/"),
     "grafana": ("edai2-grafana", "grafana", 3000, "/"),
     "langfuse": ("edai2-langfuse", "langfuse", 3000, "/"),
