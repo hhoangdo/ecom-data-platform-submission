@@ -1,4 +1,8 @@
 namespace: edai2
+agentgatewayPolicy:
+  enabled: false
+workload:
+  name: drift-agent
 serviceAccount:
   name: edai2-drift-agent
   annotations: {}
@@ -53,3 +57,16 @@ sandboxAgents:
             - api.ate-system.svc.cluster.local
             - atenet-router.ate-system.svc.cluster.local
             - edai2-private-gateway.edai2.svc.cluster.local
+image:
+  repository: us-central1-docker.pkg.dev/project-a7c45c4e-f589-4b40-b8b/edai2-drift-agent/edai2-drift-agent
+  tag: 676fb9add4502681aede85c4efbcd7648a06ef07
+env:
+  - name: EDAI2_ENVIRONMENT
+    value: gke
+  - name: EDAI2_POSTGRES_DSN
+    valueFrom:
+      secretKeyRef: { name: edai2-postgres-app, key: dsn }
+  - name: EDAI2_SECTION03_BASELINE_DATE
+    value: "2026-04-10"
+  - name: EDAI2_OTEL_ENDPOINT
+    value: http://tempo.edai2.svc.cluster.local:4318/v1/traces

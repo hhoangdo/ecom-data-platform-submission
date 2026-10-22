@@ -1,4 +1,8 @@
 namespace: edai2
+agentgatewayPolicy:
+  enabled: false
+workload:
+  name: coordinator
 serviceAccount:
   name: edai2-coordinator
   annotations: {}
@@ -91,3 +95,22 @@ a2aTools:
   - name: drift-a2a
     route: coordinator-to-drift
     credential: coordinatorSpecialist
+image:
+  repository: us-central1-docker.pkg.dev/project-a7c45c4e-f589-4b40-b8b/edai2-coordinator/edai2-coordinator
+  tag: 676fb9add4502681aede85c4efbcd7648a06ef07
+env:
+  - name: EDAI2_ENVIRONMENT
+    value: gke
+  - name: EDAI2_RETRIEVAL_URL
+    value: http://retrieval-agent.edai2.svc.cluster.local:8080
+  - name: EDAI2_LLM_URL
+    value: http://llmd-router.edai2.svc.cluster.local:8000
+  - name: EDAI2_LLM_API_KEY
+    valueFrom:
+      secretKeyRef: { name: kagent-model-route-key, key: api-key }
+  - name: EDAI2_LLM_MODEL
+    value: Qwen/Qwen2.5-1.5B-Instruct
+  - name: EDAI2_OTEL_ENDPOINT
+    value: http://tempo.edai2.svc.cluster.local:4318/v1/traces
+  - name: LANGFUSE_HOST
+    value: http://langfuse-web.edai2.svc.cluster.local:3000

@@ -3,6 +3,10 @@ image:
   repository: registry.invalid/edai2/service-agent
   tag: ""
   pullPolicy: IfNotPresent
+env: []
+extraVolumes: []
+extraVolumeMounts: []
+extraInitContainers: []
 workload:
   name: service-agent
   command: []

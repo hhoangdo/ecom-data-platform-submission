@@ -1,4 +1,8 @@
 namespace: edai2
+agentgatewayPolicy:
+  enabled: false
+workload:
+  name: retrieval-agent
 serviceAccount:
   name: edai2-retrieval-agent
   annotations: {}
@@ -53,3 +57,45 @@ sandboxAgents:
             - api.ate-system.svc.cluster.local
             - atenet-router.ate-system.svc.cluster.local
             - edai2-private-gateway.edai2.svc.cluster.local
+image:
+  repository: us-central1-docker.pkg.dev/project-a7c45c4e-f589-4b40-b8b/edai2-retrieval-agent/edai2-retrieval-agent
+  tag: 676fb9add4502681aede85c4efbcd7648a06ef07
+env:
+  - name: EDAI2_ENVIRONMENT
+    value: gke
+  - name: EDAI2_POSTGRES_DSN
+    valueFrom:
+      secretKeyRef: { name: edai2-postgres-app, key: dsn }
+  - name: EDAI2_EMBEDDING_MODEL_PATH
+    value: /models/embedding
+  - name: EDAI2_OTEL_ENDPOINT
+    value: http://tempo.edai2.svc.cluster.local:4318/v1/traces
+extraVolumes:
+  - name: model-cache
+    emptyDir: { sizeLimit: 1Gi }
+  - name: embedding-init
+    configMap: { name: edai2-embedding-init }
+extraVolumeMounts:
+  - name: model-cache
+    mountPath: /models
+extraInitContainers:
+  - name: embedding-cache
+    image: python:3.14.8-slim-trixie@sha256:cfe2e24a75302a15934d37c2d86412893c0aa934dc3a97cbb439d04c01890ca9
+    command: ["python", "/opt/edai2/embedding-init.py"]
+    env:
+      - name: GCS_BUCKET
+        value: edai2-data-280de6292ec9
+      - name: GCS_OBJECT
+        value: model-cache/embedding.tar.zst
+      - name: EXPECTED_SHA256
+        value: bf09707aaa2acf416dec6542334ac047ed0a51a6846cb4509539fa90d6c0a6c8
+      - name: EXPECTED_BYTES
+        value: "234759753"
+      - name: TARGET_DIR
+        value: /models/embedding
+    volumeMounts:
+      - name: model-cache
+        mountPath: /models
+      - name: embedding-init
+        mountPath: /opt/edai2
+        readOnly: true

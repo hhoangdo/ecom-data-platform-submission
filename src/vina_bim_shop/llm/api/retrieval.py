@@ -106,7 +106,7 @@ def create_retrieval_service_from_environment(
     """Build the real PostgreSQL/Feast service, the exact local Kind fake, or fail closed."""
 
     settings = os.environ if environ is None else environ
-    if any(name in settings for name in _KIND_PREFLIGHT_ENVIRONMENT):
+    if settings.get("EDAI2_RUNTIME_MODE") == "kind-preflight" or settings.get("EDAI2_ALLOW_FAKE_RETRIEVAL") == "1":
         if {name: settings.get(name) for name in _KIND_PREFLIGHT_ENVIRONMENT} != _KIND_PREFLIGHT_ENVIRONMENT:
             raise RuntimeError("kind-preflight retrieval requires the exact local environment gate")
         return FeastRetrievalService(

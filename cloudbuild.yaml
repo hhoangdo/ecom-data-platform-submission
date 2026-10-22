@@ -1,0 +1,84 @@
+substitutions:
+  _SHA: 676fb9add4502681aede85c4efbcd7648a06ef07
+  _REGISTRY: us-central1-docker.pkg.dev/project-a7c45c4e-f589-4b40-b8b
+
+steps:
+  - id: rag-index
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --target
+      - rag_index
+      - -t
+      - "${_REGISTRY}/edai2-rag-index/edai2-rag-index:${_SHA}"
+      - -f
+      - containers/edai2/Dockerfile
+      - .
+  - id: feast-offline-writer
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --target
+      - feast_offline_writer
+      - -t
+      - "${_REGISTRY}/edai2-feast-offline-writer/edai2-feast-offline-writer:${_SHA}"
+      - -f
+      - containers/edai2/Dockerfile
+      - .
+  - id: feast-online-writer
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --target
+      - feast_online_writer
+      - -t
+      - "${_REGISTRY}/edai2-feast-online-writer/edai2-feast-online-writer:${_SHA}"
+      - -f
+      - containers/edai2/Dockerfile
+      - .
+  - id: retrieval-agent
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --target
+      - retrieval_agent
+      - -t
+      - "${_REGISTRY}/edai2-retrieval-agent/edai2-retrieval-agent:${_SHA}"
+      - -f
+      - containers/edai2/Dockerfile
+      - .
+  - id: drift-agent
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --target
+      - drift_agent
+      - -t
+      - "${_REGISTRY}/edai2-drift-agent/edai2-drift-agent:${_SHA}"
+      - -f
+      - containers/edai2/Dockerfile
+      - .
+  - id: coordinator
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --target
+      - coordinator
+      - -t
+      - "${_REGISTRY}/edai2-coordinator/edai2-coordinator:${_SHA}"
+      - -f
+      - containers/edai2/Dockerfile
+      - .
+
+images:
+  - "${_REGISTRY}/edai2-rag-index/edai2-rag-index:${_SHA}"
+  - "${_REGISTRY}/edai2-feast-offline-writer/edai2-feast-offline-writer:${_SHA}"
+  - "${_REGISTRY}/edai2-feast-online-writer/edai2-feast-online-writer:${_SHA}"
+  - "${_REGISTRY}/edai2-retrieval-agent/edai2-retrieval-agent:${_SHA}"
+  - "${_REGISTRY}/edai2-drift-agent/edai2-drift-agent:${_SHA}"
+  - "${_REGISTRY}/edai2-coordinator/edai2-coordinator:${_SHA}"
+
+options:
+  machineType: E2_HIGHCPU_8
+  diskSizeGb: 200
+timeout: 3600s

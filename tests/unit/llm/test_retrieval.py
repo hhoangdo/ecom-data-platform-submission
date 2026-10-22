@@ -29,8 +29,12 @@ def test_kind_preflight_fake_retrieval_requires_exact_environment_gate() -> None
     unavailable = factory({})
     assert asyncio.run(unavailable.is_ready()) is False
 
+    # EDAI2_ENVIRONMENT alone must not select the fake dependency; production
+    # sets EDAI2_ENVIRONMENT=gke and must reach the real factory.
+    assert asyncio.run(factory({"EDAI2_ENVIRONMENT": "local"}).is_ready()) is False
+
     with pytest.raises(RuntimeError, match="kind-preflight"):
-        factory({"EDAI2_ENVIRONMENT": "local"})
+        factory({"EDAI2_RUNTIME_MODE": "kind-preflight"})
 
     with pytest.raises(RuntimeError, match="kind-preflight"):
         factory(
