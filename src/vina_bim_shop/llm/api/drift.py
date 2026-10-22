@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+from collections.abc import Mapping
+from datetime import date
 from time import perf_counter
 from uuid import uuid4
 
@@ -10,17 +13,38 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
+from ..adapters.feast_postgres import FeastPostgresAdapter
 from ..contracts import ApiError, DriftDetectRequest, DriftDetectResponse
 from ..drift import DependencyTimeoutError, DriftDetectionService, FeatureUnavailableError
+from ..observability import configure_tracing
 
 
 SERVICE_NAME = "edai2-drift-agent"
 ROUTE_NAME = "/v1/drift/detect"
+configure_tracing(SERVICE_NAME)
 _REQUESTS = Counter("edai2_drift_requests", "Drift HTTP requests by stable outcome.", ("service", "route", "status"))
 _DURATION = Histogram("edai2_drift_request_duration_seconds", "Drift HTTP request duration by stable outcome.", ("service", "route", "status"))
 
 app = FastAPI(title=SERVICE_NAME, version="0.1.0")
-app.state.drift_service = DriftDetectionService()
+
+
+def create_drift_service_from_environment(
+    environ: Mapping[str, str] | None = None,
+) -> DriftDetectionService:
+    """Build the real Section 03 PostgreSQL service or an unavailable dependency."""
+
+    settings = os.environ if environ is None else environ
+    dsn = settings.get("EDAI2_POSTGRES_DSN")
+    if not dsn:
+        return DriftDetectionService()
+    return DriftDetectionService(
+        feast=FeastPostgresAdapter(dsn=dsn),
+        baseline_date=date.fromisoformat(settings.get("EDAI2_SECTION03_BASELINE_DATE", "2026-04-10")),
+        feature_service_version=settings.get("EDAI2_SECTION03_FEATURE_VERSION", "section03-pinned"),
+    )
+
+
+app.state.drift_service = create_drift_service_from_environment()
 
 
 def get_drift_service() -> DriftDetectionService:
@@ -95,4 +119,4 @@ async def metrics() -> Response:
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
-__all__ = ["app", "detect", "get_drift_service"]
+__all__ = ["app", "create_drift_service_from_environment", "detect", "get_drift_service"]

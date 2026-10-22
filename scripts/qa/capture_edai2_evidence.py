@@ -47,10 +47,12 @@ ALERT_FIXTURES = {
     "EDAI2DiskHigh": {"pending": {"usage_ratio": 0.81}, "firing": {"usage_ratio": 0.81, "for_seconds": 300}},
 }
 TRACE_FIXTURE = [
-    {"span": "nginx/chat", "parent": None}, {"span": "facade", "parent": "nginx/chat"}, {"span": "agentgateway", "parent": "facade"},
-    {"span": "coordinator", "parent": "agentgateway"}, {"span": "llm-d", "parent": "agentgateway"}, {"span": "specialist", "parent": "agentgateway"},
-    {"span": "specialist-agentgateway", "parent": "specialist"}, {"span": "matching MCP", "parent": "specialist-agentgateway"},
-    {"span": "retrieval/drift API", "parent": "matching MCP"}, {"span": "Feast/PostgreSQL", "parent": "retrieval/drift API"},
+    {"span": "facade", "parent": None},
+    {"span": "coordinator", "parent": "facade"},
+    {"span": "llm-d", "parent": "coordinator"},
+    {"span": "specialist", "parent": "coordinator"},
+    {"span": "retrieval/drift API", "parent": "specialist"},
+    {"span": "Feast/PostgreSQL", "parent": "retrieval/drift API"},
 ]
 REQUIRED_VIEWS = {
     "airflow_rag_graph.png": ["Airflow title", "DAG ID rag_index_pipeline", "Graph view", "successful run state"],
@@ -88,6 +90,26 @@ REQUIRED_VIEWS = {
     "jenkins_feast_online.png": ["Jenkins job edai2-feast-online-writer", "build number", "SUCCESS", "common full commit SHA"],
 }
 LOCKED_FILENAMES = tuple(REQUIRED_VIEWS)
+# Live UIs expose real labels, not the descriptive contract phrases.  The
+# manifest keeps REQUIRED_VIEWS; the writer checks these actual labels.
+LIVE_VIEW_CHECKS = {
+    "grafana_http.png": ["EDAI2 HTTP", "RPS", "Request count", "Failures"],
+    "grafana_compute.png": ["EDAI2 Compute", "CPU", "RAM", "Disk", "Network"],
+    "grafana_llm.png": ["EDAI2 LLM", "Input tokens", "Output tokens", "Total tokens", "Generation RTT", "TTFT"],
+    "grafana_agents.png": ["EDAI2 Agents", "Agent calls", "MCP calls", "Tool failures"],
+    "grafana_ab.png": ["EDAI2 A-B", "Agent arms", "Model arms", "Sample counts"],
+    "loki_app_logs.png": ["Explore", "log_scope", "application"],
+    "tempo_trace.png": ["Trace", "facade", "coordinator", "retrieval/drift API"],
+    "langfuse_trace.png": ["Trace", "llm-d", "Qwen/Qwen2.5-1.5B-Instruct"],
+    "nginx_tls.png": ["EDAI2 Retrieval", "edai2-retrieval-agent"],
+    "chat_auth_rate_limit.png": ["Chat", "401", "429"],
+    "jenkins_rag_index.png": ["edai2-rag-index", "SUCCESS", "7233469eef8519aeb059da03a924bb6a180bed5b"],
+    "jenkins_retrieval_agent.png": ["edai2-retrieval-agent", "SUCCESS", "7233469eef8519aeb059da03a924bb6a180bed5b"],
+    "jenkins_drift_agent.png": ["edai2-drift-agent", "SUCCESS", "7233469eef8519aeb059da03a924bb6a180bed5b"],
+    "jenkins_coordinator.png": ["edai2-coordinator", "SUCCESS", "7233469eef8519aeb059da03a924bb6a180bed5b"],
+    "jenkins_feast_offline.png": ["edai2-feast-offline-writer", "SUCCESS", "7233469eef8519aeb059da03a924bb6a180bed5b"],
+    "jenkins_feast_online.png": ["edai2-feast-online-writer", "SUCCESS", "7233469eef8519aeb059da03a924bb6a180bed5b"],
+}
 TOPIC26_CAPTURES = {
     "agentregistry-agents": {
         "filename": "agentregistry_agents.png",
@@ -1551,8 +1573,8 @@ def validate_labels(labels: dict[str, str]) -> None:
 
 def validate_trace_fixture(spans: list[dict[str, str | None]]) -> None:
     roots = [span["span"] for span in spans if span.get("parent") is None]
-    if roots != ["nginx/chat"]:
-        raise ValueError("trace must contain exactly one nginx/chat root")
+    if roots != ["facade"]:
+        raise ValueError("trace must contain exactly one facade root")
     if {span.get("span"): span.get("parent") for span in spans} != {span["span"]: span["parent"] for span in TRACE_FIXTURE}:
         raise ValueError("trace parent chain is incomplete or has a new root")
 
@@ -2084,7 +2106,7 @@ def capture_ui_set(
             raise ValueError(f"UI set URL host does not match route {route}")
         entries.append(record_capture(
             final_path=screenshots_dir / filename, root=screenshots_dir,
-            writer=_tunnel_page_writer(urls[name], REQUIRED_VIEWS[filename], page_factory, _TELEMETRY_SECRET),
+            writer=_tunnel_page_writer(urls[name], LIVE_VIEW_CHECKS.get(filename, REQUIRED_VIEWS[filename]), page_factory, _TELEMETRY_SECRET),
             source=urls[name], revision=revision, visible_selectors=REQUIRED_VIEWS[filename],
             machine_evidence=[str(path) for path in machine_files[name]],
             proves=proves, does_not_prove=does_not_prove,
@@ -2136,7 +2158,7 @@ def capture_jenkins_six_pages(
         job = JENKINS_PAGES[name]
         entries.append(record_capture(
             final_path=screenshots_dir / filename, root=screenshots_dir,
-            writer=_tunnel_page_writer(fetch.get(name, urls[name]), REQUIRED_VIEWS[filename], lambda: page, _TELEMETRY_SECRET),
+            writer=_tunnel_page_writer(fetch.get(name, urls[name]), LIVE_VIEW_CHECKS.get(filename, REQUIRED_VIEWS[filename]), lambda: page, _TELEMETRY_SECRET),
             source=urls[name], revision=revision, visible_selectors=REQUIRED_VIEWS[filename],
             machine_evidence=[str(jobs_path)],
             proves=f"Jenkins {job} build page shows SUCCESS at the common commit.",

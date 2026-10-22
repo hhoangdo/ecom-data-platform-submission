@@ -23,5 +23,5 @@ otelcol.exporter.otlp "tempo" {
   client { endpoint = "tempo.edai2.svc.cluster.local:4317" }
 }
 
-// Required parent chain: nginx/chat -> facade -> agentgateway -> coordinator.
-// Branches: agentgateway -> llm-d; agentgateway -> specialist -> agentgateway -> matching MCP -> retrieval/drift API -> Feast/PostgreSQL.
+// Required parent chain: facade -> coordinator.
+// Branches: coordinator -> llm-d; coordinator -> specialist -> retrieval/drift API -> Feast/PostgreSQL.

@@ -9,6 +9,7 @@ import asyncio
 import hashlib
 
 from vina_bim_shop.llm.adapters.kagent import A2ATimeoutError, KagentCoordinatorAdapter
+from vina_bim_shop.llm.api import chat as chat_api
 from vina_bim_shop.llm.contracts import (
     ChatRequest,
     ChatResponse,
@@ -434,3 +435,20 @@ async def test_coordinator_telemetry_contains_only_allowlisted_metadata() -> Non
     assert len(attributes["coordinator.request_sha256"]) == 64
     assert "alice@example.com" not in str(attributes)
     assert "Returns are accepted" not in str(attributes)
+
+
+def test_chat_factory_requires_all_direct_runtime_inputs() -> None:
+    with pytest.raises(RuntimeError, match="direct chat runtime"):
+        chat_api.create_coordinator_from_environment({"EDAI2_RETRIEVAL_URL": "http://retrieval"})
+
+
+def test_chat_factory_builds_the_direct_adapter_when_configured() -> None:
+    coordinator = chat_api.create_coordinator_from_environment(
+        {
+            "EDAI2_RETRIEVAL_URL": "http://retrieval.edai2.svc.cluster.local:8080",
+            "EDAI2_LLM_URL": "http://llmd-router.edai2.svc.cluster.local:8000",
+            "EDAI2_LLM_API_KEY": "test-key",
+            "EDAI2_LLM_MODEL": "Qwen/Qwen2.5-1.5B-Instruct",
+        }
+    )
+    assert type(coordinator._agent).__name__ == "DirectCoordinatorAdapter"

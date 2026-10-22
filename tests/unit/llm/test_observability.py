@@ -34,8 +34,8 @@ def test_labels_alert_alloy_trace_enforce_the_locked_telemetry_contract() -> Non
     alloy = (ROOT / "infra/observability/alloy/config.alloy").read_text(encoding="utf-8")
     assert 'log_scope = "application"' in alloy
     assert 'log_scope = "system"' in alloy
-    assert "nginx/chat -> facade -> agentgateway -> coordinator" in alloy
-    assert "agentgateway -> specialist -> agentgateway -> matching MCP -> retrieval/drift API -> Feast/PostgreSQL" in alloy
+    assert "facade -> coordinator" in alloy
+    assert "coordinator -> specialist -> retrieval/drift API -> Feast/PostgreSQL" in alloy
     assert "customer_id" not in alloy and "message" not in alloy
 
 

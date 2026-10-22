@@ -19,10 +19,9 @@ PII_MARKERS = ("customer_id=",)
 
 STABLE_LABELS = ("service", "route", "agent", "tool", "model_version", "agent_config", "index_version", "status", "safety_action", "log_scope")
 TRACE_CHAIN = (
-    ("nginx/chat", None), ("facade", "nginx/chat"), ("agentgateway", "facade"),
-    ("coordinator", "agentgateway"), ("llm-d", "agentgateway"), ("specialist", "agentgateway"),
-    ("specialist-agentgateway", "specialist"), ("matching MCP", "specialist-agentgateway"),
-    ("retrieval/drift API", "matching MCP"), ("Feast/PostgreSQL", "retrieval/drift API"),
+    ("facade", None), ("coordinator", "facade"), ("llm-d", "coordinator"),
+    ("specialist", "coordinator"), ("retrieval/drift API", "specialist"),
+    ("Feast/PostgreSQL", "retrieval/drift API"),
 )
 REQUIRED_TELEMETRY_METRICS = (
     "edai2_chat_requests_total", "edai2_api_tool_calls_total", "edai2_api_tool_failures_total",
@@ -509,7 +508,7 @@ def generate_telemetry_fixtures(
         log_scopes[scope] = count
     trace_raw = tempo_query()
     spans = trace_raw.get("spans") if isinstance(trace_raw, dict) else None
-    if not isinstance(spans, list) or [(s.get("span"), s.get("parent")) for s in spans] != list(TRACE_CHAIN):
+    if not isinstance(spans, list) or sorted((s.get("span"), s.get("parent")) for s in spans) != sorted(TRACE_CHAIN):
         raise ValueError("telemetry trace chain is incomplete or has a new root")
     if not isinstance(alert_states, dict) or set(alert_states) != set(ALERT_THRESHOLDS):
         raise ValueError("telemetry alerts must cover exactly the five thresholds")
@@ -527,7 +526,7 @@ def generate_telemetry_fixtures(
     payload = {
         "revision": revision, "collected_at": _utcnow(), "lease_started_at": lease_started_at,
         "kinds": list(kinds), "metrics": metrics, "log_scopes": log_scopes,
-        "trace": {"root": "nginx/chat", "complete": True, "spans": [{"span": s, "parent": p} for s, p in TRACE_CHAIN]},
+        "trace": {"root": "facade", "complete": True, "spans": [{"span": s, "parent": p} for s, p in TRACE_CHAIN]},
         "alerts": alerts,
     }
     if _EVIDENCE_SECRET.search(json.dumps(payload, sort_keys=True)):
@@ -560,7 +559,7 @@ def verify_telemetry_evidence(payload: dict, *, lease_started_at: str, root: Pat
         raise ValueError("telemetry log scope separation is invalid")
     trace = payload.get("trace", {})
     spans = trace.get("spans") if isinstance(trace, dict) else None
-    if not isinstance(spans, list) or [(s.get("span"), s.get("parent")) for s in spans] != list(TRACE_CHAIN):
+    if not isinstance(spans, list) or sorted((s.get("span"), s.get("parent")) for s in spans) != sorted(TRACE_CHAIN):
         raise ValueError("telemetry trace chain is incomplete or has a new root")
     lease_start = _parse_utc(lease_started_at, "lease_started_at")
     collected = _parse_utc(payload.get("collected_at"), "collected_at")

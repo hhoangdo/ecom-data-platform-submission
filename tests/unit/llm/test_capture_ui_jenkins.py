@@ -85,7 +85,8 @@ def _ui_urls() -> dict[str, str]:
 def _body_for(capture, names: list[str]) -> str:
     words = []
     for name in names:
-        words.extend(capture.REQUIRED_VIEWS[name + ".png"])
+        filename = name + ".png"
+        words.extend(capture.LIVE_VIEW_CHECKS.get(filename, capture.REQUIRED_VIEWS[filename]))
     return " page ".join(words)
 
 

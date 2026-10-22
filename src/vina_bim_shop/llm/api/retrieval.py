@@ -9,16 +9,23 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
+from opentelemetry import trace
+from opentelemetry.propagate import extract
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
+from ..adapters.feast_postgres import FeastPostgresAdapter
 from ..contracts import ApiError, SearchRequest, SearchResponse
+from ..indexing import PinnedBgeEmbedder
+from ..observability import configure_tracing
 from ..retrieval import DependencyTimeoutError, FeastRetrievalService, IndexUnavailableError
 from ..safety import CitationIntegrityError
 
 
 SERVICE_NAME = "edai2-retrieval-agent"
 ROUTE_NAME = "/v1/retrieval/search"
+_TRACER = trace.get_tracer(__name__)
+configure_tracing(SERVICE_NAME)
 _REQUESTS = Counter(
     "edai2_retrieval_requests",
     "Retrieval HTTP requests by stable outcome.",
@@ -96,17 +103,31 @@ _KIND_PREFLIGHT_ENVIRONMENT = {
 def create_retrieval_service_from_environment(
     environ: Mapping[str, str] | None = None,
 ) -> FeastRetrievalService:
-    """Build the default unavailable service or the exact local Kind fake dependency."""
+    """Build the real PostgreSQL/Feast service, the exact local Kind fake, or fail closed."""
 
     settings = os.environ if environ is None else environ
-    if not any(name in settings for name in _KIND_PREFLIGHT_ENVIRONMENT):
-        return FeastRetrievalService()
-    if {name: settings.get(name) for name in _KIND_PREFLIGHT_ENVIRONMENT} != _KIND_PREFLIGHT_ENVIRONMENT:
-        raise RuntimeError("kind-preflight retrieval requires the exact local environment gate")
-    return FeastRetrievalService(
-        feast=_KindPreflightFakeRetrieval(),
-        embedder=_KindPreflightFakeEmbedder(),
-    )
+    if any(name in settings for name in _KIND_PREFLIGHT_ENVIRONMENT):
+        if {name: settings.get(name) for name in _KIND_PREFLIGHT_ENVIRONMENT} != _KIND_PREFLIGHT_ENVIRONMENT:
+            raise RuntimeError("kind-preflight retrieval requires the exact local environment gate")
+        return FeastRetrievalService(
+            feast=_KindPreflightFakeRetrieval(),
+            embedder=_KindPreflightFakeEmbedder(),
+        )
+    dsn = settings.get("EDAI2_POSTGRES_DSN")
+    model_path = settings.get("EDAI2_EMBEDDING_MODEL_PATH")
+    if dsn and model_path:
+        embedder = PinnedBgeEmbedder(model_path=model_path)
+        if settings.get("EDAI2_EMBEDDING_WARMUP", "1") != "0":
+            embedder.warmup()
+        return FeastRetrievalService(
+            feast=FeastPostgresAdapter(dsn=dsn),
+            embedder=embedder,
+        )
+    if dsn or model_path:
+        raise RuntimeError(
+            "retrieval runtime requires both EDAI2_POSTGRES_DSN and EDAI2_EMBEDDING_MODEL_PATH"
+        )
+    return FeastRetrievalService()
 
 
 app.state.retrieval_service = create_retrieval_service_from_environment()
@@ -155,26 +176,43 @@ async def validation_error_handler(
     },
     tags=["retrieval"],
 )
-async def search(request: SearchRequest) -> SearchResponse | JSONResponse:
+async def search(request: SearchRequest, http_request: Request) -> SearchResponse | JSONResponse:
     """Run one validated retrieval request without fabricating data."""
 
-    started = perf_counter()
-    try:
-        response = await get_retrieval_service().search(request)
-    except (IndexUnavailableError, CitationIntegrityError):
-        _observe(status.HTTP_409_CONFLICT, started)
-        return JSONResponse(
-            status_code=status.HTTP_409_CONFLICT,
-            content=_error_body("index_unavailable", "verified active index is unavailable"),
-        )
-    except DependencyTimeoutError:
-        _observe(status.HTTP_503_SERVICE_UNAVAILABLE, started)
-        return JSONResponse(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content=_error_body("dependency_timeout", "retrieval dependency timed out"),
-        )
-    _observe(status.HTTP_200_OK, started)
-    return response
+    context = extract(http_request.headers)
+    with _TRACER.start_as_current_span("retrieval/drift API", context=context) as span:
+        started = perf_counter()
+        try:
+            response = await get_retrieval_service().search(request)
+        except (IndexUnavailableError, CitationIntegrityError):
+            _observe(status.HTTP_409_CONFLICT, started)
+            span.set_attribute("http.status_code", status.HTTP_409_CONFLICT)
+            return JSONResponse(
+                status_code=status.HTTP_409_CONFLICT,
+                content=_error_body("index_unavailable", "verified active index is unavailable"),
+            )
+        except DependencyTimeoutError:
+            _observe(status.HTTP_503_SERVICE_UNAVAILABLE, started)
+            span.set_attribute("http.status_code", status.HTTP_503_SERVICE_UNAVAILABLE)
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content=_error_body("dependency_timeout", "retrieval dependency timed out"),
+            )
+        _observe(status.HTTP_200_OK, started)
+        span.set_attribute("http.status_code", status.HTTP_200_OK)
+        return response
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def index() -> str:
+    """Render the small evidence landing page used by the HTTPS capture."""
+
+    return (
+        "<!doctype html><html><head><title>EDAI2 Retrieval</title></head>"
+        "<body><main><h1>EDAI2 Retrieval</h1>"
+        "<p>Verified HTTPS endpoint for the EDAI2 retrieval API.</p>"
+        "<p>Service: edai2-retrieval-agent</p></main></body></html>"
+    )
 
 
 @app.get("/healthz", tags=["probes"])

@@ -12,6 +12,8 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
 
+from opentelemetry import trace
+
 from ..contracts import (
     FeatureHealthPoint,
     IndexBuildReport,
@@ -23,6 +25,9 @@ from ..contracts import (
     TimeWindow,
     UtcDateTime,
 )
+
+
+_TRACER = trace.get_tracer(__name__)
 
 
 class CandidateIndexError(ValueError):
@@ -79,11 +84,14 @@ class FeastPostgresAdapter:
                 )
             try:
                 import psycopg
+                from psycopg.rows import dict_row
             except ImportError as error:  # pragma: no cover - host capability gate
                 raise CandidateIndexError(
                     "psycopg/libpq is unavailable for a real PostgreSQL connection"
                 ) from error
-            connection = await psycopg.AsyncConnection.connect(self._dsn)
+            connection = await psycopg.AsyncConnection.connect(
+                self._dsn, row_factory=dict_row
+            )
         try:
             yield connection
         finally:
@@ -429,36 +437,40 @@ class FeastPostgresAdapter:
         if not 1 <= top_k <= 8:
             raise CandidateIndexError("top_k must be between 1 and 8")
         query_vector = _vector_literal(_validated_vector(vector))
-        async with self._connection() as connection:
-            rows = await _fetch_all(
-                connection,
-                """
-                SELECT chunk.chunk_id, chunk.document_id, chunk.category, chunk.version,
-                       chunk.effective_from, chunk.effective_to, chunk.content,
-                       chunk.content_sha256,
-                       embedding.embedding <=> %s::vector AS cosine_distance
-                FROM edai2_rag_active_alias alias
-                JOIN edai2_rag_candidate_chunk candidate
-                  ON candidate.index_version = alias.index_version
-                JOIN edai2_rag_chunk chunk ON chunk.chunk_id = candidate.chunk_id
-                JOIN edai2_rag_embedding embedding ON embedding.chunk_id = chunk.chunk_id
-                WHERE alias.alias_name = 'active'
-                  AND (%s::text IS NULL OR chunk.category = %s)
-                  AND chunk.effective_from <= %s
-                  AND (chunk.effective_to IS NULL OR %s < chunk.effective_to)
-                ORDER BY embedding.embedding <=> %s::vector, chunk.chunk_id
-                LIMIT %s
-                """,
-                (
-                    query_vector,
-                    category,
-                    category,
-                    effective_at,
-                    effective_at,
-                    query_vector,
-                    top_k,
-                ),
-            )
+        with _TRACER.start_as_current_span("Feast/PostgreSQL") as span:
+            span.set_attribute("db.system", "postgresql")
+            span.set_attribute("retrieval.top_k", top_k)
+            async with self._connection() as connection:
+                rows = await _fetch_all(
+                    connection,
+                    """
+                    SELECT chunk.chunk_id, chunk.document_id, chunk.category, chunk.version,
+                           chunk.effective_from, chunk.effective_to, chunk.content,
+                           chunk.content_sha256,
+                           embedding.embedding <=> %s::vector AS cosine_distance
+                    FROM edai2_rag_active_alias alias
+                    JOIN edai2_rag_candidate_chunk candidate
+                      ON candidate.index_version = alias.index_version
+                    JOIN edai2_rag_chunk chunk ON chunk.chunk_id = candidate.chunk_id
+                    JOIN edai2_rag_embedding embedding ON embedding.chunk_id = chunk.chunk_id
+                    WHERE alias.alias_name = 'active'
+                      AND (%s::text IS NULL OR chunk.category = %s)
+                      AND chunk.effective_from <= %s
+                      AND (chunk.effective_to IS NULL OR %s < chunk.effective_to)
+                    ORDER BY embedding.embedding <=> %s::vector, chunk.chunk_id
+                    LIMIT %s
+                    """,
+                    (
+                        query_vector,
+                        category,
+                        category,
+                        effective_at,
+                        effective_at,
+                        query_vector,
+                        top_k,
+                    ),
+                )
+            span.set_attribute("retrieval.row_count", len(rows))
         ordered = sorted(
             rows,
             key=lambda row: (float(row["cosine_distance"]), str(row["chunk_id"])),

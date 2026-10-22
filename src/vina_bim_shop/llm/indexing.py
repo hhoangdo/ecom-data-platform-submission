@@ -134,11 +134,14 @@ class PinnedBgeEmbedder:
         *,
         model_name: str = BGE_MODEL,
         revision: str = BGE_REVISION,
+        model_path: str | Path | None = None,
         model_loader: Callable[[str, str], object] | None = None,
     ) -> None:
-        if model_name != BGE_MODEL or revision != BGE_REVISION:
+        if model_path is None and model_name != BGE_MODEL:
             raise EmbeddingValidationError("BGE model and revision must be immutable")
-        self._model_name = model_name
+        if revision != BGE_REVISION:
+            raise EmbeddingValidationError("BGE model and revision must be immutable")
+        self._model_name = BGE_MODEL if model_path is None else str(model_path)
         self._revision = revision
         self._model_loader = model_loader or _load_sentence_transformer
         self._model: object | None = None
@@ -152,6 +155,11 @@ class PinnedBgeEmbedder:
         """Embed one query with BGE's exact retrieval prefix."""
 
         return self._encode([QUERY_PREFIX + query])[0]
+
+    def warmup(self) -> None:
+        """Load the pinned model before the first 700 ms retrieval deadline."""
+
+        self._get_model()
 
     def _encode(self, texts: list[str]) -> list[list[float]]:
         if not texts:
@@ -176,6 +184,8 @@ class PinnedBgeEmbedder:
 def _load_sentence_transformer(model_name: str, revision: str) -> object:
     from sentence_transformers import SentenceTransformer
 
+    if Path(model_name).is_dir():
+        return SentenceTransformer(str(Path(model_name)), local_files_only=True)
     return SentenceTransformer(
         model_name,
         revision=revision,

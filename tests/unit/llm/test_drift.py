@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from vina_bim_shop.llm.api.drift import app as drift_app
+from vina_bim_shop.llm.api import drift as drift_api
 from vina_bim_shop.llm.contracts import DriftDetectRequest, FeatureHealthPoint, Section03FeatureRow, TimeWindow
 from vina_bim_shop.llm.drift import (
     DEPENDENCY_TIMEOUT_SECONDS,
@@ -214,6 +215,17 @@ async def test_optional_id_is_cutoff_safe_and_absence_never_changes_population()
     assert absent.customer_context is None
     assert absent.population_size == present.population_size
     assert absent.psi == present.psi
+
+
+def test_real_drift_factory_uses_postgres_and_the_pinned_baseline() -> None:
+    unavailable = drift_api.create_drift_service_from_environment({})
+    assert unavailable._feast is None
+
+    service = drift_api.create_drift_service_from_environment(
+        {"EDAI2_POSTGRES_DSN": "postgresql://edai2", "EDAI2_SECTION03_BASELINE_DATE": "2026-04-10"}
+    )
+    assert type(service._feast).__name__ == "FeastPostgresAdapter"
+    assert service._baseline_date == date(2026, 4, 10)
 
 
 def test_api_exposes_liveness_feature_unavailable_and_malformed_id() -> None:

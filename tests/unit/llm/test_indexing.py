@@ -352,6 +352,20 @@ async def test_pinned_embedder_keeps_passages_unprefixed_and_prefixes_queries() 
 
 
 @pytest.mark.asyncio
+async def test_pinned_embedder_uses_an_explicit_local_model_path() -> None:
+    load_calls: list[tuple[str, str]] = []
+
+    def load_model(model_name: str, revision: str) -> FakeEmbeddingModel:
+        load_calls.append((model_name, revision))
+        return FakeEmbeddingModel()
+
+    embedder = PinnedBgeEmbedder(model_path="/models/embedding", model_loader=load_model)
+    await embedder.embed(["canonical chunk text"])
+
+    assert load_calls == [("/models/embedding", BGE_REVISION)]
+
+
+@pytest.mark.asyncio
 async def test_pinned_embedder_rejects_invalid_vectors_and_moving_revisions() -> None:
     with pytest.raises(EmbeddingValidationError, match="immutable"):
         PinnedBgeEmbedder(revision="main")

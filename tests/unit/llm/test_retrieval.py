@@ -389,6 +389,25 @@ async def test_get_verified_chunk_rejects_a_self_consistent_wrong_citation() -> 
         )
 
 
+def test_real_factory_requires_both_postgres_dsn_and_embedding_model_path() -> None:
+    factory = retrieval_api.create_retrieval_service_from_environment
+
+    with pytest.raises(RuntimeError, match="both"):
+        factory({"EDAI2_POSTGRES_DSN": "postgresql://edai2"})
+    with pytest.raises(RuntimeError, match="both"):
+        factory({"EDAI2_EMBEDDING_MODEL_PATH": "/models/embedding"})
+
+    service = factory(
+        {
+            "EDAI2_POSTGRES_DSN": "postgresql://edai2",
+            "EDAI2_EMBEDDING_MODEL_PATH": "/models/embedding",
+            "EDAI2_EMBEDDING_WARMUP": "0",
+        }
+    )
+    assert type(service._feast).__name__ == "FeastPostgresAdapter"
+    assert type(service._embedder).__name__ == "PinnedBgeEmbedder"
+
+
 def test_api_maps_service_errors_and_separates_liveness_from_readiness() -> None:
     original_service = retrieval_app.state.retrieval_service
     try:

@@ -2,27 +2,77 @@
 
 from __future__ import annotations
 
+import os
+from collections.abc import Mapping
 from time import perf_counter
 from uuid import uuid4
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
+from opentelemetry import trace
+from opentelemetry.propagate import extract
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
+from ..adapters.direct import DirectCoordinatorAdapter
 from ..adapters.kagent import KagentCoordinatorAdapter
 from ..contracts import ApiError, ChatRequest, ChatResponse
 from ..coordinator import CommerceAgentCoordinator
 from ..inference import ContextTooLargeError
+from ..observability import configure_tracing
 
 
 SERVICE_NAME = "edai2-coordinator"
 ROUTE_NAME = "/v1/chat"
+_TRACER = trace.get_tracer(__name__)
+configure_tracing(SERVICE_NAME)
 _REQUESTS = Counter("edai2_chat_requests", "Chat requests by stable outcome.", ("service", "route", "status"))
 _DURATION = Histogram("edai2_chat_request_duration_seconds", "Chat duration by stable outcome.", ("service", "route", "status"))
 
 app = FastAPI(title=SERVICE_NAME, version="0.1.0")
-app.state.coordinator = CommerceAgentCoordinator(agent=KagentCoordinatorAdapter())
+
+
+def _langfuse_from_environment(settings: Mapping[str, str]) -> object | None:
+    public_key = settings.get("LANGFUSE_PUBLIC_KEY")
+    secret_key = settings.get("LANGFUSE_SECRET_KEY")
+    if not public_key or not secret_key:
+        return None
+    from langfuse import Langfuse
+
+    return Langfuse(
+        public_key=public_key,
+        secret_key=secret_key,
+        host=settings.get("LANGFUSE_HOST", "http://langfuse-web.edai2.svc.cluster.local:3000"),
+    )
+
+
+def create_coordinator_from_environment(
+    environ: Mapping[str, str] | None = None,
+) -> CommerceAgentCoordinator:
+    """Build the direct T27 runtime or the fail-closed kagent facade."""
+
+    settings = os.environ if environ is None else environ
+    retrieval_url = settings.get("EDAI2_RETRIEVAL_URL")
+    llm_url = settings.get("EDAI2_LLM_URL")
+    api_key = settings.get("EDAI2_LLM_API_KEY")
+    if retrieval_url or llm_url or api_key:
+        if not all((retrieval_url, llm_url, api_key)):
+            raise RuntimeError(
+                "direct chat runtime requires EDAI2_RETRIEVAL_URL, EDAI2_LLM_URL, and EDAI2_LLM_API_KEY"
+            )
+        return CommerceAgentCoordinator(
+            agent=DirectCoordinatorAdapter(
+                retrieval_url=str(retrieval_url),
+                llm_url=str(llm_url),
+                llm_api_key=str(api_key),
+                model=settings.get("EDAI2_LLM_MODEL", "Qwen/Qwen2.5-1.5B-Instruct"),
+                langfuse=_langfuse_from_environment(settings),
+            )
+        )
+    return CommerceAgentCoordinator(agent=KagentCoordinatorAdapter())
+
+
+app.state.coordinator = create_coordinator_from_environment()
 
 
 def get_coordinator() -> CommerceAgentCoordinator:
@@ -60,11 +110,14 @@ async def context_too_large_handler(request: Request, exc: ContextTooLargeError)
     responses={422: {"model": ApiError}},
     tags=["chat"],
 )
-async def chat(request: ChatRequest) -> ChatResponse:
-    started = perf_counter()
-    response = await get_coordinator().chat(request)
-    _observe(200, started)
-    return response
+async def chat(request: ChatRequest, http_request: Request) -> ChatResponse:
+    context = extract(http_request.headers)
+    with _TRACER.start_as_current_span("facade", context=context) as span:
+        started = perf_counter()
+        response = await get_coordinator().chat(request)
+        span.set_attribute("http.status_code", 200)
+        _observe(200, started)
+        return response
 
 
 @app.get("/healthz", tags=["probes"])
@@ -84,4 +137,4 @@ async def metrics() -> Response:
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
-__all__ = ["app", "chat", "get_coordinator"]
+__all__ = ["app", "chat", "create_coordinator_from_environment", "get_coordinator"]
