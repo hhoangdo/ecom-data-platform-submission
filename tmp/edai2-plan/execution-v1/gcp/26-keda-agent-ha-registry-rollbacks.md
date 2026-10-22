@@ -275,3 +275,13 @@ Rollback records support Topic 25/27 cells but do not duplicate their primary ow
 - **Cleanup:** No workload/route/pod/port-forward created; KEDA mins already 1; Helm/model/index/alias untouched.
 - **Limitations:** (1) `jobs.json` pinned at `7233469…` vs HEAD `e651a86…` — fail-closed correct, needs owning-topic rebuild/repin policy. (2) Zero Ready endpoints + zero agent resources → registry/KEDA/chat wins unprovable (readiness is T28 unlock). (3) Release/deployment namespace split (`default` vs `edai2`) blocks rollback CLIs as written. Never patched under lease. One retry max: zero retries spent (foreknown-Partial churn).
 - **Handoff:** T28 readiness unlock next. Next session: fresh lease + fresh gates per topic (backend `<900s`, spend `<24h`); do NOT resume from any suspend file (cluster UP).
+
+
+## Completion Record - 2026-10-19 final closeout (constraint-relaxed)
+
+- **Status:** Completed with approved exceptions (KEDA/chat live proof waived; registry publish and rollback machine evidence not produced).
+- **Branch / revision:** `feature/implement-edai2`, `a5c2111d46cf8805baee18ba98bfd2df9ec942c5`.
+- **Evidence:** the prior fail-closed records stand; `evidence/04_2_llm_design/gke/topic31-approved-exceptions.json` lists `agentregistry_agents.png` and `keda_scale.png` as approved missing.
+- **Approved exceptions:** `agents/registry.json`, `agents/chat_smoke.json`, `gke/keda_ha.json`, `rollbacks/{helm,model,index}.json`, and both owned PNGs were not produced. The deployed services expose only `/v1/chat` and `/v1/retrieval/search`; the probe contract (`/load`, `/drain`, `/chat`) is absent. E7/E13-E15/E19-E21/E24 remain unproven.
+- **Cleanup:** no lease held; T31 teardown proves zero nodes/ingress/LB/forwarding/lease.
+- **Handoff:** KEDA/chat endpoint implementation and registry/rollback runtimes remain a separate project.

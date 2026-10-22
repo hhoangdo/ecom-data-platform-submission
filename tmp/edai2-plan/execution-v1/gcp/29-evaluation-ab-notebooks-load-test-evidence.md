@@ -319,3 +319,13 @@ Topic 29 owns exactly eight screenshots: three kagent chats, four test-quality c
 - **Cleanup:** No lease held (file absent); no routes created (nothing to disable); alias/model state untouched; cluster UP for T30.
 - **Limitations:** Numerics unmeasured (honest Partial); route-cert gate removed per study contract; readiness + index are T28 unlock.
 - **Handoff:** T30 prerequisites NOT met (no experiment/alias hashes). Next: fresh lease + fresh gates only after readiness + index land.
+
+
+## Completion Record - 2026-10-19 final closeout (constraint-relaxed)
+
+- **Status:** Completed with approved exceptions (local test-quality completed; live evaluation/A-B/notebooks/Locust/novel blocked).
+- **Branch / revision:** `feature/implement-edai2`, `a5c2111d46cf8805baee18ba98bfd2df9ec942c5`.
+- **Evidence:** `tests/test_scope.json` (116 changed production files, SHA-256 `55ea2f2dc29136a62c16db1384ad8f4c986b901d185918ca5fbd018d288ca23d`); `tests/coverage.json` 92.74395329441201% (SHA-256 `c1cc7f9a5800aae37d5270252290794ba6e52595ea8e543eaddfbb29695d4856`); `tests/ep_bva.json` 10/10 (SHA-256 `79720c5f917020cdb4daf3687580d87ab3701e888d767f6cedda612a946e6560`); `tests/mutation.json` score 0.8075986 with denominator 4106 (prior real WSL run; native mutmut is unsupported on Windows); `tests/properties_crosshair.json` passed (SHA-256 `031c90e7337df354f9942083adb8bd6a69fb2a253b4b615cd2481685c54ef6fe`). Four PNGs captured: `coverage_and_api_fixtures.png`, `ep_bva.png`, `mutation.png`, `properties_crosshair.png`.
+- **Approved exceptions:** live `/evaluate`, `/ab_session`, `/novel` endpoints were not implemented in the deployed services; `evaluation/{report,agent_ab,model_ab}.json`, notebooks, Locust, and novel live proofs are absent; `kagent_*_chat.png` (3) and `locust_report.png` remain Missing; `topic29_routes.json` was not created. E22:E23/E25/E27:E31/E44/E56:E57/E61:E62 remain unproven.
+- **Cleanup:** no lease held; T31 teardown proves zero nodes/ingress/LB/forwarding/lease.
+- **Handoff:** service endpoint implementation and rebuild/redeploy remain a separate project.

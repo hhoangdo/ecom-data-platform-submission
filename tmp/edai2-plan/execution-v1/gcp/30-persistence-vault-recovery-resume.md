@@ -284,3 +284,13 @@ Topic 30 owns backup, before/after, hibernate/resume, Vault recovery machine evi
 - **Cleanup / runtime release:** Lease released (file absent); no pods deleted; no pools scaled by tool (suspend = lease release only); zero ingresses, no LoadBalancer at release.
 - **Limitations:** (1) Seal-type drift blocks recovery proof → owning local topic (known-deferred). (2) 7/9 fingerprint subsystems deferred → equality stays Partial (known-deferred). (3) Backup-manifest `checkpoint` CLI missing (known-deferred).
 - **Handoff:** T31 NOT unblocked (no recovery hashes). Suspend-lease released; cluster shows zero ingress / no LB / 2 nodes Ready at release.
+
+
+## Completion Record - 2026-10-19 final closeout (constraint-relaxed)
+
+- **Status:** Completed with approved exceptions (Vault recovery + hibernate/resume match completed; spot/backup/accessors deferred).
+- **Branch / revision:** `feature/implement-edai2`, `a5c2111d46cf8805baee18ba98bfd2df9ec942c5`.
+- **Evidence:** `security/vault_bootstrap.json` now records `seal_type:gcpckms`, 29 live key names, and `record_source:live-vault-status` (SHA-256 `08ff7dd9db3f169044af318594e544f3ecbaffb7249bf33d6ca5a7572a892ad1`); `security/vault_recovery.json` is post-pod-delete, auto-unseal true, key names match, all five policy canaries true, no manual unseal (SHA-256 `036a495352a1a3ec2c14b5bb1ed8d0052f95af336f9dc19aec60334a2942566b`); `screenshots/vault_status.png` is a redacted local render (SHA-256 `f43580be8e5c740bb3e56960dcbbac072cc72dcfbe0ae1f95c2bf8434b3246c3`); `persistence_before.json` SHA-256 `303fdc06fb203c1d62d877dea9183acda8d49e8009078d522ab32464707bbc3c`; `persistence_after.json` SHA-256 `896e910bb9b0df6f733d51317de945790c91e745c3470d9804dca279cf907f8e`; `hibernate_resume.json` `match:true`, `diffs:[]` (SHA-256 `6067656c364849535d56c6d1c5d65915039bafd5693cea54567f8ee36bc4b27c`).
+- **Approved exceptions:** `gke/backup_manifest.json` was not produced; 7 fingerprint accessors remain deferred; the spot pool zero resize failed on the first attempt (platform pool zero succeeded; the cluster was recovered); the Postgres reader is blocked by stale credentials; E58 remains partial.
+- **Cleanup:** both leases released; T31 teardown proves zero nodes/ingress/LB/forwarding/lease.
+- **Handoff:** backup manifest, full fingerprint accessors, and a clean spot-pool suspend remain a separate project.

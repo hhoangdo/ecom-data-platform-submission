@@ -288,3 +288,12 @@ Topic 29 solely owns `Sheet3!E44`, `Sheet3!E56`, and `Sheet3!E57`; Topic 27 owns
 - **Limitations:** (1) ACME removed per operator directive — `E45:E47` Partial by design, private loopback only. (2) Services not Ready (`0/1`) — readiness is Topic 28 unlock. (3) Jenkins capture CLI semantic gap (requires `--outputs`/`--urls`; `jobs.json` alone insufficient, zero live jobs context) → owning local topic, no patch under lease. (4) `E35:E40` need real CI jobs.
 - **Handoff:** Topic 28 prerequisites NOT met (services unready). Next run: fresh ≤6h lease + fresh spend/backend gates; do NOT resume suspend files (cluster UP).
 - Authoritative for Task 4 (subagent-driven run): this entry; prior entries are inline-run history.
+
+
+## Completion Record - 2026-10-19 final closeout (deferred by operator)
+
+- **Status:** Partial - deferred by operator. The study-only lock was retained; no public ACME/TLS or live ingress was enabled.
+- **Branch / revision:** `feature/implement-edai2`, `a5c2111d46cf8805baee18ba98bfd2df9ec942c5`.
+- **Evidence:** `configure_evidence_ingress.py` still rejects live `--enable`/`--disable`; zero ingress/LB/forwarding rules at teardown.
+- **Approved exception:** `E45:E47` remains Partial by design; all 16 owned PNGs remain Missing and are listed in `topic31-approved-exceptions.json` under Topic 27.
+- **Handoff:** revisit only if the operator approves a bounded public-TLS window and a valid ACME contact email.

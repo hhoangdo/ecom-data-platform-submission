@@ -501,3 +501,14 @@ The six job records are supporting inputs for Topic 27's sole ownership of `Shee
 - **Limitations:** (1) `jobs.json` commit `7233469…` vs HEAD `e651a86…` scripts-only drift LOG-ONLY per study relaxation (no runtime/src/infra/container/ci change re-verified; tag immutability blocks same-SHA re-push). (2) Zero live Jenkins jobs — `jobs.json` is direct-Helm study-debt (`path: direct-helm`), `Sheet3!E35:E40` unclaimed. (3) Services 0/1 Ready by design (Section 03 inactive, no canonical index — T28 unlock). Bounded retry NOT spent.
 - **Handoff to T26:** T26 MAY PROCEED on `jobs.json` digests (6 verified this lease) + UP cluster (workers Ready, services boot-clean zero-ingress private). Needs owning-CI Jenkins jobs for `E35:E40`, T28 readiness for service Ready. Next: fresh lease + fresh backend/gates per topic (backend `<900s`, spend `<24h`).
 - **Authoritative for Task 1 (subagent-driven run):** this 16:22Z entry; 16:10Z entry is prior inline-run history.
+
+
+## Completion Record - 2026-10-19 final closeout (constraint-relaxed)
+
+- **Status:** Completed with approved exception (Jenkins provenance waived; direct-Helm 6/6 digest parity accepted).
+- **Branch / revision:** `feature/implement-edai2`, `a5c2111d46cf8805baee18ba98bfd2df9ec942c5`.
+- **Evidence:** `evidence/04_2_llm_design/cicd/jobs.json` holds 6 jobs with 6/6 `digest_match:true` at commit `7233469eef8519aeb059da03a924bb6a180bed5b`; `rag-index`, `feast-offline-writer`, `feast-online-writer` are deployed 1/1; `section03/upload.json` is now `uploaded:true`, 15 objects / 1,985,131 bytes, SHA-256 `024cfe3a971c1383a11dd214d9282112d7149f8556e9d9b333bdd262f48660ef`.
+- **Approved exception:** no live Jenkins jobs are configured; E35:E40 Jenkins pages and Jenkins-produced `jobs.json` remain waived. `section03/import.json` remains deferred because the drift activation runtime is not wired.
+- **Limit:** `jobs.json` remains pinned at `7233469...`; the scripts-only drift to HEAD is log-only.
+- **Cleanup:** no lease held; T31 teardown proves nodes, ingress, LB, forwarding rules, and lease all zero.
+- **Handoff:** Jenkins build-system implementation remains a separate study-debt project.

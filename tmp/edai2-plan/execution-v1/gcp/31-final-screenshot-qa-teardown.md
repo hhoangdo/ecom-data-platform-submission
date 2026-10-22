@@ -249,3 +249,15 @@ Topic 31 has no primary rubric cell. Its QA gate is required before any cell may
   - Manifest pins `completion_records.31` sha `ba36be…` size 32586 (pre-addendum doc version); substantive doc content unchanged by this addendum.
   - Summary `pass:1/missing:31/pending:2/fail:0` with pending ONLY `design_patterns.png` + `whole_course_diagram.png`.
   - Handoff now also includes verified `run_manifest.json` alongside audit + gates + backend proof.
+
+
+## Completion Record - 2026-10-19 final closeout (constraint-relaxed)
+
+- **Status:** Completed with approved exceptions (QA + teardown complete; 26 images approved missing).
+- **Branch / revision:** `feature/implement-edai2`, `a5c2111d46cf8805baee18ba98bfd2df9ec942c5`.
+- **Screenshot audit:** `tmp/edai2-gcp/topic31-screenshot-audit-final.json` -> `fail:0, missing:26, pass:8, pending_producer:0, total:34`. The 8 passes are the Section 03 image, both Topic 32 diagrams, four Topic 29 report captures, and `vault_status.png`.
+- **Visual QA:** `screenshots/topic31_visual_review.json` - reviewer `agent (operator-delegated)`, method `model visual inspection at original resolution`, `human_eyes:false`, 8/8 pass (SHA-256 `e0ed9202cfb44b0a0d7590ce41438102ff94d8992ab1a9272ef5d693beb121df`).
+- **Approved exceptions:** `gke/topic31-approved-exceptions.json` lists the 26 missing images by topic: T22 2, T26 2, T27 16, T28 2, T29 4.
+- **Teardown:** `gke/teardown.json` -> `ok:true`; ingress 0, LB 0, forwarding rules 0, nodes 0, `pools_zero:true`, lease absent; SHA-256 `e7f11bcaf19f62f81bc8495d7b55f4636827755bf6ee2db549f107e17f6d48cf`. The resize wrapper and command-output writer are `scripts/gke/teardown.py`.
+- **Run manifest:** `run_manifest.json` summary `Completed-with-approved-exceptions`; `fail:0, missing:26, pending_producer:0`; visual QA agent-delegated (8 images); teardown `ok:true`.
+- **Handoff:** Topic 27 remains Partial by operator deferral; all other topics have final records with the approved exception list. No stage/commit/push/PR was performed.
