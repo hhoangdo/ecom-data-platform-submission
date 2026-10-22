@@ -35,7 +35,7 @@ _SENTENCE = re.compile(r"(?<=[.!?])\s+")
 class DirectCoordinatorAdapter:
     """Retrieve grounded context, call the local model, and return a cited claim."""
 
-    deadline_seconds = 45
+    deadline_seconds = 120
 
     def __init__(
         self,
@@ -167,7 +167,7 @@ class DirectCoordinatorAdapter:
             json={
                 "model": self._model,
                 "messages": prompt,
-                "max_tokens": 96,
+                "max_tokens": 32,
                 "temperature": 0,
             },
             headers={
@@ -198,7 +198,7 @@ def _sentences(answer: str) -> list[str]:
 
 
 def _prompt(question: str, matches: list[SearchMatch]) -> list[dict[str, str]]:
-    context = "\n\n".join(match.content for match in matches[:4])
+    context = "\n\n".join(match.content[:800] for match in matches[:2])
     return [
         {
             "role": "system",
