@@ -5,6 +5,7 @@ production_roots:
   - src/vina_bim_shop/orchestration/specs.py
   - src/vina_bim_shop/kafka/bootstrap.py
   - src/vina_bim_shop/kafka/topics.py
+  - src/vina_bim_shop/topic22_private.py
 contract_roots:
   - tests/contract/llm
   - tests/unit/llm

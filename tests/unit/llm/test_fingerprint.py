@@ -85,3 +85,23 @@ def test_vault_metadata_allowlist_never_copies_secrets(tmp_path: Path) -> None:
             assert str(value) not in text
     assert metadata["initialized"] is True and metadata["seal_type"] == bootstrap["seal_type"]
     assert metadata["key_names"] == bootstrap["key_names"]
+
+def test_after_phase_writes_both_output_and_summary(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The after phase must persist persistence_after.json, not only the summary."""
+    fp = _load_script()
+    monkeypatch.setattr(fp, "build_readers", lambda _args: {})
+    monkeypatch.setattr(
+        fp, "capture_fingerprint",
+        lambda **_kwargs: {"revision": REVISION, "captured_at": "2026-10-19T00:00:00Z", "subsystems": {}},
+    )
+    before = tmp_path / "before.json"
+    before.write_text(json.dumps({"revision": REVISION, "subsystems": {}}), encoding="utf-8")
+    after = tmp_path / "after.json"
+    summary = tmp_path / "summary.json"
+    code = fp.main([
+        "--kubeconfig", "k", "--context", "c", "--phase", "after",
+        "--output", str(after), "--compare", str(before), "--summary", str(summary), "--strict",
+    ])
+    assert code == 0
+    assert after.is_file()
+    assert json.loads(summary.read_text(encoding="utf-8"))["match"] is True

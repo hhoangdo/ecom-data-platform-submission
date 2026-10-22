@@ -373,18 +373,23 @@ def test_loader_cli_fails_closed_for_missing_or_invalid_activation_factory(capsy
     assert json.loads(capsys.readouterr().out)["status"] == "failed"
 
 
-def test_loader_cli_rejects_gcs_upload_without_verified_gcs_input(capsys: pytest.CaptureFixture[str]) -> None:
-    """No GCS path validator exists in-repo; uploader flags must fail closed naming the missing input."""
+def test_loader_cli_requires_gcs_prefix_for_upload() -> None:
+    """The uploader is create-only and must fail closed without an explicit destination."""
     cli = _loader_cli()
-    assert cli.main(
-        ["--manifest", str(MANIFEST), "--strict", "--verify-only",
-         "--gcs-prefix", "gs://example-bucket/section03/", "--upload-only", "--verify-upload"],
-    ) == 2
-    payload = json.loads(capsys.readouterr().out)
-    assert payload["status"] == "failed"
-    assert "GCS" in (payload["error"] or "") or "gcs" in (payload["error"] or "").lower()
-    assert "verified" in (payload["error"] or "").lower()
-    assert "upload.json" in (payload["error"] or "")
+    with pytest.raises(SystemExit) as error:
+        cli.main(["--manifest", str(MANIFEST), "--strict", "--upload-only", "--verify-upload"])
+    assert error.value.code == 2
+
+
+def test_loader_cli_rejects_upload_and_verify_modes_together() -> None:
+    """Upload and verify-only are separate modes; combining them is rejected by argparse."""
+    cli = _loader_cli()
+    with pytest.raises(SystemExit) as error:
+        cli.main(
+            ["--manifest", str(MANIFEST), "--strict", "--verify-only",
+             "--gcs-prefix", "gs://example-bucket/section03/", "--upload-only", "--verify-upload"],
+        )
+    assert error.value.code == 2
 
 
 def test_section03_migration_preserves_exact_columns_constraints_and_btree_indexes() -> None:

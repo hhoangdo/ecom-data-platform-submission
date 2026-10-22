@@ -58,6 +58,7 @@ paths_to_mutate = [
   "src/vina_bim_shop/orchestration/specs.py",
   "src/vina_bim_shop/kafka/bootstrap.py",
   "src/vina_bim_shop/kafka/topics.py",
+  "src/vina_bim_shop/topic22_private.py",
 ]
 pytest_add_cli_args_test_selection = [
   "tests/unit/llm",

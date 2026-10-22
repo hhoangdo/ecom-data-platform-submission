@@ -53,7 +53,7 @@ def _exec_factory(status_sealed: bool = False, keys: list[str] | None = None, pr
     def exec_fn(*vault_args: str, token: str | None = None):
         calls.append((vault_args, token is not None))
         if vault_args[:2] == ("status", "-format=json"):
-            return json.dumps({"initialized": True, "sealed": status_sealed, "seal_type": "gcpckms"})
+            return json.dumps({"initialized": True, "sealed": status_sealed, "type": "gcpckms"})
         if vault_args[:2] == ("kv", "list"):
             listed["n"] += 1
             return json.dumps(keys if listed["n"] == 1 else [])
@@ -61,6 +61,13 @@ def _exec_factory(status_sealed: bool = False, keys: list[str] | None = None, pr
             policy = next(part.split("=", 1)[1] for part in vault_args if part.startswith("-policy="))
             return json.dumps({"auth": {"client_token": f"role-token-{policy}"}})
         if vault_args[:2] == ("kv", "get"):
+            if token is None:
+                data = (
+                    {key: "" for key in keys}
+                    if vault_args[-1] == "kv/edai2/kagent/gateway-keys"
+                    else {}
+                )
+                return json.dumps({"data": {"data": data}})
             if token == "role-token":
                 return json.dumps({"data": {"data": {}}})
             if isinstance(token, str) and token.startswith("role-token-"):
@@ -138,3 +145,17 @@ def test_verify_recovery_study_only_without_sink() -> None:
     text = json.dumps(result, sort_keys=True)
     assert "role-token" not in text and SINK not in text
     assert "recovery_sink_sha256" not in result
+
+def test_record_existing_bootstrap_repairs_empty_seal_type_from_live_status() -> None:
+    """The empty bootstrap seal_type is corrected by the live status, not hand-edited."""
+    vault = _load_script()
+    old = _bootstrap()
+    old["seal_type"] = ""
+    new = vault.record_existing_bootstrap(
+        exec_fn=_exec_factory(), bootstrap=old, recorded_at="2026-10-19T00:00:00Z"
+    )
+    assert new["seal_type"] == "gcpckms"
+    assert new["record_source"] == "live-vault-status"
+    assert new["recorded_at_utc"] == "2026-10-19T00:00:00Z"
+    assert new["key_names"] == old["key_names"]
+    assert "role-token" not in json.dumps(new)

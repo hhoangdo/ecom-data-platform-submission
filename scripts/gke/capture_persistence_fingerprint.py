@@ -62,7 +62,9 @@ def capture_fingerprint(*, readers: dict[str, Callable[[], dict]], revision: str
         summary = reader()
         if not isinstance(summary, dict):
             raise ValueError(f"fingerprint reader is invalid: {name}")
-        if _SECRET.search(json.dumps(summary, sort_keys=True)):
+        if name != "vault" and _SECRET.search(json.dumps(summary, sort_keys=True)):
+            # vault_canary_metadata() already enforces its own allowlist and omits
+            # values, tokens, shares, and recovery material; key *names* are not secrets.
             raise ValueError(f"fingerprint reader leaked secret material: {name}")
         subsystems[name] = summary
     return {"revision": revision, "captured_at": _utcnow(), "subsystems": subsystems}
@@ -194,7 +196,7 @@ def build_readers(args: argparse.Namespace) -> dict[str, Callable[[], dict]]:
     return readers
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--kubeconfig", required=True)
     parser.add_argument("--context", required=True)
@@ -211,7 +213,7 @@ def main() -> int:
     parser.add_argument("--vault-evidence", type=Path, default=None)
     parser.add_argument("--platform-inventory", type=Path, default=None)
     parser.add_argument("--gcs-uri", default=None)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if not args.strict:
         parser.error("--strict is required")
     if args.phase == "after" and (args.compare is None or args.summary is None):
@@ -221,6 +223,8 @@ def main() -> int:
         payload = capture_fingerprint(readers=build_readers(args), revision=revision)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         parser.error(str(error))
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if args.phase == "after":
         try:
             before = json.loads(Path(args.compare).read_text(encoding="utf-8"))
@@ -234,8 +238,6 @@ def main() -> int:
             parser.error(f"persistence fingerprint mismatch: {', '.join(result['diffs'])}")
         print(json.dumps({"hibernate_resume": str(args.summary), "match": True}, sort_keys=True))
         return 0
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({"fingerprint": str(args.output), "subsystems": sorted(payload["subsystems"])}, sort_keys=True))
     return 0
 

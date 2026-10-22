@@ -186,6 +186,21 @@ def _vault_exec(kubeconfig: str, context: str, namespace: str, *vault_args: str,
     return proc.stdout
 
 
+def _live_key_names(exec_fn) -> list[str]:
+    """Read the live key names from every KV-v2 secret; values never leave Vault."""
+    live_keys: list[str] = []
+    for path in KEY_MATRIX:
+        try:
+            payload = json.loads(exec_fn("kv", "get", "-format=json", path))
+            data = payload.get("data", {}).get("data", {})
+            if not isinstance(data, dict):
+                raise ValueError("vault secret data is invalid")
+            live_keys.extend(str(key) for key in data)
+        except (RuntimeError, json.JSONDecodeError) as error:
+            raise ValueError(f"vault key listing failed: {path}") from error
+    return live_keys
+
+
 def verify_recovery(
     *,
     exec_fn,
@@ -215,15 +230,10 @@ def verify_recovery(
         raise ValueError("vault is not initialized after recovery")
     if status.get("sealed") is not False:
         raise ValueError("vault needs manual unseal; KMS auto-unseal failed")
-    seal_type = status.get("seal_type", "")
+    seal_type = status.get("seal_type") or status.get("type", "")
     if not seal_type or seal_type != expected_bootstrap.get("seal_type"):
         raise ValueError("vault seal type drifted from bootstrap")
-    live_keys: list[str] = []
-    for path in KEY_MATRIX:
-        try:
-            live_keys.extend(json.loads(exec_fn("kv", "list", path)))
-        except (RuntimeError, json.JSONDecodeError) as error:
-            raise ValueError(f"vault key listing failed: {path}") from error
+    live_keys = _live_key_names(exec_fn)
     key_names_match = sorted(live_keys) == sorted(expected_bootstrap.get("key_names", []))
     if not key_names_match:
         raise ValueError("vault key names drifted from bootstrap")
@@ -280,6 +290,69 @@ def verify_recovery(
     }
 
 
+def record_existing_bootstrap(
+    *, exec_fn, bootstrap: dict, recorded_at: str | None = None
+) -> dict:
+    """Record the live seal type in existing bootstrap evidence after re-proving canaries.
+
+    The recovery key, root token, and key values never enter the returned record.
+    """
+    if not isinstance(bootstrap, dict):
+        raise ValueError("bootstrap evidence is invalid")
+    try:
+        status = json.loads(exec_fn("status", "-format=json"))
+    except (RuntimeError, json.JSONDecodeError) as error:
+        raise ValueError(f"vault status read failed: {error}") from error
+    if status.get("initialized") is not True or status.get("sealed") is not False:
+        raise ValueError("vault is not initialized and unsealed")
+    seal_type = status.get("seal_type") or status.get("type", "")
+    if not isinstance(seal_type, str) or not seal_type:
+        raise ValueError("vault status does not expose a seal type")
+    live_keys = _live_key_names(exec_fn)
+    expected = {
+        **bootstrap,
+        "seal_type": seal_type,
+        "key_names": live_keys,
+        "key_name_fingerprints": sorted(_fingerprint(name) for name in live_keys),
+    }
+    result = verify_recovery(exec_fn=exec_fn, expected_bootstrap=expected)
+    observed = dict(bootstrap)
+    observed["seal_type"] = seal_type
+    observed["key_names"] = sorted(live_keys)
+    observed["key_name_fingerprints"] = sorted(_fingerprint(name) for name in live_keys)
+    observed["recorded_key_names_count"] = len(live_keys)
+    observed["recorded_at_utc"] = recorded_at or datetime.datetime.now(
+        datetime.timezone.utc
+    ).isoformat().replace("+00:00", "Z")
+    observed["record_source"] = "live-vault-status"
+    observed["recovery_verification"] = {
+        key: result[key]
+        for key in (
+            "initialized",
+            "seal_type",
+            "auto_unseal",
+            "manual_unseal_required",
+            "key_names_match",
+            "recovery_control",
+        )
+    }
+    return observed
+
+
+def load_admin_token(path: str | None) -> str | None:
+    """Load the gitignored study admin token; the value never enters evidence."""
+    if path is None:
+        return None
+    try:
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"admin token file is unreadable: {error}") from error
+    token = payload.get("client_token") if isinstance(payload, dict) else None
+    if not isinstance(token, str) or not token:
+        raise ValueError("admin token file does not contain a client_token")
+    return token
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--kubeconfig", required=True)
@@ -291,12 +364,50 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--redacted-output", required=True)
     parser.add_argument("--admin-token-output", default=None,
                         help="gitignored-local-only study admin token path (must be under tmp/edai2-gcp/)")
+    parser.add_argument("--admin-token-file", default=None,
+                        help="existing gitignored-local-only study admin token JSON")
+    parser.add_argument("--record-bootstrap", action="store_true")
     parser.add_argument("--verify-recovery", action="store_true")
     parser.add_argument("--expected-bootstrap", default=None)
     parser.add_argument("--recovery-sink", default=None)
     parser.add_argument("--recovery-sink-attestation", default=None)
     args = parser.parse_args(argv)
 
+    if args.record_bootstrap:
+        if args.expected_bootstrap is None:
+            print("--record-bootstrap requires --expected-bootstrap", file=sys.stderr)
+            return 2
+        if Path(args.redacted_output).exists():
+            print("refusing to overwrite existing evidence", file=sys.stderr)
+            return 2
+        try:
+            bootstrap = json.loads(Path(args.expected_bootstrap).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            print(f"bootstrap evidence unreadable: {error}", file=sys.stderr)
+            return 2
+
+        try:
+            admin_token = load_admin_token(args.admin_token_file)
+        except ValueError as error:
+            print(str(error), file=sys.stderr)
+            return 2
+
+        def _record_exec(*vault_args: str, token: str | None = None) -> str:
+            return _vault_exec(
+                args.kubeconfig, args.context, args.namespace, *vault_args,
+                token=token if token is not None else admin_token,
+            )
+
+        try:
+            observed = record_existing_bootstrap(exec_fn=_record_exec, bootstrap=bootstrap)
+        except ValueError as error:
+            print(f"bootstrap recording failed: {error}", file=sys.stderr)
+            return 1
+        out_path = Path(args.redacted_output)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(observed, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        print("VAULT_BOOTSTRAP_RECORDED=OK")
+        return 0
     if args.verify_recovery:
         if args.expected_bootstrap is None:
             print("--verify-recovery requires --expected-bootstrap", file=sys.stderr)
@@ -314,8 +425,17 @@ def main(argv: list[str] | None = None) -> int:
             print(f"recovery inputs unreadable: {error}", file=sys.stderr)
             return 2
 
+        try:
+            admin_token = load_admin_token(args.admin_token_file)
+        except ValueError as error:
+            print(str(error), file=sys.stderr)
+            return 2
+
         def _exec(*vault_args: str, token: str | None = None) -> str:
-            return _vault_exec(args.kubeconfig, args.context, args.namespace, *vault_args, token=token)
+            return _vault_exec(
+                args.kubeconfig, args.context, args.namespace, *vault_args,
+                token=token if token is not None else admin_token,
+            )
 
         try:
             result = verify_recovery(
@@ -373,7 +493,7 @@ def main(argv: list[str] | None = None) -> int:
     admin_accessor = ""
     try:
         status = json.loads(_vault_exec(args.kubeconfig, args.context, args.namespace, "status", "-format=json"))
-        seal_type = str(status.get("seal_type", ""))
+        seal_type = str(status.get("seal_type") or status.get("type", ""))
         if status.get("initialized") is not True or status.get("sealed") is not False:
             raise RuntimeError("vault is not initialized and unsealed")
         secret_manifest = {

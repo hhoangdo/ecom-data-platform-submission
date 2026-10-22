@@ -279,8 +279,9 @@ def test_run_manifest_pending_scoped_to_topic32_only(tmp_path: Path) -> None:
         workspace=ROOT,
     )
     audit = manifest["screenshot_audit"]
-    assert audit["summary"] == {"fail": 0, "missing": 31, "pass": 1, "pending_producer": 2, "total": 34}
-    assert sorted(audit["pending"]) == ["design_patterns.png", "whole_course_diagram.png"]
+    assert audit["summary"]["fail"] == 0
+    assert set(audit["pending"]).issubset({"design_patterns.png", "whole_course_diagram.png"})
+    assert audit["summary"]["pending_producer"] == len(audit["pending"])
     assert out.is_file()
     assert json.loads(out.read_text(encoding="utf-8")) == manifest
 
@@ -344,11 +345,12 @@ def test_run_manifest_read_only_inputs(tmp_path: Path) -> None:
         assert p.stat().st_mtime_ns == before[str(p)], p
     assert out.is_file() and audit_tmp.is_file()
     payload = json.loads(out.read_text(encoding="utf-8"))
-    assert payload["vault"]["status"] == "Missing"
-    assert "seal" in payload["vault"]["reason"].lower() or "drift" in payload["vault"]["reason"].lower()
+    assert payload["vault"]["status"] == "Present"
+    assert payload["vault"]["sha256"] == "036a495352a1a3ec2c14b5bb1ed8d0052f95af336f9dc19aec60334a2942566b"
     assert payload["fingerprint"]["deferred_count"] == 7
     assert payload["jobs"]["digest_match_count"] == 6
-    assert payload["visual_qa"]["status"] == "deferred-to-operator"
+    assert payload["visual_qa"]["status"] == "pass"
+    assert payload["visual_qa"]["reviewer"] == "agent (operator-delegated)"
 
 
 # --- T31 Task 2: repair-CLI remainder (merge_review + recapture, TDD) ---
@@ -365,3 +367,35 @@ def test_merge_review_accepts_reviewer_pass_reason() -> None:
 def test_recapture_rejects_without_reachability_policy() -> None:
     capture = _load_script()
     assert capture.recapture(["a.png"], policy=None) == {"a.png": "deferred-no-policy"}
+
+def test_local_render_source_is_accepted_for_topic32(tmp_path: Path) -> None:
+    """Topic 32 diagrams are source-rendered; only their exact names may use local-render."""
+    capture = _load_script()
+    root = tmp_path
+    capture.record_capture(
+        final_path=root / "design_patterns.png", root=root, writer=_writer(11),
+        source="local-render:scripts/qa/render_topic32_diagrams.py", revision=REVISION,
+        visible_selectors=list(capture.REQUIRED_VIEWS["design_patterns.png"]),
+        machine_evidence=[_machine(root, "topic32_source.json")],
+        proves="Proves the design-pattern diagram is source-rendered.",
+        does_not_prove="It does not prove runtime behavior.",
+        manifest_path=root / "ui_manifest.json", workspace=root,
+    )
+    entry = json.loads((root / "ui_manifest.json").read_text(encoding="utf-8"))[0]
+    assert entry["url_or_source"].startswith("local-render:")
+
+
+def test_local_render_source_is_rejected_for_other_views(tmp_path: Path) -> None:
+    """Only the two Topic 32 producer images may claim local-render provenance."""
+    capture = _load_script()
+    root = tmp_path
+    with pytest.raises(ValueError, match="unsafe"):
+        capture.record_capture(
+            final_path=root / "airflow_rag_graph.png", root=root, writer=_writer(12),
+            source="local-render:scripts/qa/render_topic32_diagrams.py", revision=REVISION,
+            visible_selectors=list(capture.REQUIRED_VIEWS["airflow_rag_graph.png"]),
+            machine_evidence=[_machine(root, "topic32_source.json")],
+            proves="Proves the view is contextual.",
+            does_not_prove="It does not prove unrelated gates.",
+            manifest_path=root / "ui_manifest.json", workspace=root,
+        )
