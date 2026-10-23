@@ -40,6 +40,18 @@ Non-screenshot exceptions remain documented, not blocking 34/34:
 Do not fabricate any missing image. If a precondition cannot be met, record a
 truthful exception and stop that topic.
 
+### Dependencies
+
+- New GCP trial with billing enabled; GKE quota for 1 platform node plus 1–2 spot
+  nodes in `us-central1`.
+- APIs: GKE, Artifact Registry, Cloud Build, Cloud Storage, IAM, Cloud KMS.
+- New globally unique bucket and registry; never reuse the old names.
+- HTTPS path: `sslip.io` DNS, ACME staging/production, and a reachable Jenkins
+  controller for the Jenkins pages.
+- Playwright/browser state rebuilt against the new endpoints; never reuse the old
+  storage state.
+- Airflow, DataHub, Feast, Langfuse, and Grafana Ready before their captures.
+
 ## 3. New-trial bootstrap
 
 1. Create a **new** GCP trial account/project. Do not reuse the old project, billing
