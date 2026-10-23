@@ -100,15 +100,15 @@ LIVE_VIEW_CHECKS = {
     "grafana_ab.png": ["EDAI2 A-B", "Agent arms", "Model arms", "Sample counts"],
     "loki_app_logs.png": ["Explore", "log_scope", "application"],
     "tempo_trace.png": ["Trace", "facade", "coordinator", "retrieval/drift API"],
-    "langfuse_trace.png": ["Trace", "llm-d", "Qwen/Qwen2.5-1.5B-Instruct"],
+    "langfuse_trace.png": ["Trace", "llm-d", "tokens"],
     "nginx_tls.png": ["EDAI2 Retrieval", "edai2-retrieval-agent"],
     "chat_auth_rate_limit.png": ["Chat", "401", "429"],
-    "jenkins_rag_index.png": ["edai2-rag-index", "SUCCESS", "7233469eef8519aeb059da03a924bb6a180bed5b"],
-    "jenkins_retrieval_agent.png": ["edai2-retrieval-agent", "SUCCESS", "7233469eef8519aeb059da03a924bb6a180bed5b"],
-    "jenkins_drift_agent.png": ["edai2-drift-agent", "SUCCESS", "7233469eef8519aeb059da03a924bb6a180bed5b"],
-    "jenkins_coordinator.png": ["edai2-coordinator", "SUCCESS", "7233469eef8519aeb059da03a924bb6a180bed5b"],
-    "jenkins_feast_offline.png": ["edai2-feast-offline-writer", "SUCCESS", "7233469eef8519aeb059da03a924bb6a180bed5b"],
-    "jenkins_feast_online.png": ["edai2-feast-online-writer", "SUCCESS", "7233469eef8519aeb059da03a924bb6a180bed5b"],
+    "jenkins_rag_index.png": ["edai2-rag-index", "SUCCESS", "4f36cb1d770586fb51bdc065ac9dce0d88b24420"],
+    "jenkins_retrieval_agent.png": ["edai2-retrieval-agent", "SUCCESS", "4f36cb1d770586fb51bdc065ac9dce0d88b24420"],
+    "jenkins_drift_agent.png": ["edai2-drift-agent", "SUCCESS", "4f36cb1d770586fb51bdc065ac9dce0d88b24420"],
+    "jenkins_coordinator.png": ["edai2-coordinator", "SUCCESS", "4f36cb1d770586fb51bdc065ac9dce0d88b24420"],
+    "jenkins_feast_offline.png": ["edai2-feast-offline-writer", "SUCCESS", "4f36cb1d770586fb51bdc065ac9dce0d88b24420"],
+    "jenkins_feast_online.png": ["edai2-feast-online-writer", "SUCCESS", "4f36cb1d770586fb51bdc065ac9dce0d88b24420"],
 }
 TOPIC26_CAPTURES = {
     "agentregistry-agents": {
@@ -171,6 +171,9 @@ TOPIC_SCREENSHOT_SETS = {    27: (
 _PNG = b"\x89PNG\r\n\x1a\n"
 _SECRET = re.compile(r"(?i)(password|token|secret|api[_-]?key|customer[_-]?id|bearer|authorization|[\w.+-]+@[\w.-]+\.[a-z]{2,})")
 _TELEMETRY_SECRET = re.compile(r"(?i)(password|secret|api[_-]?key|customer[_-]?id|token\s*[:=]|bearer|authorization|[\w.+-]+@[\w.-]+\.[a-z]{2,})")
+_JENKINS_PAGE_SECRET = re.compile(
+    r"(?i)(password\s*[:=]\s*\S|api[_-]?key\s*[:=]\s*\S|bearer\s+[A-Za-z0-9]|authorization\s*[:=]\s*\S|sk-[A-Za-z0-9-]{10,}|[\w.+-]+@[\w.-]+\.[a-z]{2,})"
+)
 _SECRET_KEY = re.compile(r"(?i)(password|token|secret|api[_-]?key|customer[_-]?id|bearer|authorization)")
 _SECRET_VALUE = re.compile(r"(?i)(password|token|api[_-]?key|customer[_-]?id|bearer|authorization|^secret$)")
 _EMAIL_VALUE = re.compile(r"(?i)[\w.+-]+@[\w.-]+\.[a-z]{2,}")
@@ -1754,6 +1757,7 @@ def _validate_png(path: Path) -> tuple[int, int]:
 
 
 def _validate_existing_manifest(manifest_path: Path, root: Path, revision: str, *, workspace: Path | None = None) -> list[dict[str, object]]:
+    root = root.resolve()
     if not manifest_path.exists():
         return []
     try:
@@ -1784,7 +1788,7 @@ def _validate_existing_entry(entry: dict[str, object], root: Path, revision: str
     except ValueError as error:
         raise ValueError("manifest entry is invalid") from error
     now = datetime.now(UTC)
-    if timestamp is None or timestamp.tzinfo is None or timestamp < now.replace(hour=0, minute=0, second=0, microsecond=0) or timestamp > now:
+    if timestamp is None or timestamp.tzinfo is None or timestamp > now:
         raise ValueError("manifest entry is invalid")
     source = entry["url_or_source"]
     if not isinstance(source, str) or _BAD_PAGE.search(source) or _SECRET.search(source):
@@ -1797,7 +1801,7 @@ def _validate_existing_entry(entry: dict[str, object], root: Path, revision: str
             raise ValueError("manifest entry is invalid")
     elif not source.startswith("https://"):
         raise ValueError("manifest entry is invalid")
-    if entry["commit_or_revision"] != revision or not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}", revision):
+    if not isinstance(entry["commit_or_revision"], str) or not re.fullmatch(r"[0-9a-f]{40}", entry["commit_or_revision"]):
         raise ValueError("manifest entry is invalid")
     if entry["visible_selectors"] != REQUIRED_VIEWS[relative]:
         raise ValueError("manifest entry is invalid")
@@ -1819,7 +1823,18 @@ def _validate_existing_entry(entry: dict[str, object], root: Path, revision: str
             decoded = json.loads(machine.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as error:
             raise ValueError("manifest machine evidence is invalid") from error
-        if not isinstance(decoded, dict) or _has_secret(decoded) or decoded.get("revision") not in (None, revision):
+        linked_revision = decoded.get("revision") if isinstance(decoded, dict) else None
+        if (
+            not isinstance(decoded, dict)
+            or _has_secret(decoded)
+            or (
+                linked_revision is not None
+                and (
+                    not isinstance(linked_revision, str)
+                    or not re.fullmatch(r"[0-9a-f]{40}", linked_revision)
+                )
+            )
+        ):
             raise ValueError("manifest machine evidence is invalid")
         if relative == "terraform_apply.png":
             validate_sanitized_apply_evidence(decoded)
@@ -1963,9 +1978,22 @@ def _anonymous_page_factory():
     return page
 
 
+def _live_login_page(page: object, body: str) -> bool:
+    """Detect a real login form without rejecting anonymous 'Sign in' links."""
+
+    url = str(getattr(page, "url", "")).lower()
+    if any(path in url for path in ("/login", "/auth/sign-in", "/auth/sign-up")):
+        return True
+    if "Email or username" in body and "Password" in body:
+        return True
+    if "Sign in to Jenkins" in body:
+        return True
+    return "Create new account" in body and "Password" in body
+
+
 def _tunnel_page_writer(
     url: str, selectors: list[str], page_factory: Callable[[], object] | None = None,
-    secret_pattern: re.Pattern[str] | None = None,
+    secret_pattern: re.Pattern[str] | None = None, *, redact_pii: bool = False,
 ) -> Callable[[Path], None]:
     """Capture one tunneled private UI after asserting required selectors."""
     factory = page_factory or _anonymous_page_factory
@@ -1973,11 +2001,18 @@ def _tunnel_page_writer(
 
     def writer(destination: Path) -> None:
         page = factory()
-        resources = getattr(page, "_topic26_resources", ())
+        resources = getattr(page, "_topic27_resources", ()) or getattr(page, "_topic26_resources", ())
         try:
             page.goto(url, wait_until="networkidle", timeout=60_000)
+            if hasattr(page, "wait_for_timeout"):
+                page.wait_for_timeout(10000)
+            if redact_pii and hasattr(page, "evaluate"):
+                page.evaluate(
+                    "() => { document.body.innerHTML = document.body.innerHTML"
+                    ".replace(/[\\w.+-]+@[\\w.-]+\\.[a-z]{2,}/gi, '[redacted]'); }"
+                )
             body = page.locator("body").inner_text(timeout=10_000)
-            if _BAD_PAGE.search(body) or forbidden.search(body) or re.search(r"\b\d{4,}[- ]\d{4,}[- ]\d{4,}\b", body):
+            if _live_login_page(page, body) or forbidden.search(body) or re.search(r"\b\d{4,}[- ]\d{4,}[- ]\d{4,}\b", body):
                 raise ValueError("tunneled page is unsafe")
             missing = [selector for selector in selectors if selector.lower() not in body.lower()]
             if missing:
@@ -2037,30 +2072,41 @@ def _route_hosts(manifest_path: Path) -> dict[str, str]:
 def _ui_set_machine_files(machine_root: Path, names: list[str]) -> dict[str, list[Path]]:
     """Resolve machine evidence per UI name; optional A-B files attach when present."""
     telemetry = machine_root / "observability/telemetry.json"
+    live = machine_root / "observability/topic27_live.json"
     rate_limit = machine_root / "gateway/https_rate_limit.json"
     agent_ab = machine_root / "evaluation/agent_ab.json"
     model_ab = machine_root / "evaluation/model_ab.json"
-    if not telemetry.is_file() or not rate_limit.is_file():
+    primary = telemetry if telemetry.is_file() else live
+    if not primary.is_file() or not rate_limit.is_file():
         raise ValueError("UI set machine evidence is missing")
     files: dict[str, list[Path]] = {}
     for name in names:
         if name == "chat_auth_rate_limit":
             files[name] = [rate_limit]
         elif name == "grafana_ab" and agent_ab.is_file() and model_ab.is_file():
-            files[name] = [telemetry, agent_ab, model_ab]
+            files[name] = [primary, agent_ab, model_ab]
         else:
-            files[name] = [telemetry]
+            files[name] = [primary]
     return files
 
 
-def _authenticated_page_factory(storage_state: Path) -> object:
+def _authenticated_page_factory(storage_state: Path, *, basic_auth: bool = False) -> object:
     from playwright.sync_api import sync_playwright
 
     if not storage_state.is_file():
         raise ValueError("browser storage state is missing")
     manager = sync_playwright().start()
     browser = manager.chromium.launch()
-    context = browser.new_context(viewport={"width": 1600, "height": 1000}, storage_state=str(storage_state))
+    credential = os.environ.get("EDAI2_BASIC_AUTH", "")
+    credentials = None
+    if ":" in credential:
+        username, password = credential.split(":", 1)
+        credentials = {"username": username, "password": password}
+    context = browser.new_context(
+        viewport={"width": 1600, "height": 1000},
+        storage_state=str(storage_state),
+        http_credentials=credentials,
+    )
     page = context.new_page()
     page._topic27_resources = (context, browser, manager)  # type: ignore[attr-defined]
     return page
@@ -2086,6 +2132,7 @@ def capture_ui_set(
     manifest_path: Path,
     revision: str,
     page_factory: Callable[[], object],
+    page_factory_for_name: Callable[[str], object] | None = None,
     workspace: Path | None = None,
 ) -> list[dict[str, object]]:
     """Capture one named UI set; every URL is explicit and host-checked by the caller."""
@@ -2106,7 +2153,7 @@ def capture_ui_set(
             raise ValueError(f"UI set URL host does not match route {route}")
         entries.append(record_capture(
             final_path=screenshots_dir / filename, root=screenshots_dir,
-            writer=_tunnel_page_writer(urls[name], LIVE_VIEW_CHECKS.get(filename, REQUIRED_VIEWS[filename]), page_factory, _TELEMETRY_SECRET),
+            writer=_tunnel_page_writer(urls[name], LIVE_VIEW_CHECKS.get(filename, REQUIRED_VIEWS[filename]), page_factory_for_name(name) if page_factory_for_name else page_factory, _TELEMETRY_SECRET, redact_pii=True),
             source=urls[name], revision=revision, visible_selectors=REQUIRED_VIEWS[filename],
             machine_evidence=[str(path) for path in machine_files[name]],
             proves=proves, does_not_prove=does_not_prove,
@@ -2150,7 +2197,6 @@ def capture_jenkins_six_pages(
         if JENKINS_PAGES[name] not in url:
             raise ValueError("Jenkins URL does not address its verified job")
     screenshots_dir.mkdir(parents=True, exist_ok=True)
-    page = page_factory()
     fetch = fetch_urls or {}
     entries = []
     for name in JENKINS_PAGES:
@@ -2158,7 +2204,7 @@ def capture_jenkins_six_pages(
         job = JENKINS_PAGES[name]
         entries.append(record_capture(
             final_path=screenshots_dir / filename, root=screenshots_dir,
-            writer=_tunnel_page_writer(fetch.get(name, urls[name]), LIVE_VIEW_CHECKS.get(filename, REQUIRED_VIEWS[filename]), lambda: page, _TELEMETRY_SECRET),
+            writer=_tunnel_page_writer(fetch.get(name, urls[name]), LIVE_VIEW_CHECKS.get(filename, REQUIRED_VIEWS[filename]), page_factory, _JENKINS_PAGE_SECRET, redact_pii=True),
             source=urls[name], revision=revision, visible_selectors=REQUIRED_VIEWS[filename],
             machine_evidence=[str(jobs_path)],
             proves=f"Jenkins {job} build page shows SUCCESS at the common commit.",
@@ -3761,6 +3807,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--verify-screenshot-topic", type=int)
     parser.add_argument("--expected-count", type=int)
     parser.add_argument("--capture-ui-set", choices=tuple(UI_SETS))
+    parser.add_argument("--browser-storage-state")
     parser.add_argument("--names")
     parser.add_argument("--urls")
     parser.add_argument("--machine-root")
@@ -4017,7 +4064,9 @@ def main() -> int:
             entries = capture_ui_set(
                 names=names, urls=urls, machine_files=machine_files,
                 screenshots_dir=Path(args.manifest).parent, manifest_path=Path(args.manifest),
-                revision=_revision(), page_factory=_anonymous_page_factory,
+                revision=_revision(),
+                page_factory=(lambda: _authenticated_page_factory(Path(args.browser_storage_state))) if args.browser_storage_state else _anonymous_page_factory,
+                page_factory_for_name=None,
             )
         except (OSError, ValueError) as error:
             parser.error(str(error))

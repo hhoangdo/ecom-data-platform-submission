@@ -59,7 +59,7 @@ sandboxAgents:
             - edai2-private-gateway.edai2.svc.cluster.local
 image:
   repository: us-central1-docker.pkg.dev/project-a7c45c4e-f589-4b40-b8b/edai2-retrieval-agent/edai2-retrieval-agent
-  tag: 676fb9add4502681aede85c4efbcd7648a06ef07
+  tag: 4f36cb1d770586fb51bdc065ac9dce0d88b24420
 env:
   - name: EDAI2_ENVIRONMENT
     value: gke

@@ -197,10 +197,11 @@ def test_capture_jenkins_six_pages_uses_one_browser_session() -> None:
             jobs_path=jobs, urls=urls, screenshots_dir=shots, manifest_path=manifest,
             revision=REVISION, page_factory=factory, workspace=root,
         )
-        assert len(pages) == 1
-        assert sorted(pages[0].visited) == sorted(urls.values())
+        assert len(pages) == 6
+        visited = [url for page in pages for url in page.visited]
+        assert sorted(visited) == sorted(urls.values())
         assert [entry["path"] for entry in entries] == [name + ".png" for name in JENKINS_NAMES]
-        for url in pages[0].visited:
+        for url in visited:
             lowered = url.lower()
             assert "replay" not in lowered and "rebuild" not in lowered and "buildnow" not in lowered
 

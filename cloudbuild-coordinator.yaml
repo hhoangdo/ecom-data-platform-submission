@@ -1,0 +1,24 @@
+substitutions:
+  _SHA: 4f36cb1d770586fb51bdc065ac9dce0d88b24420
+  _REGISTRY: us-central1-docker.pkg.dev/project-a7c45c4e-f589-4b40-b8b
+
+steps:
+  - id: coordinator
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --target
+      - coordinator
+      - -t
+      - "${_REGISTRY}/edai2-coordinator/edai2-coordinator:${_SHA}"
+      - -f
+      - containers/edai2/Dockerfile
+      - .
+
+images:
+  - "${_REGISTRY}/edai2-coordinator/edai2-coordinator:${_SHA}"
+
+options:
+  machineType: E2_HIGHCPU_8
+  diskSizeGb: 200
+timeout: 1800s

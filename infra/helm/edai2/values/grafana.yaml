@@ -8,3 +8,7 @@
 # Compact: replicas defaults to 1; persistence disabled by default (no PVC).
 service: { type: ClusterIP }
 admin: { existingSecret: grafana }
+grafana.ini:
+  auth.anonymous:
+    enabled: true
+    org_role: Viewer

@@ -97,7 +97,7 @@ a2aTools:
     credential: coordinatorSpecialist
 image:
   repository: us-central1-docker.pkg.dev/project-a7c45c4e-f589-4b40-b8b/edai2-coordinator/edai2-coordinator
-  tag: 64214c17be6be432a8d8f697e0a74771e712ee05
+  tag: 4f36cb1d770586fb51bdc065ac9dce0d88b24420
 env:
   - name: EDAI2_ENVIRONMENT
     value: gke
@@ -114,6 +114,12 @@ env:
     value: http://tempo.edai2.svc.cluster.local:4318/v1/traces
   - name: LANGFUSE_HOST
     value: http://langfuse-web.edai2.svc.cluster.local:3000
+  - name: LANGFUSE_PUBLIC_KEY
+    valueFrom:
+      secretKeyRef: { name: langfuse-api, key: public-key }
+  - name: LANGFUSE_SECRET_KEY
+    valueFrom:
+      secretKeyRef: { name: langfuse-api, key: secret-key }
 extraVolumes:
   - name: rate-limit-evidence
     configMap: { name: chat-rate-limit-evidence, optional: true }
