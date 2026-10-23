@@ -1,0 +1,404 @@
+{
+  "allow_pending_producer_topic": null,
+  "expected_edai2_count": 32,
+  "expected_extra": [
+    "gcp_billing_spend.png"
+  ],
+  "files": [
+    {
+      "height": null,
+      "kind": "edai2",
+      "manifest_sha256": null,
+      "name": "agentregistry_agents.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\agentregistry_agents.png",
+      "reason": "not-found",
+      "sha256": null,
+      "status": "Missing",
+      "width": null
+    },
+    {
+      "height": null,
+      "kind": "edai2",
+      "manifest_sha256": null,
+      "name": "airflow_rag_graph.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\airflow_rag_graph.png",
+      "reason": "not-found",
+      "sha256": null,
+      "status": "Missing",
+      "width": null
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "3d4c48f08012fba16ac7b9586136306b2c1f65c675ff0697cda436f97410bd7d",
+      "name": "chat_auth_rate_limit.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\chat_auth_rate_limit.png",
+      "reason": null,
+      "sha256": "3d4c48f08012fba16ac7b9586136306b2c1f65c675ff0697cda436f97410bd7d",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "c9cbd61700418a038d6e333c39d2c8a77cfbec2f71ad0b83d8b17bd4e719ad3f",
+      "name": "coverage_and_api_fixtures.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\coverage_and_api_fixtures.png",
+      "reason": null,
+      "sha256": "c9cbd61700418a038d6e333c39d2c8a77cfbec2f71ad0b83d8b17bd4e719ad3f",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": null,
+      "kind": "edai2",
+      "manifest_sha256": null,
+      "name": "datahub_rag_lineage.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\datahub_rag_lineage.png",
+      "reason": "not-found",
+      "sha256": null,
+      "status": "Missing",
+      "width": null
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "7ea0569a2be061621f3ae28d4e21e0f11b9994bc88aa20e2953a67e13a95b41c",
+      "name": "design_patterns.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\design_patterns.png",
+      "reason": null,
+      "sha256": "7ea0569a2be061621f3ae28d4e21e0f11b9994bc88aa20e2953a67e13a95b41c",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "ef4cd31e3346d9fa45c274b68f4603e0460e5c4cb1fc2619a9d633465f5eaa8a",
+      "name": "ep_bva.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\ep_bva.png",
+      "reason": null,
+      "sha256": "ef4cd31e3346d9fa45c274b68f4603e0460e5c4cb1fc2619a9d633465f5eaa8a",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": null,
+      "kind": "extra",
+      "manifest_sha256": null,
+      "name": "gcp_billing_spend.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\gcp_billing_spend.png",
+      "reason": "not-found",
+      "sha256": null,
+      "status": "Missing",
+      "width": null
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "5ecde644e42ff7bac2bc71ae84248a1634e4e6e2d806276f9ae4ea825a67a18e",
+      "name": "grafana_ab.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\grafana_ab.png",
+      "reason": null,
+      "sha256": "5ecde644e42ff7bac2bc71ae84248a1634e4e6e2d806276f9ae4ea825a67a18e",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "964189fc7afdba4f90cb8f2d2355433847b7f16748d27fc18ced08a1e660d493",
+      "name": "grafana_agents.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\grafana_agents.png",
+      "reason": null,
+      "sha256": "964189fc7afdba4f90cb8f2d2355433847b7f16748d27fc18ced08a1e660d493",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "68363ca121715d6303b66b158a0e028d5cdd1d40ba840094979025eca0a04c76",
+      "name": "grafana_compute.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\grafana_compute.png",
+      "reason": null,
+      "sha256": "68363ca121715d6303b66b158a0e028d5cdd1d40ba840094979025eca0a04c76",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "d12113acdcf2409feed3b773b409f855f67ca1b923e95cb96593b8d12369c89c",
+      "name": "grafana_http.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\grafana_http.png",
+      "reason": null,
+      "sha256": "d12113acdcf2409feed3b773b409f855f67ca1b923e95cb96593b8d12369c89c",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "d1667ba12bce8365047c0f83e1814c1fa6fbb856451164592336fba51f077129",
+      "name": "grafana_llm.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\grafana_llm.png",
+      "reason": null,
+      "sha256": "d1667ba12bce8365047c0f83e1814c1fa6fbb856451164592336fba51f077129",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "840bcaf7fb5b8190370a9a4d417f5c64645121ebf19b15c395799b998b5b7276",
+      "name": "jenkins_coordinator.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\jenkins_coordinator.png",
+      "reason": null,
+      "sha256": "840bcaf7fb5b8190370a9a4d417f5c64645121ebf19b15c395799b998b5b7276",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "1753de0a06f18144ec1b67b149b343dec19e0b7312bac86da2e3edebfc1ae97d",
+      "name": "jenkins_drift_agent.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\jenkins_drift_agent.png",
+      "reason": null,
+      "sha256": "1753de0a06f18144ec1b67b149b343dec19e0b7312bac86da2e3edebfc1ae97d",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "20df87c7c92dfa61a481e2b18f777f9a553456fea7114a2e05aca09240ef9cf8",
+      "name": "jenkins_feast_offline.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\jenkins_feast_offline.png",
+      "reason": null,
+      "sha256": "20df87c7c92dfa61a481e2b18f777f9a553456fea7114a2e05aca09240ef9cf8",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "cd2cc0534c8456bd9bc5672bc89163f99c2ab10bdf9f3fcceebe9cccf2722907",
+      "name": "jenkins_feast_online.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\jenkins_feast_online.png",
+      "reason": null,
+      "sha256": "cd2cc0534c8456bd9bc5672bc89163f99c2ab10bdf9f3fcceebe9cccf2722907",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "43acdf6b1177379b38671db615d80647363bb40bcb61d488558503b44082effe",
+      "name": "jenkins_rag_index.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\jenkins_rag_index.png",
+      "reason": null,
+      "sha256": "43acdf6b1177379b38671db615d80647363bb40bcb61d488558503b44082effe",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "46068667567465ba4f0e73f0109687c304145e75e1f039385832dd4c118eac72",
+      "name": "jenkins_retrieval_agent.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\jenkins_retrieval_agent.png",
+      "reason": null,
+      "sha256": "46068667567465ba4f0e73f0109687c304145e75e1f039385832dd4c118eac72",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": null,
+      "kind": "edai2",
+      "manifest_sha256": null,
+      "name": "kagent_coordinator_chat.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\kagent_coordinator_chat.png",
+      "reason": "not-found",
+      "sha256": null,
+      "status": "Missing",
+      "width": null
+    },
+    {
+      "height": null,
+      "kind": "edai2",
+      "manifest_sha256": null,
+      "name": "kagent_drift_chat.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\kagent_drift_chat.png",
+      "reason": "not-found",
+      "sha256": null,
+      "status": "Missing",
+      "width": null
+    },
+    {
+      "height": null,
+      "kind": "edai2",
+      "manifest_sha256": null,
+      "name": "kagent_retrieval_chat.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\kagent_retrieval_chat.png",
+      "reason": "not-found",
+      "sha256": null,
+      "status": "Missing",
+      "width": null
+    },
+    {
+      "height": null,
+      "kind": "edai2",
+      "manifest_sha256": null,
+      "name": "keda_scale.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\keda_scale.png",
+      "reason": "not-found",
+      "sha256": null,
+      "status": "Missing",
+      "width": null
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "d0d9f852480830c018967f78a6717103413c602b553a75e0bba3527ffc16aa4d",
+      "name": "langfuse_trace.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\langfuse_trace.png",
+      "reason": null,
+      "sha256": "d0d9f852480830c018967f78a6717103413c602b553a75e0bba3527ffc16aa4d",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": null,
+      "kind": "edai2",
+      "manifest_sha256": null,
+      "name": "locust_report.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\locust_report.png",
+      "reason": "not-found",
+      "sha256": null,
+      "status": "Missing",
+      "width": null
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "36eaae3c1fe830d1cf4bd30f9a365ef0f36684cab7d93cbb77262b2cbb8436ac",
+      "name": "loki_app_logs.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\loki_app_logs.png",
+      "reason": null,
+      "sha256": "36eaae3c1fe830d1cf4bd30f9a365ef0f36684cab7d93cbb77262b2cbb8436ac",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "a28ec474cad07b0aa03c603422029f7110f48cf036bfc426a916c0018a8c1d2a",
+      "name": "mutation.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\mutation.png",
+      "reason": null,
+      "sha256": "a28ec474cad07b0aa03c603422029f7110f48cf036bfc426a916c0018a8c1d2a",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "b5d0cb9759c0f625a594b1d4b83fbc041ebd88f2a5dcffee8e6b08c5b336e987",
+      "name": "nginx_tls.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\nginx_tls.png",
+      "reason": null,
+      "sha256": "b5d0cb9759c0f625a594b1d4b83fbc041ebd88f2a5dcffee8e6b08c5b336e987",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "ff8551ba4b04d8b5ddb2ef9228e6844be3f90d7e00cd21f2d23a2651345575bf",
+      "name": "properties_crosshair.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\properties_crosshair.png",
+      "reason": null,
+      "sha256": "ff8551ba4b04d8b5ddb2ef9228e6844be3f90d7e00cd21f2d23a2651345575bf",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "1692d01cc646ab7f3e260936f06444b238854d319aa8f4960ec5c50b9f187981",
+      "name": "tempo_trace.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\tempo_trace.png",
+      "reason": null,
+      "sha256": "1692d01cc646ab7f3e260936f06444b238854d319aa8f4960ec5c50b9f187981",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": null,
+      "kind": "edai2",
+      "manifest_sha256": null,
+      "name": "terraform_apply.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\terraform_apply.png",
+      "reason": "not-found",
+      "sha256": null,
+      "status": "Missing",
+      "width": null
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "f43580be8e5c740bb3e56960dcbbac072cc72dcfbe0ae1f95c2bf8434b3246c3",
+      "name": "vault_status.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\vault_status.png",
+      "reason": null,
+      "sha256": "f43580be8e5c740bb3e56960dcbbac072cc72dcfbe0ae1f95c2bf8434b3246c3",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "kind": "edai2",
+      "manifest_sha256": "71732162be9f52006354bff91db69bc7a15dca36eb658034e615a3347f88c3b6",
+      "name": "whole_course_diagram.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\whole_course_diagram.png",
+      "reason": null,
+      "sha256": "71732162be9f52006354bff91db69bc7a15dca36eb658034e615a3347f88c3b6",
+      "status": "Pass",
+      "width": 1600
+    },
+    {
+      "height": 900,
+      "kind": "section03",
+      "manifest_sha256": "ba02e5341f6af700530b97dca707f5e4e25f7cbaf44b6df8d50d7fd9821003ad",
+      "name": "section03_config_and_training_join.png",
+      "path": "evidence\\03_data_generator_improvement\\runs\\f6d07b09a12107b19a4bfe45a7bda6f87ab9356021a90e2ec6f02f63b5602640\\section03_config_and_training_join.png",
+      "reason": null,
+      "sha256": "ba02e5341f6af700530b97dca707f5e4e25f7cbaf44b6df8d50d7fd9821003ad",
+      "status": "Pass",
+      "width": 1600
+    }
+  ],
+  "manifest": "evidence\\04_2_llm_design\\screenshots\\ui_manifest.json",
+  "mode": "verify-screenshots-only",
+  "root": null,
+  "screenshots_dir": "evidence\\04_2_llm_design\\screenshots",
+  "section03_dimensions": [
+    1600,
+    900
+  ],
+  "section03_manifest": "evidence\\03_data_generator_improvement\\section03_manifest.json",
+  "strict_partial": true,
+  "summary": {
+    "fail": 0,
+    "missing": 10,
+    "pass": 24,
+    "pending_producer": 0,
+    "total": 34
+  },
+  "ui_dimensions": [
+    1600,
+    1000
+  ]
+}

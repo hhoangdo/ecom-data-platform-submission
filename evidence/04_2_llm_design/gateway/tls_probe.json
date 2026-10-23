@@ -1,0 +1,11 @@
+{
+ "certificates": 5,
+ "hosts": [
+  "retrieval.34.136.7.84.sslip.io",
+  "chat.34.136.7.84.sslip.io",
+  "grafana.34.136.7.84.sslip.io",
+  "langfuse.34.136.7.84.sslip.io",
+  "jenkins.34.136.7.84.sslip.io"
+ ],
+ "ip": "34.136.7.84"
+}

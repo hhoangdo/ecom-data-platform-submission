@@ -1,0 +1,12 @@
+{
+ "active_version": "t27-smoke-b119673b8a56",
+ "canonical": false,
+ "chunk_count": 17,
+ "document_count": 8,
+ "document_version_count": 9,
+ "index_version": "t27-smoke-b119673b8a56",
+ "note": "One-query smoke index for the T27 live trace; not the canonical 60-case gate.",
+ "prior_active_version": null,
+ "purpose": "t27-smoke",
+ "revision": "b119673b8a56edfaa8857c9b91d480a0ba811a60"
+}

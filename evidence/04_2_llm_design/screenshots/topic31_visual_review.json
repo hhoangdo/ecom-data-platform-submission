@@ -1,7 +1,16 @@
 {
-  "audit": "tmp/edai2-gcp/topic31-screenshot-audit-final.json",
+  "audit": "evidence/04_2_llm_design/gke/topic31-screenshot-audit-t27-final.json",
   "human_eyes": false,
   "images": [
+    {
+      "height": 1000,
+      "name": "chat_auth_rate_limit.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\chat_auth_rate_limit.png",
+      "reason": "Chat evidence page shows unauthenticated 401, five accepted requests, and over-limit 429.",
+      "result": "pass",
+      "sha256": "3d4c48f08012fba16ac7b9586136306b2c1f65c675ff0697cda436f97410bd7d",
+      "width": 1600
+    },
     {
       "height": 1000,
       "name": "coverage_and_api_fixtures.png",
@@ -31,6 +40,123 @@
     },
     {
       "height": 1000,
+      "name": "grafana_ab.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\grafana_ab.png",
+      "reason": "EDAI2 A-B dashboard with both arms, sample counts, and quality/latency panels is visible.",
+      "result": "pass",
+      "sha256": "5ecde644e42ff7bac2bc71ae84248a1634e4e6e2d806276f9ae4ea825a67a18e",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "grafana_agents.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\grafana_agents.png",
+      "reason": "EDAI2 Agents dashboard with agent/tool call and failure panels and the 6-hour UTC range is visible.",
+      "result": "pass",
+      "sha256": "964189fc7afdba4f90cb8f2d2355433847b7f16748d27fc18ced08a1e660d493",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "grafana_compute.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\grafana_compute.png",
+      "reason": "EDAI2 Compute dashboard with CPU, RAM, Disk, and Network panels and the 6-hour UTC range is visible.",
+      "result": "pass",
+      "sha256": "68363ca121715d6303b66b158a0e028d5cdd1d40ba840094979025eca0a04c76",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "grafana_http.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\grafana_http.png",
+      "reason": "EDAI2 HTTP dashboard with the RPS, Request count, and Failures panels and the 6-hour UTC range is visible; no secret.",
+      "result": "pass",
+      "sha256": "d12113acdcf2409feed3b773b409f855f67ca1b923e95cb96593b8d12369c89c",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "grafana_llm.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\grafana_llm.png",
+      "reason": "EDAI2 LLM dashboard with token, RTT, TTFT, and safety panels and the 6-hour UTC range is visible.",
+      "result": "pass",
+      "sha256": "d1667ba12bce8365047c0f83e1814c1fa6fbb856451164592336fba51f077129",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "jenkins_coordinator.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\jenkins_coordinator.png",
+      "reason": "Jenkins edai2-coordinator build page shows its build number, SUCCESS, and common_commit=4f36cb1\u2026.",
+      "result": "pass",
+      "sha256": "840bcaf7fb5b8190370a9a4d417f5c64645121ebf19b15c395799b998b5b7276",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "jenkins_drift_agent.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\jenkins_drift_agent.png",
+      "reason": "Jenkins edai2-drift-agent build page shows its build number, SUCCESS, and common_commit=4f36cb1\u2026.",
+      "result": "pass",
+      "sha256": "1753de0a06f18144ec1b67b149b343dec19e0b7312bac86da2e3edebfc1ae97d",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "jenkins_feast_offline.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\jenkins_feast_offline.png",
+      "reason": "Jenkins edai2-feast-offline-writer build page shows its build number, SUCCESS, and common_commit=4f36cb1\u2026.",
+      "result": "pass",
+      "sha256": "20df87c7c92dfa61a481e2b18f777f9a553456fea7114a2e05aca09240ef9cf8",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "jenkins_feast_online.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\jenkins_feast_online.png",
+      "reason": "Jenkins edai2-feast-online-writer build page shows its build number, SUCCESS, and common_commit=4f36cb1\u2026.",
+      "result": "pass",
+      "sha256": "cd2cc0534c8456bd9bc5672bc89163f99c2ab10bdf9f3fcceebe9cccf2722907",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "jenkins_rag_index.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\jenkins_rag_index.png",
+      "reason": "Jenkins edai2-rag-index build page shows #8, SUCCESS, and common_commit=4f36cb1\u2026; no secret.",
+      "result": "pass",
+      "sha256": "43acdf6b1177379b38671db615d80647363bb40bcb61d488558503b44082effe",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "jenkins_retrieval_agent.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\jenkins_retrieval_agent.png",
+      "reason": "Jenkins edai2-retrieval-agent build page shows its build number, SUCCESS, and common_commit=4f36cb1\u2026.",
+      "result": "pass",
+      "sha256": "46068667567465ba4f0e73f0109687c304145e75e1f039385832dd4c118eac72",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "langfuse_trace.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\langfuse_trace.png",
+      "reason": "Langfuse trace shows the llm-d generation, 352 tokens, 26.28 s latency, redacted operator email, and grounded answer.",
+      "result": "pass",
+      "sha256": "d0d9f852480830c018967f78a6717103413c602b553a75e0bba3527ffc16aa4d",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "loki_app_logs.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\loki_app_logs.png",
+      "reason": "Grafana Explore shows the log_scope=application Loki query and the structured application log row.",
+      "result": "pass",
+      "sha256": "36eaae3c1fe830d1cf4bd30f9a365ef0f36684cab7d93cbb77262b2cbb8436ac",
+      "width": 1600
+    },
+    {
+      "height": 1000,
       "name": "mutation.png",
       "path": "evidence\\04_2_llm_design\\screenshots\\mutation.png",
       "reason": "Mutation report identity, score 0.8076, classified counts, and denominator 4106 are legible.",
@@ -40,11 +166,29 @@
     },
     {
       "height": 1000,
+      "name": "nginx_tls.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\nginx_tls.png",
+      "reason": "HTTPS retrieval origin shows the EDAI2 Retrieval title and service identity; the production certificate is valid.",
+      "result": "pass",
+      "sha256": "b5d0cb9759c0f625a594b1d4b83fbc041ebd88f2a5dcffee8e6b08c5b336e987",
+      "width": 1600
+    },
+    {
+      "height": 1000,
       "name": "properties_crosshair.png",
       "path": "evidence\\04_2_llm_design\\screenshots\\properties_crosshair.png",
       "reason": "Hypothesis and CrossHair identities, bounded run details, and passing/no-counterexample state are legible.",
       "result": "pass",
       "sha256": "ff8551ba4b04d8b5ddb2ef9228e6844be3f90d7e00cd21f2d23a2651345575bf",
+      "width": 1600
+    },
+    {
+      "height": 1000,
+      "name": "tempo_trace.png",
+      "path": "evidence\\04_2_llm_design\\screenshots\\tempo_trace.png",
+      "reason": "Tempo trace view shows the facade root, coordinator, specialist, retrieval/drift API, and Feast/PostgreSQL spans.",
+      "result": "pass",
+      "sha256": "1692d01cc646ab7f3e260936f06444b238854d319aa8f4960ec5c50b9f187981",
       "width": 1600
     },
     {
@@ -75,9 +219,9 @@
       "width": 1600
     }
   ],
-  "inspected_count": 8,
+  "inspected_count": 24,
   "method": "model visual inspection at original resolution",
-  "reviewed_at_utc": "2026-10-19T18:46:12.325825Z",
+  "reviewed_at_utc": "2026-10-22T22:50:55.786071Z",
   "reviewer": "agent (operator-delegated)",
   "schema_version": 1,
   "status": "pass"

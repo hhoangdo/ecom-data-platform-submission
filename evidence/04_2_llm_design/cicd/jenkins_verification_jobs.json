@@ -1,0 +1,71 @@
+{
+ "commit_sha": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+ "jobs": [
+  {
+   "build": 8,
+   "build_url": "https://jenkins.34.136.7.84.sslip.io/job/edai2-rag-index/8/",
+   "commit_sha": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+   "expected_digest": "sha256:cd7f2c83c4f7354799f59fd7eca0167ed10ab214fe8c0f1177ac5e4558b01cf0",
+   "expected_tag": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+   "job": "edai2-rag-index",
+   "label": "rag-index",
+   "result": "SUCCESS",
+   "url": "http://127.0.0.1:18080/job/edai2-rag-index/8/console"
+  },
+  {
+   "build": 7,
+   "build_url": "https://jenkins.34.136.7.84.sslip.io/job/edai2-feast-offline-writer/7/",
+   "commit_sha": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+   "expected_digest": "sha256:2424b58940af055c4cbbbc7dd57d8d7a7ee7da783b29207b9983d152bcbf713a",
+   "expected_tag": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+   "job": "edai2-feast-offline-writer",
+   "label": "feast-offline-writer",
+   "result": "SUCCESS",
+   "url": "http://127.0.0.1:18080/job/edai2-feast-offline-writer/7/console"
+  },
+  {
+   "build": 7,
+   "build_url": "https://jenkins.34.136.7.84.sslip.io/job/edai2-feast-online-writer/7/",
+   "commit_sha": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+   "expected_digest": "sha256:1a0bb3ca324eee753d0eb1cca3d76d74986945f8d157cc4c72b3eba256717494",
+   "expected_tag": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+   "job": "edai2-feast-online-writer",
+   "label": "feast-online-writer",
+   "result": "SUCCESS",
+   "url": "http://127.0.0.1:18080/job/edai2-feast-online-writer/7/console"
+  },
+  {
+   "build": 7,
+   "build_url": "https://jenkins.34.136.7.84.sslip.io/job/edai2-retrieval-agent/7/",
+   "commit_sha": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+   "expected_digest": "sha256:1a7833f83986be35f1f6dfeffbda20f147169e6483f9c0294c678a989e370e81",
+   "expected_tag": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+   "job": "edai2-retrieval-agent",
+   "label": "retrieval-agent",
+   "result": "SUCCESS",
+   "url": "http://127.0.0.1:18080/job/edai2-retrieval-agent/7/console"
+  },
+  {
+   "build": 7,
+   "build_url": "https://jenkins.34.136.7.84.sslip.io/job/edai2-drift-agent/7/",
+   "commit_sha": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+   "expected_digest": "sha256:815e59c36a4b0894832744adb9fcde99337f2e0ec6c4c6d417f976e2870c790e",
+   "expected_tag": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+   "job": "edai2-drift-agent",
+   "label": "drift-agent",
+   "result": "SUCCESS",
+   "url": "http://127.0.0.1:18080/job/edai2-drift-agent/7/console"
+  },
+  {
+   "build": 7,
+   "build_url": "https://jenkins.34.136.7.84.sslip.io/job/edai2-coordinator/7/",
+   "commit_sha": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+   "expected_digest": "sha256:3c949aaa9933d57de278066c97f9caa7e6dd5e20b77f49453f850654a2605284",
+   "expected_tag": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+   "job": "edai2-coordinator",
+   "label": "coordinator",
+   "result": "SUCCESS",
+   "url": "http://127.0.0.1:18080/job/edai2-coordinator/7/console"
+  }
+ ]
+}

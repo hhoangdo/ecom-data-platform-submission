@@ -1,0 +1,8 @@
+{
+ "citation_precision": 1.0,
+ "failures": [],
+ "index_version": "t27-smoke-b119673b8a56",
+ "passed": true,
+ "recall_at_4": 1.0,
+ "safety_pass_rate": 1.0
+}

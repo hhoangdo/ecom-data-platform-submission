@@ -1,0 +1,1 @@
+{"accepted": 5, "at": "2026-10-22T18:39:27.075055+00:00", "attempts": [401, 405, 405, 405, 405, 405, 429], "burst": 5, "over_limit_status": 429, "saw_503": false, "unauthenticated_status": 401}

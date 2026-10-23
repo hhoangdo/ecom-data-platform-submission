@@ -1,0 +1,148 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: edai2-retrieval
+  namespace: edai2
+  labels:
+    edai2.route-set: topic27-observability
+    edai2.lease-owner: topic27-evidence
+  annotations:
+    cert-manager.io/cluster-issuer: edai2-acme-production
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - retrieval.34.136.7.84.sslip.io
+    secretName: edai2-retrieval-tls
+  rules:
+  - host: retrieval.34.136.7.84.sslip.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: retrieval-agent
+            port:
+              number: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: edai2-chat
+  namespace: edai2
+  labels:
+    edai2.route-set: topic27-observability
+    edai2.lease-owner: topic27-evidence
+  annotations:
+    cert-manager.io/cluster-issuer: edai2-acme-production
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: chat-basic-auth
+    nginx.ingress.kubernetes.io/limit-rps: '1'
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: '5'
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - chat.34.136.7.84.sslip.io
+    secretName: edai2-chat-tls
+  rules:
+  - host: chat.34.136.7.84.sslip.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: coordinator
+            port:
+              number: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: edai2-grafana
+  namespace: edai2
+  labels:
+    edai2.route-set: topic27-observability
+    edai2.lease-owner: topic27-evidence
+  annotations:
+    cert-manager.io/cluster-issuer: edai2-acme-production
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - grafana.34.136.7.84.sslip.io
+    secretName: edai2-grafana-tls
+  rules:
+  - host: grafana.34.136.7.84.sslip.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana
+            port:
+              number: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: edai2-langfuse
+  namespace: edai2
+  labels:
+    edai2.route-set: topic27-observability
+    edai2.lease-owner: topic27-evidence
+  annotations:
+    cert-manager.io/cluster-issuer: edai2-acme-production
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - langfuse.34.136.7.84.sslip.io
+    secretName: edai2-langfuse-tls
+  rules:
+  - host: langfuse.34.136.7.84.sslip.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: langfuse
+            port:
+              number: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: edai2-jenkins
+  namespace: edai2
+  labels:
+    edai2.route-set: topic27-observability
+    edai2.lease-owner: topic27-evidence
+  annotations:
+    cert-manager.io/cluster-issuer: edai2-acme-production
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - jenkins.34.136.7.84.sslip.io
+    secretName: edai2-jenkins-tls
+  rules:
+  - host: jenkins.34.136.7.84.sslip.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: jenkins
+            port:
+              number: 8080

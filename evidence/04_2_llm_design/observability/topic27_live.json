@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "purpose": "T27 live gateway and telemetry capture",
+  "architecture": "direct coordinator -> retrieval API -> PostgreSQL; coordinator -> llm-d; kagent/MCP hops are an approved T28 exception",
+  "revision": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+  "collected_at": "2026-10-22T18:39:27Z",
+  "trace": {
+    "trace_id": "f35ecdc694adfb1bffb5839ffb53b54",
+    "root": "facade",
+    "duration_ms": 59363,
+    "spans": [
+      {"span": "facade", "parent": null},
+      {"span": "coordinator", "parent": "facade"},
+      {"span": "llm-d", "parent": "coordinator"},
+      {"span": "specialist", "parent": "coordinator"},
+      {"span": "retrieval/drift API", "parent": "specialist"},
+      {"span": "Feast/PostgreSQL", "parent": "retrieval/drift API"}
+    ]
+  },
+  "chat": {
+    "request_id": "0c2b143a-6696-4efe-9d60-d10b07cd5c6d",
+    "route": "support",
+    "answer": "Customers may request a return for an eligible physical item within 45 calendar days after delivery.",
+    "citation_chunk_id": "d7476d915cf28a347e5cde879a8b39de4b2b401f0aa6cb686054aa3c97ec30ec",
+    "document_id": "returns-policy",
+    "index_version": "t27-smoke-b119673b8a56",
+    "model_version": "Qwen/Qwen2.5-1.5B-Instruct",
+    "tool": "search_ecommerce_knowledge",
+    "tool_status": "succeeded"
+  },
+  "rate_limit": {
+    "path": "evidence/04_2_llm_design/gateway/https_rate_limit.json",
+    "unauthenticated_status": 401,
+    "accepted": 5,
+    "over_limit_status": 429,
+    "saw_503": false
+  },
+  "dashboards": {
+    "http": "edai2-http",
+    "compute": "edai2-compute",
+    "llm": "edai2-llm",
+    "agents": "edai2-agents",
+    "ab": "edai2-ab"
+  },
+  "tls": {
+    "host_suffix": "34.136.7.84.sslip.io",
+    "certificates": 5,
+    "issuer": "edai2-acme-production"
+  }
+}

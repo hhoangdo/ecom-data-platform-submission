@@ -1,6 +1,6 @@
 {
-  "approved_at": "2026-10-19",
-  "missing_count": 26,
+  "approved_at": "2026-10-22",
+  "missing_count": 10,
   "missing_screenshots": {
     "22": [
       "gcp_billing_spend.png",
@@ -9,24 +9,6 @@
     "26": [
       "agentregistry_agents.png",
       "keda_scale.png"
-    ],
-    "27": [
-      "chat_auth_rate_limit.png",
-      "grafana_ab.png",
-      "grafana_agents.png",
-      "grafana_compute.png",
-      "grafana_http.png",
-      "grafana_llm.png",
-      "jenkins_coordinator.png",
-      "jenkins_drift_agent.png",
-      "jenkins_feast_offline.png",
-      "jenkins_feast_online.png",
-      "jenkins_rag_index.png",
-      "jenkins_retrieval_agent.png",
-      "langfuse_trace.png",
-      "loki_app_logs.png",
-      "nginx_tls.png",
-      "tempo_trace.png"
     ],
     "28": [
       "airflow_rag_graph.png",
@@ -40,18 +22,18 @@
     ]
   },
   "non_screenshot_exceptions": [
-    "T25: Jenkins provenance waived; direct-Helm 6/6 digest parity accepted; no live Jenkins jobs.",
+    "T25: Jenkins provenance waived; six live Jenkins verification jobs check the deployed image tag at the common 4f36cb1 commit; no full six-build sprint.",
     "T26: KEDA/chat live proof waived; registry publish and rollback machine evidence not produced.",
-    "T27: study-only lock retained; E45:E47 Partial by design; 16 images deferred.",
-    "T28: RAG index/Airflow/DataHub/factorial/startup blocked by missing runtime wiring; Section 03 upload and llmd readiness completed.",
-    "T29: live evaluation/A-B/notebooks/Locust/novel blocked by missing service endpoints; local test-quality gates completed.",
-    "T30: platform pool suspend/resume and Vault recovery completed; spot pool zero failed on first attempt; backup manifest, resume gates, and 7 fingerprint accessors deferred; Postgres reader blocked by stale credentials.",
-    "T31: visual QA recorded as agent (operator-delegated); 26 missing images approved; teardown completed.",
+    "T27: Completed: 16/16 screenshots; bounded HTTPS window; telemetry trace uses the deployed direct facade->coordinator->specialist->retrieval->Feast chain; kagent/MCP hops remain an approved T28 architecture exception.",
+    "T28: RAG index/Airflow/DataHub/factorial/startup remain blocked; direct retrieval smoke readiness completed; 2 images remain approved missing.",
+    "T29: live evaluation/A-B/notebooks/Locust/novel blocked by missing service endpoints; local test-quality gates completed; 4 images approved missing.",
+    "T30: platform/Vault recovery completed; spot/backup/accessors deferred; Postgres app role reset to a working credential.",
+    "T31: visual QA agent-delegated; 24 present images reviewed; 10 approved missing; teardown completed.",
     "T32: both producer images completed and validated."
   ],
-  "pass_count": 8,
+  "pass_count": 24,
   "pending_producer_count": 0,
   "schema_version": 1,
-  "scope": "constraint-relaxed closure (Option A), approved by operator",
+  "scope": "T27 finalized with the direct runtime; kagent/MCP architecture remains an approved T28 exception",
   "teardown": "evidence/04_2_llm_design/gke/teardown.json"
 }

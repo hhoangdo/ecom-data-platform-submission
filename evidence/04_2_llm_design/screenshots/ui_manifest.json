@@ -167,5 +167,389 @@
     "sha256": "f43580be8e5c740bb3e56960dcbbac072cc72dcfbe0ae1f95c2bf8434b3246c3",
     "proves": "Proves the live Vault recovery status is initialized, unsealed, and policy-scoped.",
     "does_not_prove": "It does not prove regional disaster recovery or the Vault login UI."
+  },
+  {
+    "path": "grafana_http.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-22T21:07:47.733466+00:00",
+    "url_or_source": "https://grafana.34.136.7.84.sslip.io/d/edai2-http/edai2-http?orgId=1&from=now-6h&to=now&refresh=30s",
+    "commit_or_revision": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+    "visible_selectors": [
+      "Grafana title",
+      "dashboard EDAI2 HTTP",
+      "RPS/count/failure panels",
+      "time range"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/observability/topic27_live.json",
+        "sha256": "c822cace63e2f960716f20573d0e967d2ac384f73f13edea616da00c3b6f8f69"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "d12113acdcf2409feed3b773b409f855f67ca1b923e95cb96593b8d12369c89c",
+    "proves": "EDAI2 HTTP RPS/count/failure panels are visible.",
+    "does_not_prove": "It does not prove alert transitions; telemetry fixtures do."
+  },
+  {
+    "path": "grafana_compute.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-22T21:08:03.836079+00:00",
+    "url_or_source": "https://grafana.34.136.7.84.sslip.io/d/edai2-compute/edai2-compute?orgId=1&from=now-6h&to=now&refresh=30s",
+    "commit_or_revision": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+    "visible_selectors": [
+      "Grafana title",
+      "dashboard EDAI2 Compute",
+      "CPU/RAM/disk/network panels",
+      "time range"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/observability/topic27_live.json",
+        "sha256": "c822cace63e2f960716f20573d0e967d2ac384f73f13edea616da00c3b6f8f69"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "68363ca121715d6303b66b158a0e028d5cdd1d40ba840094979025eca0a04c76",
+    "proves": "EDAI2 Compute CPU/RAM/disk/network panels are visible.",
+    "does_not_prove": "It does not prove capacity headroom."
+  },
+  {
+    "path": "grafana_llm.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-22T21:08:19.795211+00:00",
+    "url_or_source": "https://grafana.34.136.7.84.sslip.io/d/edai2-llm/edai2-llm?orgId=1&from=now-6h&to=now&refresh=30s",
+    "commit_or_revision": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+    "visible_selectors": [
+      "Grafana title",
+      "dashboard EDAI2 LLM",
+      "token/RTT/TTFT/safety panels",
+      "time range"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/observability/topic27_live.json",
+        "sha256": "c822cace63e2f960716f20573d0e967d2ac384f73f13edea616da00c3b6f8f69"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "d1667ba12bce8365047c0f83e1814c1fa6fbb856451164592336fba51f077129",
+    "proves": "EDAI2 LLM generation/RTT/TTFT/safety panels are visible.",
+    "does_not_prove": "It does not prove generation latency gates."
+  },
+  {
+    "path": "grafana_agents.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-22T21:08:35.670627+00:00",
+    "url_or_source": "https://grafana.34.136.7.84.sslip.io/d/edai2-agents/edai2-agents?orgId=1&from=now-6h&to=now&refresh=30s",
+    "commit_or_revision": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+    "visible_selectors": [
+      "Grafana title",
+      "dashboard EDAI2 Agents",
+      "agent/tool call and failure panels"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/observability/topic27_live.json",
+        "sha256": "c822cace63e2f960716f20573d0e967d2ac384f73f13edea616da00c3b6f8f69"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "964189fc7afdba4f90cb8f2d2355433847b7f16748d27fc18ced08a1e660d493",
+    "proves": "EDAI2 Agents agent/tool call and failure panels are visible.",
+    "does_not_prove": "It does not prove distinct actor placement."
+  },
+  {
+    "path": "grafana_ab.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-22T21:08:52.411200+00:00",
+    "url_or_source": "https://grafana.34.136.7.84.sslip.io/d/edai2-ab/edai2-ab?orgId=1&from=now-6h&to=now&refresh=30s",
+    "commit_or_revision": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+    "visible_selectors": [
+      "Grafana title",
+      "dashboard EDAI2 A-B",
+      "both arms",
+      "sample counts",
+      "quality/latency panels"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/observability/topic27_live.json",
+        "sha256": "c822cace63e2f960716f20573d0e967d2ac384f73f13edea616da00c3b6f8f69"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "5ecde644e42ff7bac2bc71ae84248a1634e4e6e2d806276f9ae4ea825a67a18e",
+    "proves": "EDAI2 A-B assignment/arm dashboard is visible; final arm data lands with Topic 29.",
+    "does_not_prove": "It does not prove the A/B decision."
+  },
+  {
+    "path": "loki_app_logs.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-22T21:09:09.470437+00:00",
+    "url_or_source": "https://grafana.34.136.7.84.sslip.io/explore?orgId=1&left=%7B%22datasource%22%3A%22edai2-loki%22%2C%22queries%22%3A%5B%7B%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7Blog_scope%3D%5C%22application%5C%22%7D%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22now-6h%22%2C%22to%22%3A%22now%22%7D%7D",
+    "commit_or_revision": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+    "visible_selectors": [
+      "Loki/Grafana Explore context",
+      "log_scope=application",
+      "service filter",
+      "redacted structured log rows"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/observability/topic27_live.json",
+        "sha256": "c822cace63e2f960716f20573d0e967d2ac384f73f13edea616da00c3b6f8f69"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "36eaae3c1fe830d1cf4bd30f9a365ef0f36684cab7d93cbb77262b2cbb8436ac",
+    "proves": "Application log_scope rows are visible without merged system logs.",
+    "does_not_prove": "It does not prove system log health."
+  },
+  {
+    "path": "tempo_trace.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-22T21:09:25.676201+00:00",
+    "url_or_source": "https://grafana.34.136.7.84.sslip.io/explore?orgId=1&left=%7B%22range%22%3A%7B%22from%22%3A%22now-6h%22%2C%22to%22%3A%22now%22%7D%2C%22datasource%22%3A%22edai2-tempo%22%2C%22queries%22%3A%5B%7B%22query%22%3A%22f35ecdc694adfb1bffb5839ffb53b54%22%2C%22queryType%22%3A%22traceql%22%7D%5D%7D",
+    "commit_or_revision": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+    "visible_selectors": [
+      "Tempo trace context",
+      "trace ID",
+      "root chat span",
+      "gateway/coordinator/specialist/MCP dependency chain"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/observability/topic27_live.json",
+        "sha256": "c822cace63e2f960716f20573d0e967d2ac384f73f13edea616da00c3b6f8f69"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "1692d01cc646ab7f3e260936f06444b238854d319aa8f4960ec5c50b9f187981",
+    "proves": "Branched Tempo trace with a single root is visible.",
+    "does_not_prove": "It does not prove every hop latency."
+  },
+  {
+    "path": "langfuse_trace.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-22T21:09:40.577473+00:00",
+    "url_or_source": "https://langfuse.34.136.7.84.sslip.io/project/cmvjw9ipa0005zt074uaivrpy/traces/e329fe47da0c9e8369c1731909267721",
+    "commit_or_revision": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+    "visible_selectors": [
+      "Langfuse title",
+      "trace/session identity",
+      "model version",
+      "token/latency fields",
+      "redacted input/output state"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/observability/topic27_live.json",
+        "sha256": "c822cace63e2f960716f20573d0e967d2ac384f73f13edea616da00c3b6f8f69"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "d0d9f852480830c018967f78a6717103413c602b553a75e0bba3527ffc16aa4d",
+    "proves": "Langfuse trace/session with redacted I/O is visible.",
+    "does_not_prove": "It does not prove model quality."
+  },
+  {
+    "path": "nginx_tls.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-22T21:09:53.113989+00:00",
+    "url_or_source": "https://retrieval.34.136.7.84.sslip.io/",
+    "commit_or_revision": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+    "visible_selectors": [
+      "HTTPS origin",
+      "valid certificate/security indicator",
+      "ingress host",
+      "application title"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/observability/topic27_live.json",
+        "sha256": "c822cace63e2f960716f20573d0e967d2ac384f73f13edea616da00c3b6f8f69"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "b5d0cb9759c0f625a594b1d4b83fbc041ebd88f2a5dcffee8e6b08c5b336e987",
+    "proves": "HTTPS origin with a valid certificate indicator is visible.",
+    "does_not_prove": "It does not prove rate limiting; the chat view does."
+  },
+  {
+    "path": "chat_auth_rate_limit.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-22T21:10:05.690343+00:00",
+    "url_or_source": "https://chat.34.136.7.84.sslip.io/evidence/auth-rate-limit",
+    "commit_or_revision": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+    "visible_selectors": [
+      "Chat route context",
+      "explicit authentication rejection 401",
+      "rate-limit response 429 evidence"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/gateway/https_rate_limit.json",
+        "sha256": "9e9a88e260d15f4fa78fbde45fe4d08f2d9dbcd0fc3173193b6e1f56c000ba81"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "3d4c48f08012fba16ac7b9586136306b2c1f65c675ff0697cda436f97410bd7d",
+    "proves": "401 rejection and 429 rate-limit evidence is visible.",
+    "does_not_prove": "It does not prove accepted traffic shape."
+  },
+  {
+    "path": "jenkins_rag_index.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-22T22:49:05.851135+00:00",
+    "url_or_source": "https://jenkins.34.136.7.84.sslip.io/job/edai2-rag-index/8/",
+    "commit_or_revision": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+    "visible_selectors": [
+      "Jenkins job edai2-rag-index",
+      "build number",
+      "SUCCESS",
+      "common full commit SHA"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/cicd/jenkins_verification_jobs.json",
+        "sha256": "4cb026f5237075a304bf983377a2b8163d449487d351675d6b69d015403045ba"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "43acdf6b1177379b38671db615d80647363bb40bcb61d488558503b44082effe",
+    "proves": "Jenkins edai2-rag-index build page shows SUCCESS at the common commit.",
+    "does_not_prove": "It does not prove a rebuild; no build was triggered."
+  },
+  {
+    "path": "jenkins_retrieval_agent.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-22T22:49:21.433015+00:00",
+    "url_or_source": "https://jenkins.34.136.7.84.sslip.io/job/edai2-retrieval-agent/7/",
+    "commit_or_revision": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+    "visible_selectors": [
+      "Jenkins job edai2-retrieval-agent",
+      "build number",
+      "SUCCESS",
+      "common full commit SHA"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/cicd/jenkins_verification_jobs.json",
+        "sha256": "4cb026f5237075a304bf983377a2b8163d449487d351675d6b69d015403045ba"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "46068667567465ba4f0e73f0109687c304145e75e1f039385832dd4c118eac72",
+    "proves": "Jenkins edai2-retrieval-agent build page shows SUCCESS at the common commit.",
+    "does_not_prove": "It does not prove a rebuild; no build was triggered."
+  },
+  {
+    "path": "jenkins_drift_agent.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-22T22:49:36.859976+00:00",
+    "url_or_source": "https://jenkins.34.136.7.84.sslip.io/job/edai2-drift-agent/7/",
+    "commit_or_revision": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+    "visible_selectors": [
+      "Jenkins job edai2-drift-agent",
+      "build number",
+      "SUCCESS",
+      "common full commit SHA"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/cicd/jenkins_verification_jobs.json",
+        "sha256": "4cb026f5237075a304bf983377a2b8163d449487d351675d6b69d015403045ba"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "1753de0a06f18144ec1b67b149b343dec19e0b7312bac86da2e3edebfc1ae97d",
+    "proves": "Jenkins edai2-drift-agent build page shows SUCCESS at the common commit.",
+    "does_not_prove": "It does not prove a rebuild; no build was triggered."
+  },
+  {
+    "path": "jenkins_coordinator.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-22T22:49:52.216563+00:00",
+    "url_or_source": "https://jenkins.34.136.7.84.sslip.io/job/edai2-coordinator/7/",
+    "commit_or_revision": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+    "visible_selectors": [
+      "Jenkins job edai2-coordinator",
+      "build number",
+      "SUCCESS",
+      "common full commit SHA"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/cicd/jenkins_verification_jobs.json",
+        "sha256": "4cb026f5237075a304bf983377a2b8163d449487d351675d6b69d015403045ba"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "840bcaf7fb5b8190370a9a4d417f5c64645121ebf19b15c395799b998b5b7276",
+    "proves": "Jenkins edai2-coordinator build page shows SUCCESS at the common commit.",
+    "does_not_prove": "It does not prove a rebuild; no build was triggered."
+  },
+  {
+    "path": "jenkins_feast_offline.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-22T22:50:07.655474+00:00",
+    "url_or_source": "https://jenkins.34.136.7.84.sslip.io/job/edai2-feast-offline-writer/7/",
+    "commit_or_revision": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+    "visible_selectors": [
+      "Jenkins job edai2-feast-offline-writer",
+      "build number",
+      "SUCCESS",
+      "common full commit SHA"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/cicd/jenkins_verification_jobs.json",
+        "sha256": "4cb026f5237075a304bf983377a2b8163d449487d351675d6b69d015403045ba"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "20df87c7c92dfa61a481e2b18f777f9a553456fea7114a2e05aca09240ef9cf8",
+    "proves": "Jenkins edai2-feast-offline-writer build page shows SUCCESS at the common commit.",
+    "does_not_prove": "It does not prove a rebuild; no build was triggered."
+  },
+  {
+    "path": "jenkins_feast_online.png",
+    "width": 1600,
+    "height": 1000,
+    "captured_at_utc": "2026-10-22T22:50:23.032455+00:00",
+    "url_or_source": "https://jenkins.34.136.7.84.sslip.io/job/edai2-feast-online-writer/7/",
+    "commit_or_revision": "4f36cb1d770586fb51bdc065ac9dce0d88b24420",
+    "visible_selectors": [
+      "Jenkins job edai2-feast-online-writer",
+      "build number",
+      "SUCCESS",
+      "common full commit SHA"
+    ],
+    "linked_machine_evidence": [
+      {
+        "path": "evidence/04_2_llm_design/cicd/jenkins_verification_jobs.json",
+        "sha256": "4cb026f5237075a304bf983377a2b8163d449487d351675d6b69d015403045ba"
+      }
+    ],
+    "approved_plan_sha256": null,
+    "sha256": "cd2cc0534c8456bd9bc5672bc89163f99c2ab10bdf9f3fcceebe9cccf2722907",
+    "proves": "Jenkins edai2-feast-online-writer build page shows SUCCESS at the common commit.",
+    "does_not_prove": "It does not prove a rebuild; no build was triggered."
   }
 ]
