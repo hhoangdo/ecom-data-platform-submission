@@ -59,6 +59,10 @@ truthful exception and stop that topic.
 4. Create `infra/terraform/edai2/terraform.tfvars` from
    `terraform.tfvars.example`; fill the new project, billing account, bucket,
    notification target, and trial credit. Never commit it.
+   Create fresh `tmp/edai2-gcp/operator-inputs.json` and `monetary-inputs.json`
+   with the new project, billing, and spend-source values. The T22 completion
+   record documents the schema and the `check_budget.py --help` flags; do not
+   copy the old values or old credentials.
 5. Preflight, then apply:
    ```powershell
    .venv\Scripts\python.exe scripts/gke/check_budget.py --help
