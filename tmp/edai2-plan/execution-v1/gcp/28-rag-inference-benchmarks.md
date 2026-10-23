@@ -278,3 +278,11 @@ Topic 28 owns `index_run.json`, inference benchmark/cost, agent startup, and two
 - **Approved exceptions:** `rag/index_run.json`, `inference/*`, `airflow_rag_graph.png`, and `datahub_rag_lineage.png` were not produced. Airflow has no deployed DAGs; `RagIndexPipeline()` has no candidate store/catalog; `DatahubIndexCatalogAdapter` has no live emit/read ports; `FeastPostgresAdapter` requires Feast/Valkey hooks. E5/E8/E9/E26 remain unproven.
 - **Cleanup:** T28 lease released; T31 teardown proves zero nodes/ingress/LB/forwarding/lease.
 - **Handoff:** the service runtime, Airflow DAG image, and live DataHub adapter remain a separate implementation project.
+
+## Readiness Addendum - 2026-10-22 (T27 direct runtime)
+
+- **Status:** Completed with approved exceptions (unchanged). This addendum records the runtime readiness that unblocked T27; it does **not** convert the T28 canonical RAG/Airflow/DataHub/factorial/startup cells.
+- **What changed:** `create_retrieval_service_from_environment` now builds a real `FeastPostgresAdapter` + `PinnedBgeEmbedder(model_path=...)` and fails closed without both; the drift and chat surfaces build real dependencies from the same environment; the direct coordinator performs a real retrieval HTTP call plus a real `llmd-primary` generation and returns a cited answer. Retrieval `/readyz` is 200, the service images are at `4f36cb1`, and a one-query smoke index (`t27-smoke-b119673b8a56`, 17 chunks) is persisted and active.
+- **Remaining T28 exceptions:** the canonical 60-case gate/index, Airflow DAG, live DataHub emit/read-back, factorial/startup matrix, inference benchmark numerics, and the two RAG images. The T27 smoke index is explicitly **not** canonical evidence.
+- **Evidence:** `rag/t27_smoke_index.json` SHA-256 `DC4F05C83429FAE142FAE5D28FDE75DE41B0E12F5EFA66A4EBC65E4560E896ED`; `rag/t27_smoke_validation.json` SHA-256 `220916CA2E8B459C9ABE0F07024929E8C903F251C3E0FA1AA294D396190CEA76`; `observability/topic27_live.json` SHA-256 `C822CACE63E2F960716F20573D0E967D2AC384F73F13EDEA616DA00C3B6F8F69`.
+- **Handoff:** T28 stays Completed-with-approved-exceptions; no T28 status change, and E5/E8/E9/E26 remain unproven.

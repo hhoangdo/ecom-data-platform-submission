@@ -261,3 +261,15 @@ Topic 31 has no primary rubric cell. Its QA gate is required before any cell may
 - **Teardown:** `gke/teardown.json` -> `ok:true`; ingress 0, LB 0, forwarding rules 0, nodes 0, `pools_zero:true`, lease absent; SHA-256 `e7f11bcaf19f62f81bc8495d7b55f4636827755bf6ee2db549f107e17f6d48cf`. The resize wrapper and command-output writer are `scripts/gke/teardown.py`.
 - **Run manifest:** `run_manifest.json` summary `Completed-with-approved-exceptions`; `fail:0, missing:26, pending_producer:0`; visual QA agent-delegated (8 images); teardown `ok:true`.
 - **Handoff:** Topic 27 remains Partial by operator deferral; all other topics have final records with the approved exception list. No stage/commit/push/PR was performed.
+
+## Completion Record - 2026-10-22 final (T27 completed; 10 approved missing)
+
+- **Status:** **Completed with approved exceptions.** T27 is now Completed with 16/16 screenshots; the audit is `pass:24, missing:10, pending_producer:0, fail:0, total:34`. The missing set is exactly T22 (2), T26 (2), T28 (2), and T29 (4).
+- **Branch / revision:** `feature/implement-edai2`; deployed images/Jenkins builds at `4f36cb1d770586fb51bdc065ac9dce0d88b24420`. The final evidence/records commit follows; final SHAs in the session handoff. No push or PR.
+- **Screenshot audit:** `evidence/04_2_llm_design/gke/topic31-screenshot-audit-t27-final.json` SHA-256 `02B536DE1A100CD66D0A4EB2F85D2200BDCAE6CCC1DE6A959DF197D79CE9CE56`; manifest `screenshots/ui_manifest.json` SHA-256 `5FC62AEEF9F2E84104D8251673D73ED30B571EA0C18293E58E78BD2B52522B9C`.
+- **Visual QA:** `screenshots/topic31_visual_review.json` SHA-256 `07842552964193A1C7EF860BF525A4DE56F20B4DE550382EB48EB5AB2D14778F`; reviewer `agent (operator-delegated)`, method `model visual inspection at original resolution`, 24/24 present images pass, `human_eyes:false`.
+- **Approved exceptions:** `gke/topic31-approved-exceptions.json` SHA-256 `40CFE039F20C435960D501D434A3B2BEB6DB66F51C7A3C46B705422D77DF1A18`; `missing_count:10`, `pass_count:24`, `pending_producer_count:0`. T27 is no longer listed.
+- **Teardown:** `gke/teardown.json` SHA-256 `FD1CD71B29EF9D3CD432B1C44282A4F900E821EA9D7A66C4725FE7C68A6A3516`; `ok:true`; ingress 0, LB 0, forwarding 0, nodes 0, pools zero, lease absent. Only the stale foreign `topic23-lease.json` remains.
+- **Run manifest:** generated after this record; expected summary `Completed-with-approved-exceptions`, `fail:0`, `missing:10`, `pass:24`, `pending_producer:0`. The final manifest SHA and the evidence commit SHA are in the session handoff.
+- **Limitations:** T27 uses the direct runtime; kagent/agentgateway/MCP hops remain an approved T28 architecture exception. Jenkins verification jobs check the deployed image tag at the common `4f36cb1` commit and record the actual digest; they are not a full six-build provenance sprint (T25 exception). T28 canonical RAG/Airflow/DataHub/factorial/startup remain open. T29 live evaluation/A-B/Locust/novel remain open.
+- **Handoff:** T25/T26/T28/T29/T30 stay Completed-with-approved-exceptions; T27 Completed; T32 Completed. No further live work is required for this closeout.
