@@ -68,10 +68,15 @@ truthful exception and stop that topic.
    ```
    Run `--help` and use the flags the current revision actually supports; do not
    copy commands blindly from historical records.
-6. Build and push the six images with an explicit registry substitution:
+6. Build and push the images with explicit registry and revision substitutions.
+   Both `cloudbuild.yaml` and `cloudbuild-coordinator.yaml` still carry historical
+   defaults, so pass both values:
    ```powershell
-   gcloud builds submit --config cloudbuild.yaml --substitutions _REGISTRY=$env:EDAI2_REGISTRY
+   $sha = git rev-parse HEAD
+   gcloud builds submit --config cloudbuild.yaml --substitutions "_REGISTRY=$env:EDAI2_REGISTRY,_SHA=$sha"
+   gcloud builds submit --config cloudbuild-coordinator.yaml --substitutions "_REGISTRY=$env:EDAI2_REGISTRY,_SHA=$sha"
    ```
+   Do not rely on the checked-in `_SHA` or `_REGISTRY` defaults.
    `ci/jenkins/scripts/release.sh` already passes
    `--set-string image.repository=${AR_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/...`.
    Do not rely on the hardcoded Helm defaults.
