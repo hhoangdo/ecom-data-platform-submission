@@ -2776,17 +2776,17 @@ def recapture(paths: list, policy: dict | None = None) -> dict:
 
 _RUN_MANIFEST_SLICE_LIMIT = 1_000_000
 _RUN_MANIFEST_PLAN_FILES = {
-    "22": "tmp/edai2-plan/execution-v1/gcp/22-gcp-account-budget-terraform-apply.md",
-    "23": "tmp/edai2-plan/execution-v1/gcp/23-vault-kms-model-cache-bootstrap.md",
-    "24": "tmp/edai2-plan/execution-v1/gcp/24-compact-platform-install.md",
-    "25": "tmp/edai2-plan/execution-v1/gcp/25-jenkins-six-workload-deploy.md",
-    "26": "tmp/edai2-plan/execution-v1/gcp/26-keda-agent-ha-registry-rollbacks.md",
-    "27": "tmp/edai2-plan/execution-v1/gcp/27-observability-https-jenkins-evidence.md",
-    "28": "tmp/edai2-plan/execution-v1/gcp/28-rag-inference-benchmarks.md",
-    "29": "tmp/edai2-plan/execution-v1/gcp/29-evaluation-ab-notebooks-load-test-evidence.md",
-    "30": "tmp/edai2-plan/execution-v1/gcp/30-persistence-vault-recovery-resume.md",
-    "31": "tmp/edai2-plan/execution-v1/gcp/31-final-screenshot-qa-teardown.md",
-    "32": "tmp/edai2-plan/execution-v1/gcp/32-topic32-producer-images.md",
+    "22": "evidence/04_2_llm_design/completion/22-gcp-account-budget-terraform-apply.md",
+    "23": "evidence/04_2_llm_design/completion/23-vault-kms-model-cache-bootstrap.md",
+    "24": "evidence/04_2_llm_design/completion/24-compact-platform-install.md",
+    "25": "evidence/04_2_llm_design/completion/25-jenkins-six-workload-deploy.md",
+    "26": "evidence/04_2_llm_design/completion/26-keda-agent-ha-registry-rollbacks.md",
+    "27": "evidence/04_2_llm_design/completion/27-observability-https-jenkins-evidence.md",
+    "28": "evidence/04_2_llm_design/completion/28-rag-inference-benchmarks.md",
+    "29": "evidence/04_2_llm_design/completion/29-evaluation-ab-notebooks-load-test-evidence.md",
+    "30": "evidence/04_2_llm_design/completion/30-persistence-vault-recovery-resume.md",
+    "31": "evidence/04_2_llm_design/completion/31-final-screenshot-qa-teardown.md",
+    "32": "evidence/04_2_llm_design/completion/32-topic32-producer-images.md",
 }
 
 
@@ -3000,7 +3000,7 @@ def build_run_manifest(
     for topic in ("22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32"):
         rel = _RUN_MANIFEST_PLAN_FILES.get(topic)
         if rel is None:
-            completions[topic] = {"path": f"tmp/edai2-plan/execution-v1/gcp/{topic}-*.md", "status": "Missing", "reason": "producer-topic-32-not-yet-produced" if topic == "32" else "no plan file mapped"}
+            completions[topic] = {"path": f"evidence/04_2_llm_design/completion/{topic}-*.md", "status": "Missing", "reason": "producer-topic-32-not-yet-produced" if topic == "32" else "no plan file mapped"}
             continue
         plan_path = workspace_path / rel
         plan_rel = _run_manifest_rel(plan_path, workspace_path)
