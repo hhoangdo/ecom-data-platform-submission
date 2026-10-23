@@ -1,2 +1,5 @@
 * text=auto
 *.sh text eol=lf
+
+# Evidence artifacts are SHA-256 sealed; never normalize their bytes.
+evidence/04_2_llm_design/** -text
