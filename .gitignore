@@ -57,7 +57,9 @@ tmp/rubic-check/runtime/*.duckdb
 !tmp/edai2-plan/**
 tmp/edai2-plan/.artifact-inspect/node_modules
 architecture/decisions/
-docs/
+/docs/*
+!/docs/agents/
+!/docs/adr/
 .superpowers/
 
 # Local development logs
